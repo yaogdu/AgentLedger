@@ -40,6 +40,11 @@ from .tools import ToolSpec
 from .worker import LocalWorker, WorkerService, build_worker_deployment_plan
 
 PROJECT_URL = "https://github.com/yaogdu/AgentLedger"
+HELP_EPILOG = f"""Project: {PROJECT_URL}
+Docs:    {PROJECT_URL}#readme
+Install: pipx install agentledger-runtime
+Package: pip install agentledger-runtime
+"""
 
 
 def runtime_from_root(root: str, policy_path: str | None = None, sandbox_config_path: str | None = None) -> Runtime:
@@ -731,7 +736,12 @@ def cmd_corpus_eval(args: argparse.Namespace) -> None:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="agentledger")
+    parser = argparse.ArgumentParser(
+        prog="agentledger",
+        description="Durable execution and reliability runtime for production AI agents.",
+        epilog=HELP_EPILOG,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
     parser.add_argument("--root", default=".agentledger", help="runtime data root")
     parser.add_argument("--policy", help="optional policy YAML/JSON file")
     parser.add_argument("--sandbox-config", help="optional sandbox JSON/YAML config file")

@@ -206,6 +206,16 @@ class RuntimeTests(unittest.TestCase):
         self.assertIn("s3", project["optional-dependencies"])
         self.assertIn("Programming Language :: Python :: 3.11", project["classifiers"])
         self.assertIn("Programming Language :: Python :: 3.12", project["classifiers"])
+        self.assertEqual(project["version"], "1.0.1")
+
+    def test_cli_help_points_to_github_docs(self) -> None:
+        stdout = io.StringIO()
+        parser = build_parser()
+        with contextlib.redirect_stdout(stdout), self.assertRaises(SystemExit):
+            parser.parse_args(["--help"])
+        help_text = stdout.getvalue()
+        self.assertIn("https://github.com/yaogdu/AgentLedger", help_text)
+        self.assertIn("pipx install agentledger-runtime", help_text)
 
     def test_side_effect_not_duplicated_after_crash_retry(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -2005,7 +2015,9 @@ roles:
         roadmap = Path("docs/ROADMAP.md").read_text(encoding="utf-8")
         ci = Path(".github/workflows/ci.yml").read_text(encoding="utf-8")
         self.assertIn("[English](README.md) | [中文](README.zh-CN.md)", readme)
-        self.assertIn("![Version 1.0.0 stable]", readme)
+        self.assertIn("![Version 1.0.1 stable]", readme)
+        self.assertIn("python3 -m pip install agentledger-runtime", readme)
+        self.assertIn("https://github.com/yaogdu/AgentLedger", readme)
         self.assertIn("docs/assets/agentledger-runtime-architecture.svg", readme)
         self.assertIn("[English](README.md) | [中文](README.zh-CN.md)", zh_readme)
         self.assertIn("适合什么场景", zh_readme)

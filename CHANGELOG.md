@@ -6,13 +6,20 @@ This project follows semantic versioning for the stable runtime-core contract. O
 
 ## Unreleased
 
+## 1.0.1
+
+### Added
+
+- `agentledger --help` now prints the GitHub project URL, documentation URL, and recommended `pipx install agentledger-runtime` command.
+- README and usage docs now make the PyPI distribution name explicit and point users from installation to the GitHub documentation.
+
+## 1.0.0
+
 ### Changed
 
 - Removed public `eval` CLI aliases in favor of `evidence-check`, `evidence-regression`, and `corpus check`, keeping full eval systems outside runtime-core.
 - Clarified the v1.0 roadmap section as implemented for Python runtime-core, with media/stream contracts still marked preview.
 - Changed the PyPI distribution name to `agentledger-runtime` while keeping the import package and CLI as `agentledger`.
-
-## 1.0.0
 
 ### Added
 

@@ -12,6 +12,7 @@
 
 ```bash
 python3 -m pip install agentledger-runtime
+agentledger --help
 agentledger doctor
 ```
 
@@ -21,7 +22,7 @@ PyPI distribution 名是 `agentledger-runtime`；代码中仍然这样 import：
 from agentledger import agent, run
 ```
 
-`agentledger doctor` 会输出 GitHub 文档地址，方便用户安装后继续阅读和使用。
+`agentledger --help` 和 `agentledger doctor` 都会输出 GitHub 文档地址，方便用户安装后继续阅读和使用。
 
 ```bash
 PYTHONPATH=src python3 -m agentledger --help

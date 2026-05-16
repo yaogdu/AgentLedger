@@ -12,6 +12,7 @@ Install from PyPI:
 
 ```bash
 python3 -m pip install agentledger-runtime
+agentledger --help
 agentledger doctor
 ```
 
@@ -21,7 +22,7 @@ The PyPI distribution is `agentledger-runtime`; import it as `agentledger`:
 from agentledger import agent, run
 ```
 
-`agentledger doctor` prints the GitHub documentation URL so users know where to start after installation.
+`agentledger --help` and `agentledger doctor` print the GitHub documentation URL so users know where to start after installation.
 
 Run from the repository root:
 

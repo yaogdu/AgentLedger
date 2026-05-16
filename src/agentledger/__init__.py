@@ -1,6 +1,6 @@
 """AgentLedger agent runtime v1.0 stable core."""
 
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 
 from .adapters import FrameworkAdapter, PythonFunctionAdapter, python_agent
 from .adapters_frameworks import AutoGenAdapter, CrewAIAdapter, LangChainRunnableAdapter, LlamaIndexAdapter, MethodFrameworkAdapter, OpenAIAgentsSDKAdapter, SemanticKernelAdapter
