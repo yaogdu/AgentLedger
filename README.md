@@ -16,6 +16,16 @@ Most agent frameworks focus on planning, reasoning, and workflow logic. AgentLed
 
 Python is the current reference implementation. Rust, TypeScript, and Go implementations should target the same language-neutral runtime contract.
 
+## At a glance
+
+| Question | Answer |
+| --- | --- |
+| What is stable? | Python v1.0 runtime-core: local durable execution, Tool Ledger, evidence/replay, policy/approval/sandbox boundaries, cost/failure reports, worker/conformance, and the runtime contract. |
+| What is optional? | Postgres, S3/MinIO, framework-native packages, OTLP collector transport, sandbox infrastructure, distributed deployment recipes, and real-service hardening. |
+| What is preview? | Media/stream artifact contracts and some dependency-free adapter facades. |
+| What is not in core? | Planning engines, full eval systems, RAG/vector memory, trace stores, hosted application products, and hosted sandbox infrastructure. |
+| How should other languages work? | This repo is contract-first. Python is the reference runtime; TypeScript, Rust, and Go should target `contracts/agentledger.runtime.v1.json` and shared conformance fixtures. |
+
 ## Scope principle
 
 AgentLedger keeps the runtime thin but hard to replace: core only owns guarantees that cannot be reliably enforced outside the runtime boundary. Everything else should integrate through adapters, contracts, conformance tests, and examples.
@@ -178,6 +188,18 @@ The runtime-core contract is stable; optional production adapters and external i
 | Configure Postgres or S3/MinIO | [docs/POSTGRES.md](docs/POSTGRES.md), [docs/S3_MINIO.md](docs/S3_MINIO.md) |
 | Prepare releases | [docs/RELEASE_CHECKLIST.md](docs/RELEASE_CHECKLIST.md), [docs/VERSIONING.md](docs/VERSIONING.md) |
 | Read Chinese docs | [README.zh-CN.md](README.zh-CN.md), [docs/zh/README.md](docs/zh/README.md) |
+
+## Repository layout
+
+```text
+src/agentledger/     Python reference runtime-core
+tests/               unit, conformance, and integration-style tests
+examples/            dependency-free examples and adapter facades
+docs/                English documentation and runtime design docs
+docs/zh/             Chinese primary reader path
+contracts/           language-neutral runtime contract snapshot
+migrations/          SQLite/Postgres DDL and migration baselines
+```
 
 ## Automated validation
 

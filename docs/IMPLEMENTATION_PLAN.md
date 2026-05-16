@@ -1,5 +1,7 @@
 # Implementation Plan
 
+This is a historical implementation plan. Use `IMPLEMENTATION_STATUS.md`, `ROADMAP.md`, and `RELEASE_CHECKLIST.md` for the current v1.0 runtime-core status and release gates. Phase labels such as MVP or v0.x describe how the project was built, not the current maturity claim.
+
 This project should not be implemented as a giant application from day one. It should be built in phases, where each phase proves a specific reliability claim.
 
 ## North Star

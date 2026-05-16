@@ -29,6 +29,21 @@ python3 -m pip install -e ".[postgres]"
 python3 -m pip install -e ".[s3]"
 ```
 
+## First 10 Minutes
+
+Use this path to verify the runtime locally before reading the deeper design docs:
+
+```bash
+PYTHONPATH=src python3 examples/hello_world/hello.py
+PYTHONPATH=src python3 -m agentledger --root .agentledger-demo run examples/side_effect_idempotency
+PYTHONPATH=src python3 -m agentledger --root .agentledger-demo debug <run_id> --json --include-diffs
+PYTHONPATH=src python3 -m agentledger --root .agentledger-demo ledger <run_id>
+PYTHONPATH=src python3 -m agentledger --root .agentledger-demo replay <run_id>
+PYTHONPATH=src python3 -m agentledger --root .agentledger-demo evidence <run_id> --html ./evidence.html
+```
+
+The important behavior to observe is not the text output; it is that the run has durable state, leased steps, a Tool Ledger entry, replay without side effects, and exportable evidence.
+
 ## Hello World
 
 ```python
@@ -221,3 +236,13 @@ PYTHONPATH=src python3 -m agentledger adapter conformance --kind langchain
 - Do not treat replay or shadow mode as permission to call external systems.
 - Do not point conformance or destructive experiments at real application data.
 - Do not put application business schemas inside AgentLedger runtime metadata.
+
+## Where To Go Next
+
+| Need | Read |
+| --- | --- |
+| Understand the runtime boundary | `ARCHITECTURE.md` |
+| Learn state, Tool Ledger, replay, and worker internals | `DESIGN_AND_IMPLEMENTATION.md` |
+| Extend tools, storage, frameworks, sandbox, or observability | `EXTENSIBILITY.md` |
+| Check what is stable, preview, or roadmap | `IMPLEMENTATION_STATUS.md` and `MATURITY_MODEL.md` |
+| Prepare a release or contribution | `RELEASE_CHECKLIST.md` and `../CONTRIBUTING.md` |

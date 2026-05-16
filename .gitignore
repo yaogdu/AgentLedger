@@ -1,6 +1,14 @@
 .agentledger/
+*.db
+*.sqlite
+*.sqlite3
+
 __pycache__/
+**/__pycache__/
 *.py[cod]
+*.pyo
+*.pyd
+$py.class
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
@@ -13,3 +21,18 @@ build/
 venv/
 .env
 .DS_Store
+**/.DS_Store
+
+# Local notes, research dumps, and generated reports that should not ship.
+AI_Agent_Runtime_开源项目构想.md
+*.pdf
+*.docx
+*.pptx
+*.pages
+*.key
+evidence/
+evidence*.html
+time-travel*.html
+
+# Local external installer/download artifacts.
+rce

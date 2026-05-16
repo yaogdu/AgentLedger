@@ -27,6 +27,21 @@ python3 -m pip install -e ".[postgres]"
 python3 -m pip install -e ".[s3]"
 ```
 
+## 前 10 分钟
+
+先用这条路径验证本地 runtime，再继续读架构和实现文档：
+
+```bash
+PYTHONPATH=src python3 examples/hello_world/hello.py
+PYTHONPATH=src python3 -m agentledger --root .agentledger-demo run examples/side_effect_idempotency
+PYTHONPATH=src python3 -m agentledger --root .agentledger-demo debug <run_id> --json --include-diffs
+PYTHONPATH=src python3 -m agentledger --root .agentledger-demo ledger <run_id>
+PYTHONPATH=src python3 -m agentledger --root .agentledger-demo replay <run_id>
+PYTHONPATH=src python3 -m agentledger --root .agentledger-demo evidence <run_id> --html ./evidence.html
+```
+
+重点不是输出文本，而是确认这个 run 具备 durable state、带 lease 的 step、Tool Ledger entry、无副作用 replay，以及可导出的 evidence。
+
 ## Hello World
 
 ```python
@@ -204,3 +219,13 @@ PYTHONPATH=src python3 -m agentledger blob conformance --backend local
 PYTHONPATH=src python3 -m agentledger worker conformance --backend sqlite --concurrent
 PYTHONPATH=src python3 -m agentledger adapter conformance --kind langchain
 ```
+
+## 下一步读什么
+
+| 需求 | 文档 |
+| --- | --- |
+| 理解 runtime boundary | `ARCHITECTURE.md` |
+| 理解 state、Tool Ledger、replay 和 worker 内部机制 | `DESIGN_AND_IMPLEMENTATION.md` |
+| 扩展 tool、storage、framework、sandbox 或 observability | `EXTENSIBILITY.md` |
+| 查看 stable、preview、roadmap 边界 | `IMPLEMENTATION_STATUS.md` 和 `../MATURITY_MODEL.md` |
+| 准备 release 或 contribution | `RELEASE_CHECKLIST.md` 和 `../../CONTRIBUTING.md` |

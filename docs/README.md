@@ -20,6 +20,16 @@ This directory is the canonical documentation set for AgentLedger. English docs 
 | Check current status | `IMPLEMENTATION_STATUS.md` | `zh/IMPLEMENTATION_STATUS.md` |
 | Prepare a release | `RELEASE_CHECKLIST.md` | `zh/RELEASE_CHECKLIST.md` |
 
+## Recommended Reader Paths
+
+| Reader | Path |
+|---|---|
+| New user | `../README.md` -> `USAGE.md` -> `../examples/hello_world/hello.py` -> `../examples/side_effect_idempotency/README.md` |
+| Runtime implementer | `ARCHITECTURE.md` -> `DESIGN_AND_IMPLEMENTATION.md` -> `RUNTIME_SPEC.md` -> `../contracts/agentledger.runtime.v1.json` |
+| Adapter author | `EXTENSIBILITY.md` -> `ADAPTER_CERTIFICATION.md` -> relevant example under `../examples/` -> conformance commands |
+| Production pilot reviewer | `IMPLEMENTATION_STATUS.md` -> `MATURITY_MODEL.md` -> `SECURITY_ENTERPRISE.md` -> `STORAGE.md` -> `RELEASE_CHECKLIST.md` |
+| Future language implementer | `MULTI_LANGUAGE.md` -> `RUNTIME_SPEC.md` -> `../contracts/agentledger.runtime.v1.json` -> conformance fixtures |
+
 ## Core Design Docs
 
 - `ARCHITECTURE.md`: runtime layers, SVG architecture diagram, module map, invariants, adapter boundaries.

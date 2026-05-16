@@ -16,6 +16,16 @@ AgentLedger `1.0.0` 是一个面向 AI Agent 的 durable execution 与 reliabili
 
 Python 是当前 reference implementation。后续 Rust、TypeScript、Go 实现应对齐同一份 language-neutral runtime contract。
 
+## 快速判断
+
+| 问题 | 回答 |
+| --- | --- |
+| 哪些是稳定的？ | Python v1.0 runtime-core：本地 durable execution、Tool Ledger、evidence/replay、policy/approval/sandbox boundary、cost/failure report、worker/conformance 和 runtime contract。 |
+| 哪些是可选的？ | Postgres、S3/MinIO、framework-native package、OTLP collector transport、sandbox infrastructure、distributed deployment recipe 和真实服务 hardening。 |
+| 哪些是 preview？ | Media/stream artifact contracts，以及部分 dependency-free adapter facade。 |
+| 哪些不属于 core？ | Planning engine、完整 eval 系统、RAG/vector memory、trace store、托管应用产品和托管 sandbox infrastructure。 |
+| 其它语言怎么做？ | 这个 repo 是 contract-first。Python 是 reference runtime；TypeScript、Rust、Go 后续应对齐 `contracts/agentledger.runtime.v1.json` 和共享 conformance fixtures。 |
+
 ## 范围原则
 
 AgentLedger 的 runtime 要保持“薄但不可替代”：core 只内建那些不在 runtime boundary 内就无法可靠保证的能力。其它能力通过 adapter、contract、conformance test 和 example 接入成熟生态。
@@ -178,6 +188,18 @@ runtime-core contract 已稳定；optional production adapter 和外部基础设
 | 配置 Postgres 或 S3/MinIO | [docs/POSTGRES.md](docs/POSTGRES.md)、[docs/S3_MINIO.md](docs/S3_MINIO.md) |
 | 准备发布 | [docs/zh/RELEASE_CHECKLIST.md](docs/zh/RELEASE_CHECKLIST.md)、[docs/VERSIONING.md](docs/VERSIONING.md) |
 | 阅读英文文档 | [README.md](README.md)、[docs/README.md](docs/README.md) |
+
+## 仓库结构
+
+```text
+src/agentledger/     Python reference runtime-core
+tests/               unit、conformance 和 integration-style tests
+examples/            dependency-free examples 和 adapter facades
+docs/                英文文档和 runtime design docs
+docs/zh/             中文主阅读路径
+contracts/           language-neutral runtime contract snapshot
+migrations/          SQLite/Postgres DDL 和 migration baselines
+```
 
 ## 自动化验证
 

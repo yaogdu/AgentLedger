@@ -17,6 +17,16 @@
 | 查看路线图 | `ROADMAP.md` | `../ROADMAP.md` |
 | 查看发布检查 | `RELEASE_CHECKLIST.md` | `../RELEASE_CHECKLIST.md` |
 
+## 推荐读者路径
+
+| 读者 | 路径 |
+|---|---|
+| 新用户 | `../../README.zh-CN.md` -> `USAGE.md` -> `../../examples/hello_world/hello.py` -> `../../examples/side_effect_idempotency/README.md` |
+| Runtime 实现者 | `ARCHITECTURE.md` -> `DESIGN_AND_IMPLEMENTATION.md` -> `../RUNTIME_SPEC.md` -> `../../contracts/agentledger.runtime.v1.json` |
+| Adapter 作者 | `EXTENSIBILITY.md` -> `ADAPTER_CERTIFICATION.md` -> `../../examples/` 下的相关示例 -> conformance commands |
+| Production pilot reviewer | `IMPLEMENTATION_STATUS.md` -> `../MATURITY_MODEL.md` -> `SECURITY_ENTERPRISE.md` -> `STORAGE.md` -> `RELEASE_CHECKLIST.md` |
+| 后续语言实现者 | `../MULTI_LANGUAGE.md` -> `../RUNTIME_SPEC.md` -> `../../contracts/agentledger.runtime.v1.json` -> conformance fixtures |
+
 ## 项目定位
 
 AgentLedger 不是新的 Agent 框架，而是一个 framework-neutral runtime reliability layer。
