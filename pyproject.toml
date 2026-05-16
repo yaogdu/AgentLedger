@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "agentledger"
+name = "agentledger-runtime"
 version = "1.0.0"
 description = "Durable execution and reliability runtime for production-grade AI agents"
 readme = "README.md"
@@ -23,6 +23,12 @@ classifiers = [
 ]
 authors = [{name = "AgentLedger Contributors"}]
 dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/yaogdu/AgentLedger"
+Repository = "https://github.com/yaogdu/AgentLedger"
+Documentation = "https://github.com/yaogdu/AgentLedger#readme"
+Issues = "https://github.com/yaogdu/AgentLedger/issues"
 
 [project.optional-dependencies]
 postgres = ["psycopg[binary]>=3.1"]

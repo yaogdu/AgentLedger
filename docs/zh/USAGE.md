@@ -8,6 +8,21 @@
 
 请使用 Python 3.11 或更高版本。如果系统默认 `python3` 较旧，请替换为 `python3.11`。
 
+从 PyPI 安装：
+
+```bash
+python3 -m pip install agentledger-runtime
+agentledger doctor
+```
+
+PyPI distribution 名是 `agentledger-runtime`；代码中仍然这样 import：
+
+```python
+from agentledger import agent, run
+```
+
+`agentledger doctor` 会输出 GitHub 文档地址，方便用户安装后继续阅读和使用。
+
 ```bash
 PYTHONPATH=src python3 -m agentledger --help
 PYTHONPATH=src python3 -m agentledger doctor
@@ -23,9 +38,11 @@ agentledger --help
 可选 adapter 依赖：
 
 ```bash
-python3 -m pip install -e ".[postgres]"
-python3 -m pip install -e ".[s3]"
+python3 -m pip install "agentledger-runtime[postgres]"
+python3 -m pip install "agentledger-runtime[s3]"
 ```
+
+如果是从仓库本地开发，再使用 `python3 -m pip install -e ".[postgres]"` 或 `python3 -m pip install -e ".[s3]"`。
 
 ## 前 10 分钟
 

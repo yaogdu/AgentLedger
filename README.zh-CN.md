@@ -100,7 +100,24 @@ Optional production adapter:
 
 ## 快速开始
 
-### 1. 本地开发安装
+### 1. 安装
+
+从 PyPI 安装：
+
+```bash
+python3 -m pip install agentledger-runtime
+agentledger doctor
+```
+
+PyPI distribution 名是 `agentledger-runtime`；Python import package 和 CLI 仍然是 `agentledger`。
+
+项目主页和完整文档：
+
+```text
+https://github.com/yaogdu/AgentLedger
+```
+
+### 2. 本地开发安装
 
 请使用 Python 3.11 或更高版本。如果系统默认 `python3` 版本较低，可以把下面命令里的 `python3` 替换为 `python3.11`。
 
@@ -115,7 +132,7 @@ agentledger doctor
 PYTHONPATH=src python3 -m agentledger doctor
 ```
 
-### 2. 最小 API
+### 3. 最小 API
 
 ```python
 from agentledger import agent, run
@@ -131,7 +148,7 @@ print(result.run_id)
 
 这个例子看起来只是一次普通函数调用，但 runtime 仍然会创建 durable run、领取带 lease 的 step、记录事件、原子提交 state，并支持后续 evidence export。
 
-### 3. 常用 CLI flow
+### 4. 常用 CLI flow
 
 ```bash
 PYTHONPATH=src python3 examples/hello_world/hello.py

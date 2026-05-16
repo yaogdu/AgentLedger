@@ -197,9 +197,10 @@ class RuntimeTests(unittest.TestCase):
     def test_pyproject_declares_package_entrypoint_and_supported_python(self) -> None:
         metadata = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
         project = metadata["project"]
-        self.assertEqual(project["name"], "agentledger")
+        self.assertEqual(project["name"], "agentledger-runtime")
         self.assertEqual(project["requires-python"], ">=3.11")
         self.assertEqual(project["scripts"]["agentledger"], "agentledger.cli:main")
+        self.assertEqual(project["urls"]["Repository"], "https://github.com/yaogdu/AgentLedger")
         self.assertIn("README.md", project["readme"])
         self.assertIn("postgres", project["optional-dependencies"])
         self.assertIn("s3", project["optional-dependencies"])

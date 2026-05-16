@@ -8,6 +8,21 @@ AgentLedger currently has no mandatory third-party runtime dependency.
 
 Use Python 3.11 or newer. If your system `python3` is older, replace it with `python3.11`.
 
+Install from PyPI:
+
+```bash
+python3 -m pip install agentledger-runtime
+agentledger doctor
+```
+
+The PyPI distribution is `agentledger-runtime`; import it as `agentledger`:
+
+```python
+from agentledger import agent, run
+```
+
+`agentledger doctor` prints the GitHub documentation URL so users know where to start after installation.
+
 Run from the repository root:
 
 ```bash
@@ -25,9 +40,11 @@ agentledger --help
 Optional adapters:
 
 ```bash
-python3 -m pip install -e ".[postgres]"
-python3 -m pip install -e ".[s3]"
+python3 -m pip install "agentledger-runtime[postgres]"
+python3 -m pip install "agentledger-runtime[s3]"
 ```
+
+For local development from the repository, use `python3 -m pip install -e ".[postgres]"` or `python3 -m pip install -e ".[s3]"`.
 
 ## First 10 Minutes
 

@@ -10,6 +10,7 @@ This project follows semantic versioning for the stable runtime-core contract. O
 
 - Removed public `eval` CLI aliases in favor of `evidence-check`, `evidence-regression`, and `corpus check`, keeping full eval systems outside runtime-core.
 - Clarified the v1.0 roadmap section as implemented for Python runtime-core, with media/stream contracts still marked preview.
+- Changed the PyPI distribution name to `agentledger-runtime` while keeping the import package and CLI as `agentledger`.
 
 ## 1.0.0
 

@@ -39,6 +39,8 @@ from .timetravel import TimeTravelDebugger
 from .tools import ToolSpec
 from .worker import LocalWorker, WorkerService, build_worker_deployment_plan
 
+PROJECT_URL = "https://github.com/yaogdu/AgentLedger"
+
 
 def runtime_from_root(root: str, policy_path: str | None = None, sandbox_config_path: str | None = None) -> Runtime:
     rt = Runtime.local(root, sandbox_config=sandbox_config_path)
@@ -57,6 +59,7 @@ def cmd_doctor(args: argparse.Namespace) -> None:
     rt = runtime_from_root(args.root, args.policy, getattr(args, "sandbox_config", None))
     print(f"store={rt.store.path}")
     print("status=ok")
+    print(f"docs={PROJECT_URL}")
 
 
 def cmd_run(args: argparse.Namespace) -> None:

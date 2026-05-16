@@ -100,7 +100,24 @@ For example, sandbox semantics are core, but sandbox infrastructure is not. Core
 
 ## Quick start
 
-### 1. Install for local development
+### 1. Install
+
+From PyPI:
+
+```bash
+python3 -m pip install agentledger-runtime
+agentledger doctor
+```
+
+The PyPI distribution is named `agentledger-runtime`; the Python import package and CLI remain `agentledger`.
+
+Project homepage and full documentation:
+
+```text
+https://github.com/yaogdu/AgentLedger
+```
+
+### 2. Install for local development
 
 Use Python 3.11 or newer. If your system `python3` is older, replace `python3` with `python3.11` in the commands below.
 
@@ -115,7 +132,7 @@ The source tree also works without installing the package:
 PYTHONPATH=src python3 -m agentledger doctor
 ```
 
-### 2. Run the minimal API
+### 3. Run the minimal API
 
 ```python
 from agentledger import agent, run
@@ -131,7 +148,7 @@ print(result.run_id)
 
 This looks like a normal function call, but the runtime still creates a durable run, claims a leased step, records events, commits state atomically, and can export evidence.
 
-### 3. Try CLI flows
+### 4. Try CLI flows
 
 ```bash
 PYTHONPATH=src python3 examples/hello_world/hello.py
