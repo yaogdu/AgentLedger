@@ -1,0 +1,246 @@
+# 设计与实现
+
+本文档说明 AgentLedger 的核心设计和实现边界。英文版本见 `../DESIGN_AND_IMPLEMENTATION.md`。
+
+## 设计目标
+
+AgentLedger 的核心可靠性目标是：
+
+```text
+每一个 runtime-managed execution step 都应该可持久化、可审计、可重放，并且能通过 fencing 阻止 stale worker 写入。
+```
+
+明确非目标：
+
+```text
+不替代 Agent 框架
+不成为新的模型 SDK
+不拥有业务数据 schema
+不在 runtime-core 里实现长运行 Web 应用
+不在缺少 Tool Ledger 记录的情况下承诺外部系统 exactly-once
+```
+
+## 核心状态机
+
+创建 run：
+
+```text
+create_run
+  -> runs.status = pending
+  -> steps.status = pending
+  -> append run_created / step_created
+```
+
+worker claim step：
+
+```text
+claim_step
+  -> steps.status = running
+  -> owner = worker_id
+  -> lease_token = generated fencing token
+  -> attempt += 1
+  -> append step_claimed
+```
+
+Agent 只能通过 `AgentContext` 进入 runtime-managed 能力：
+
+```text
+AgentContext
+  -> call_model
+  -> call_tool
+  -> write_state_patch
+  -> create_artifact
+  -> create_media_artifact
+  -> create_stream_checkpoint
+```
+
+提交状态时必须 fenced：
+
+```text
+commit_state_patch
+  -> 校验 lease token
+  -> 校验 base state version
+  -> merge JSON patch
+  -> increment state_version
+  -> mark step completed
+  -> append state_patch_committed / step_completed
+```
+
+如果 lease 已过期、被取消或 token 不匹配，提交必须失败。
+
+## 存储实现
+
+reference implementation 是 `SQLiteStore`，存储 runtime metadata：
+
+```text
+runs
+steps
+events
+tool_ledger
+artifacts
+cost_records
+approval_requests
+schema_migrations
+```
+
+大的 payload 和 artifact 内容通过 `BlobStore` refs 存储，不直接塞进 event payload。
+
+SQLite 是默认本地实现。Postgres 是可选 adapter，支持 migration status/apply、schema isolation、JSONB 转换和 worker claim 语义。
+
+## ToolGateway 和 Tool Ledger
+
+Agent 应通过 `ctx.call_tool(...)` 调用外部能力。
+
+`ToolGateway` 负责：
+
+```text
+ToolSpec lookup
+input schema validation
+policy check
+approval gate
+budget check
+sandbox boundary check
+Tool Ledger reservation
+tool execution
+output schema validation
+ledger status update
+artifact/evidence recording
+```
+
+Tool Ledger 会记录由 logical operation 和 causal context 生成的 stable idempotency key。这样 worker 在外部副作用成功后 crash，重试时可以读取 ledger，而不是重复执行外部写入。
+
+如果 runtime 无法确认副作用是否发生，应该进入 `PENDING_VERIFICATION`，而不是无脑自动重试。
+
+## Replay、Evidence 和 Regression
+
+Replay 是 evidence-based：
+
+```text
+read events
+read archived payload refs
+validate tool/model/archive refs
+summarize what happened
+do not call external tools or model providers
+```
+
+Evidence bundle 包含：
+
+```text
+run metadata
+steps
+events
+tool ledger rows
+artifacts
+media artifact indexes
+stream checkpoint indexes
+cost records
+final state
+bundle hash
+```
+
+Regression 工具比较 evidence，而不是重新执行副作用：
+
+```text
+diff
+divergence
+evidence regression
+golden corpus evidence check
+adversarial review checklist
+```
+
+## Worker 和 Scheduler 语义
+
+worker 是执行副本，不是事实来源。事实来源是 StateStore 里的状态转换。
+
+关键语义：
+
+```text
+lease token fences stale workers
+heartbeat extends the current lease
+recover_expired_leases moves abandoned work back to retry_scheduled
+cancel_run fences active workers
+retry policy decides whether a failed step can be retried
+failure attribution remains read-only
+```
+
+`WorkerService` 保持很小，只提供 process-shaped loop、idle backoff 和 optional signal handlers。分布式部署策略应该放在 runtime-core 外。
+
+## Sandbox 和权限边界
+
+Sandbox 是 contract 和 adapter seam：
+
+```text
+none: sandbox-required tool fail closed
+local: 显式无隔离模式
+bubblewrap/docker: command-style adapter paths
+kubernetes/gVisor: manifest dry-run and gated kubectl path
+E2B/firecracker/custom: adapter slots
+```
+
+runtime-core 记录 sandbox decision 和 result。真正的隔离加固、network policy、secret injection、resource limit 应由部署侧 adapter 负责。
+
+## Media 和 Stream
+
+runtime-core 支持多媒体和流处理的可靠性 metadata，不做真正媒体处理：
+
+```text
+MediaArtifact: durable media ref, metadata, lineage
+ArtifactLineage: source artifacts, blob refs, tool call ids, event ids
+StreamChunkRef: immutable chunk ref and offset
+EventStreamCheckpoint: consumer offset, watermark, partial result ref
+```
+
+adapter 负责：
+
+```text
+capture
+decoding
+frame extraction
+transcription
+embedding generation
+stream transport
+backpressure integration
+```
+
+这样既能让多模态 workflow 可审计、可重放，又不会把 runtime-core 变成媒体引擎。
+
+## Adapter 设计
+
+所有 adapter 都必须保留 runtime invariants，并尽量通过 conformance suite。
+
+adapter 类型：
+
+```text
+StateStore
+BlobStore
+FrameworkAdapter
+Tool/MCP adapter
+SandboxExecutor
+Observability exporter
+Policy engine
+Media/stream adapter
+Model provider
+```
+
+adapter 的职责是把外部系统翻译成 AgentLedger contract，不应该改变 evidence semantics，也不应该绕过 ToolGateway 执行有副作用的工具。
+
+## 测试和发布 Gate
+
+核心 gate：
+
+```text
+compileall over src/tests/examples
+unit tests
+ResourceWarning-sensitive tests
+root conformance
+boundary lint
+contract export and fixture diff
+dependency-free example smoke
+```
+
+contract fixture 必须和当前导出一致：
+
+```bash
+PYTHONPATH=src python3 -m agentledger contract export > /tmp/agentledger-contract.json
+diff -u contracts/agentledger.runtime.v1.json /tmp/agentledger-contract.json
+```

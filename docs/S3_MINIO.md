@@ -1,0 +1,101 @@
+# S3 and MinIO BlobStore
+
+`S3BlobStore` is the experimental production-pilot path for immutable run payloads and artifacts. Runtime metadata stays in the StateStore; large JSON payloads live behind `BlobStoreProtocol` and are referenced by digest/ref.
+
+## Status
+
+```text
+status: Experimental
+hard dependency: none
+optional runtime SDK: boto3, only when no client is injected
+local tests: fake injected client
+real-service tests: opt-in via environment variables
+```
+
+## Configuration
+
+`S3BlobStoreConfig` can be constructed directly or loaded from environment variables.
+
+```text
+AGENTLEDGER_S3_BUCKET       required for env/CLI S3 mode
+AGENTLEDGER_S3_PREFIX       default: agentledger/blobs
+AGENTLEDGER_S3_ENDPOINT_URL optional; set for MinIO or S3-compatible services
+AGENTLEDGER_S3_REGION       optional
+AGENTLEDGER_S3_PROFILE      optional AWS profile name
+```
+
+Python wiring with an injected enterprise client:
+
+```python
+from agentledger import S3BlobStore, S3BlobStoreConfig
+
+blobs = S3BlobStore(
+    S3BlobStoreConfig.from_env(),
+    client=my_enterprise_s3_client,
+)
+```
+
+Python wiring with boto3 discovery:
+
+```python
+from agentledger import S3BlobStore, S3BlobStoreConfig
+
+blobs = S3BlobStore(S3BlobStoreConfig.from_env())
+```
+
+## Local CLI Smoke
+
+This validates the BlobStore contract without S3:
+
+```bash
+PYTHONPATH=src python3 -m agentledger blob conformance --backend local
+```
+
+## MinIO / S3 CLI Smoke
+
+Run this only when the bucket exists and credentials are configured for the selected client.
+
+```bash
+export AGENTLEDGER_S3_BUCKET=agentledger-runs
+export AGENTLEDGER_S3_PREFIX=dev/blobs
+export AGENTLEDGER_S3_ENDPOINT_URL=http://localhost:9000
+export AGENTLEDGER_S3_REGION=us-east-1
+
+PYTHONPATH=src python3 -m agentledger blob conformance --backend s3
+```
+
+For AWS S3, omit `AGENTLEDGER_S3_ENDPOINT_URL` and rely on the standard AWS credential chain or `AGENTLEDGER_S3_PROFILE`.
+
+## Opt-in Integration Test
+
+The normal unit suite skips real S3/MinIO. To run the real-service conformance check:
+
+```bash
+AGENTLEDGER_RUN_S3_INTEGRATION=1 \
+AGENTLEDGER_S3_BUCKET=agentledger-runs \
+AGENTLEDGER_S3_PREFIX=integration/blobs \
+PYTHONPATH=src python3 -m unittest tests.test_s3_integration -v
+```
+
+The test writes tiny content-addressed JSON objects under a unique `integration/<uuid>` child prefix. Configure bucket lifecycle rules for test prefixes in shared environments.
+
+CI includes a dedicated MinIO service job that installs the optional `s3` extra, creates a test bucket, and runs the same real-service BlobStore conformance suite.
+
+## Production-pilot Checklist
+
+Before using this adapter for serious pilot workloads, verify:
+
+```text
+bucket versioning and retention policy are intentional
+lifecycle policy exists for transient test prefixes
+IAM role has only required object permissions for the configured prefix
+server-side encryption policy is enabled if required
+network path and endpoint TLS policy are documented
+backup/restore and evidence-export flows can read historical refs
+BlobStoreConformanceRunner passes against the target service
+failure behavior for missing credentials and unavailable endpoint is understood
+```
+
+## Non-goals
+
+The runtime core does not manage cloud accounts, bucket creation, IAM, KMS keys, or lifecycle policies. Those remain deployment responsibilities or optional adapter-package concerns.

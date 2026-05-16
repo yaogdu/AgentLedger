@@ -1,0 +1,106 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="760" viewBox="0 0 1200 760" role="img" aria-labelledby="title desc">
+  <title id="title">AgentLedger Runtime Architecture</title>
+  <desc id="desc">Layered architecture diagram showing frameworks, runtime boundary, execution control, durable state, evidence and adapters.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#f8fbff"/>
+      <stop offset="100%" stop-color="#eef4f0"/>
+    </linearGradient>
+    <linearGradient id="core" x1="0" x2="1">
+      <stop offset="0%" stop-color="#174c5b"/>
+      <stop offset="100%" stop-color="#1d6b63"/>
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="#17323a" flood-opacity="0.16"/>
+    </filter>
+    <style>
+      .title { font: 700 34px Georgia, "Times New Roman", serif; fill: #102a32; }
+      .subtitle { font: 500 16px Verdana, sans-serif; fill: #47656b; }
+      .layer-title { font: 700 18px Verdana, sans-serif; fill: #ffffff; }
+      .layer-subtitle { font: 500 12px Verdana, sans-serif; fill: #d8f2ef; }
+      .box-title { font: 700 14px Verdana, sans-serif; fill: #15333a; }
+      .box-text { font: 500 12px Verdana, sans-serif; fill: #446168; }
+      .note { font: 700 12px Verdana, sans-serif; fill: #6a4a16; }
+      .small { font: 500 11px Verdana, sans-serif; fill: #5d757a; }
+      .arrow { stroke: #55777e; stroke-width: 2.4; fill: none; marker-end: url(#arrowhead); }
+      .dashed { stroke-dasharray: 7 7; }
+    </style>
+    <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#55777e"/>
+    </marker>
+  </defs>
+
+  <rect width="1200" height="760" fill="url(#bg)"/>
+  <circle cx="1040" cy="96" r="110" fill="#e0eee9" opacity="0.75"/>
+  <circle cx="150" cy="685" r="120" fill="#dfeaf6" opacity="0.7"/>
+
+  <text x="60" y="58" class="title">AgentLedger Runtime Architecture</text>
+  <text x="60" y="86" class="subtitle">Framework-neutral reliability layer for durable execution, tool governance, evidence, replay, and adapter contracts.</text>
+
+  <g filter="url(#shadow)">
+    <rect x="60" y="122" width="1080" height="78" rx="18" fill="url(#core)"/>
+    <text x="90" y="153" class="layer-title">Agent / Framework Layer</text>
+    <text x="90" y="176" class="layer-subtitle">LangGraph · CrewAI · AutoGen · LangChain · OpenAI Agents SDK · LlamaIndex · Semantic Kernel · Python functions · future TS/Rust/Go workers</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="60" y="238" width="1080" height="118" rx="18" fill="#ffffff"/>
+    <rect x="60" y="238" width="1080" height="38" rx="18" fill="#dcebe7"/>
+    <text x="90" y="263" class="box-title">Runtime Boundary</text>
+    <text x="88" y="304" class="box-title">AgentContext</text>
+    <text x="88" y="326" class="box-text">state patches · artifacts · model/tool calls · heartbeats</text>
+    <text x="330" y="304" class="box-title">ToolGateway</text>
+    <text x="330" y="326" class="box-text">schema · policy · approval · budget · Tool Ledger</text>
+    <text x="600" y="304" class="box-title">Runtime</text>
+    <text x="600" y="326" class="box-text">run creation · step execution · commit boundary</text>
+    <text x="830" y="304" class="box-title">Policy / Sandbox</text>
+    <text x="830" y="326" class="box-text">capabilities · fail-closed execution · audit events</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="60" y="394" width="520" height="128" rx="18" fill="#ffffff"/>
+    <rect x="60" y="394" width="520" height="38" rx="18" fill="#e7edf7"/>
+    <text x="90" y="419" class="box-title">Execution Control</text>
+    <text x="90" y="462" class="box-title">Scheduler / Worker</text>
+    <text x="90" y="485" class="box-text">lease · fencing token · heartbeat · retry · cancellation</text>
+    <text x="90" y="507" class="box-text">crash recovery · worker conformance · failure taxonomy</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="620" y="394" width="520" height="128" rx="18" fill="#ffffff"/>
+    <rect x="620" y="394" width="520" height="38" rx="18" fill="#f4e9d6"/>
+    <text x="650" y="419" class="box-title">Durable Metadata</text>
+    <text x="650" y="462" class="box-title">StateStore + BlobStore</text>
+    <text x="650" y="485" class="box-text">runs · steps · events · tool_ledger · artifacts</text>
+    <text x="650" y="507" class="box-text">costs · approvals · schema_migrations · content refs</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="60" y="560" width="520" height="122" rx="18" fill="#ffffff"/>
+    <rect x="60" y="560" width="520" height="38" rx="18" fill="#e6f0dd"/>
+    <text x="90" y="585" class="box-title">Evidence and Reliability</text>
+    <text x="90" y="628" class="box-title">Replay · Evidence · Checks · Shadow</text>
+    <text x="90" y="651" class="box-text">side-effect-free replay · regression gates · cost/failure attribution</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="620" y="560" width="520" height="122" rx="18" fill="#ffffff"/>
+    <rect x="620" y="560" width="520" height="38" rx="18" fill="#f1e4ea"/>
+    <text x="650" y="585" class="box-title">Adapter Layer</text>
+    <text x="650" y="628" class="box-title">Storage · Framework · MCP · Sandbox · Observability</text>
+    <text x="650" y="651" class="box-text">optional packages preserve runtime invariants and pass conformance</text>
+  </g>
+
+  <path class="arrow" d="M600 200 L600 236"/>
+  <path class="arrow" d="M390 356 L330 392"/>
+  <path class="arrow" d="M810 356 L870 392"/>
+  <path class="arrow" d="M330 522 L330 558"/>
+  <path class="arrow" d="M870 522 L870 558"/>
+  <path class="arrow dashed" d="M580 622 L620 622"/>
+  <path class="arrow dashed" d="M620 650 C560 724 212 724 150 682"/>
+
+  <g>
+    <rect x="780" y="704" width="360" height="34" rx="17" fill="#fff7df" stroke="#d7b35b"/>
+    <text x="802" y="726" class="note">Core stores refs and evidence; adapters own infrastructure details.</text>
+  </g>
+</svg>

@@ -1,0 +1,264 @@
+name: CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  python:
+    name: Python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Compile
+        run: PYTHONPYCACHEPREFIX=/tmp/agentledger-pycache PYTHONPATH=src python -m compileall -q src tests examples
+
+      - name: Test
+        run: PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python -m unittest discover -s tests -q
+
+      - name: ResourceWarning-sensitive tests
+        run: PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src PYTHONTRACEMALLOC=10 python -W default::ResourceWarning -m unittest discover -s tests -q
+
+      - name: Contract export is valid JSON
+        run: |
+          PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python -m agentledger contract export > /tmp/agentledger-contract.json
+          python -m json.tool /tmp/agentledger-contract.json >/dev/null
+
+      - name: Migration DDL smoke
+        run: |
+          PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python -m agentledger migrate ddl --dialect sqlite >/tmp/agentledger-sqlite.sql
+          PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python -m agentledger migrate ddl --dialect postgres >/tmp/agentledger-postgres.sql
+
+      - name: State conformance smoke
+        run: |
+          PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python -m agentledger state conformance --backend sqlite >/tmp/agentledger-state-conformance.json
+          python -m json.tool /tmp/agentledger-state-conformance.json >/dev/null
+
+      - name: Blob conformance smoke
+        run: |
+          PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python -m agentledger blob conformance --backend local >/tmp/agentledger-blob-conformance.json
+          python -m json.tool /tmp/agentledger-blob-conformance.json >/dev/null
+
+      - name: Worker conformance smoke
+        run: |
+          PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python -m agentledger worker conformance --backend sqlite --concurrent >/tmp/agentledger-worker-conformance.json
+          python -m json.tool /tmp/agentledger-worker-conformance.json >/dev/null
+
+      - name: Root conformance smoke
+        run: |
+          PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python -m agentledger --root /tmp/agentledger-ci-conformance conformance >/tmp/agentledger-conformance.json
+          python -m json.tool /tmp/agentledger-conformance.json >/dev/null
+
+      - name: Adapter conformance smoke
+        run: |
+          PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python -m agentledger adapter conformance --kind python-function >/tmp/agentledger-adapter-python.json
+          python -m json.tool /tmp/agentledger-adapter-python.json >/dev/null
+          PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python -m agentledger adapter conformance --kind langchain >/tmp/agentledger-adapter-langchain.json
+          python -m json.tool /tmp/agentledger-adapter-langchain.json >/dev/null
+
+      - name: Worker serve smoke
+        run: |
+          PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python -m agentledger --root /tmp/agentledger-worker-serve worker serve examples/transient_retry --max-loops 5 --idle-sleep-seconds 0 >/tmp/agentledger-worker-serve.json
+          python -m json.tool /tmp/agentledger-worker-serve.json >/dev/null
+
+      - name: Tool catalog smoke
+        run: |
+          PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python -m agentledger tools manifest --example examples/docs >/tmp/agentledger-tools.json
+          python -m json.tool /tmp/agentledger-tools.json >/dev/null
+          PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python -m agentledger tools manifest --example examples/docs --format openai >/tmp/agentledger-openai-tools.json
+          python -m json.tool /tmp/agentledger-openai-tools.json >/dev/null
+          PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python -m agentledger tools manifest --example examples/media_stream >/tmp/agentledger-media-tools.json
+          python -m json.tool /tmp/agentledger-media-tools.json >/dev/null
+
+      - name: Failure injection smoke
+        run: |
+          PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python -m agentledger --root /tmp/agentledger-failure failure inject --scenario all >/tmp/agentledger-failure.json
+          python -m json.tool /tmp/agentledger-failure.json >/dev/null
+
+      - name: Runtime boundary lint smoke
+        run: |
+          PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python -m agentledger lint boundary examples tests --exclude tests/test_runtime.py >/tmp/agentledger-boundary-lint.json
+          python -m json.tool /tmp/agentledger-boundary-lint.json >/dev/null
+
+      - name: Example smoke
+        run: |
+          PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python examples/hello_world/hello.py >/tmp/agentledger-example-hello.txt
+          test -s /tmp/agentledger-example-hello.txt
+          PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python examples/autogen/basic_agent.py >/tmp/agentledger-example-autogen.json
+          python -m json.tool /tmp/agentledger-example-autogen.json >/dev/null
+          PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python examples/crewai/basic_crew.py >/tmp/agentledger-example-crewai.json
+          python -m json.tool /tmp/agentledger-example-crewai.json >/dev/null
+          PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python examples/langchain/basic_runnable.py >/tmp/agentledger-example-langchain.json
+          python -m json.tool /tmp/agentledger-example-langchain.json >/dev/null
+          PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python examples/langgraph/basic_graph.py >/tmp/agentledger-example-langgraph.json
+          python -m json.tool /tmp/agentledger-example-langgraph.json >/dev/null
+          PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python examples/llamaindex/basic_query.py >/tmp/agentledger-example-llamaindex.json
+          python -m json.tool /tmp/agentledger-example-llamaindex.json >/dev/null
+          PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python examples/media_stream/basic_media_stream.py >/tmp/agentledger-example-media.json
+          python -m json.tool /tmp/agentledger-example-media.json >/dev/null
+          PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python examples/media_stream/managed_tool.py >/tmp/agentledger-example-media-tool.json
+          python -m json.tool /tmp/agentledger-example-media-tool.json >/dev/null
+          PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python examples/mcp_context/basic_context_server.py >/tmp/agentledger-example-mcp-context.json
+          python -m json.tool /tmp/agentledger-example-mcp-context.json >/dev/null
+          PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python examples/mcp_tool/basic_tool.py >/tmp/agentledger-example-mcp.json
+          python -m json.tool /tmp/agentledger-example-mcp.json >/dev/null
+          PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python examples/openai_agents/basic_agent.py >/tmp/agentledger-example-openai-agents.json
+          python -m json.tool /tmp/agentledger-example-openai-agents.json >/dev/null
+          PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python examples/sandbox/command_tool.py >/tmp/agentledger-example-sandbox.json
+          python -m json.tool /tmp/agentledger-example-sandbox.json >/dev/null
+          PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python examples/tool_catalog/basic_catalog.py >/tmp/agentledger-example-tool-catalog.json
+          python -m json.tool /tmp/agentledger-example-tool-catalog.json >/dev/null
+          PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python examples/semantic_kernel/basic_kernel.py >/tmp/agentledger-example-semantic-kernel.json
+          python -m json.tool /tmp/agentledger-example-semantic-kernel.json >/dev/null
+          PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python -m agentledger --root /tmp/agentledger-ci-worker-run worker-run examples/transient_retry >/tmp/agentledger-example-worker-run.json
+          python -m json.tool /tmp/agentledger-example-worker-run.json >/dev/null
+
+      - name: Evidence regression smoke
+        run: |
+          PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python -m agentledger --root /tmp/agentledger-regression run examples/side_effect_idempotency >/tmp/agentledger-regression-run.json
+          RUN_ID=$(python -c 'import json; print(json.load(open("/tmp/agentledger-regression-run.json"))["run_id"])')
+          PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python -m agentledger --root /tmp/agentledger-regression timetravel "$RUN_ID" --include-diffs --include-states --html /tmp/agentledger-timetravel.html >/tmp/agentledger-timetravel-report.json
+          test -s /tmp/agentledger-timetravel.html
+          PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python -m agentledger --root /tmp/agentledger-regression cost report "$RUN_ID" >/tmp/agentledger-cost-report.json
+          python -m json.tool /tmp/agentledger-cost-report.json >/dev/null
+          PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python -m agentledger --root /tmp/agentledger-regression failure report "$RUN_ID" >/tmp/agentledger-failure-report.json
+          python -m json.tool /tmp/agentledger-failure-report.json >/dev/null
+          PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python -m agentledger --root /tmp/agentledger-regression review checklist "$RUN_ID" --max-total-usd 1.0 >/tmp/agentledger-review.json
+          python -m json.tool /tmp/agentledger-review.json >/dev/null
+          PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python -m agentledger --root /tmp/agentledger-regression trace "$RUN_ID" --format otlp --out /tmp/agentledger-trace.otlp.json >/tmp/agentledger-trace-otlp.json
+          python -m json.tool /tmp/agentledger-trace.otlp.json >/dev/null
+          PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python -m agentledger --root /tmp/agentledger-regression evidence "$RUN_ID" --out /tmp/agentledger-golden.json >/tmp/agentledger-evidence-file.json
+          PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python -m agentledger --root /tmp/agentledger-regression evidence "$RUN_ID" --dir /tmp/agentledger-current >/tmp/agentledger-evidence-dir.json
+          PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python -m agentledger --root /tmp/agentledger-regression evidence "$RUN_ID" --html /tmp/agentledger-evidence.html >/tmp/agentledger-evidence-html.json
+          test -s /tmp/agentledger-evidence.html
+          PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python -m agentledger divergence /tmp/agentledger-golden.json /tmp/agentledger-current --evidence-paths >/tmp/agentledger-divergence.json
+          python -m json.tool /tmp/agentledger-divergence.json >/dev/null
+          PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python -m agentledger evidence-regression /tmp/agentledger-golden.json /tmp/agentledger-current >/tmp/agentledger-evidence-regression.json
+          python -m json.tool /tmp/agentledger-evidence-regression.json >/dev/null
+          PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python -m agentledger --root /tmp/agentledger-regression corpus add side-effect /tmp/agentledger-golden.json >/tmp/agentledger-corpus-add.json
+          PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python -m agentledger --root /tmp/agentledger-regression corpus seed minimal-success >/tmp/agentledger-corpus-seed.json
+          python -m json.tool /tmp/agentledger-corpus-seed.json >/dev/null
+          PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python -m agentledger --root /tmp/agentledger-regression corpus check side-effect /tmp/agentledger-current >/tmp/agentledger-corpus-eval.json
+          python -m json.tool /tmp/agentledger-corpus-eval.json >/dev/null
+
+  postgres-integration:
+    name: Postgres integration
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: agentledger
+          POSTGRES_PASSWORD: agentledger
+          POSTGRES_DB: agentledger
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U agentledger -d agentledger"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Postgres optional dependency
+        run: python -m pip install ".[postgres]"
+
+      - name: Run real Postgres conformance
+        env:
+          AGENTLEDGER_RUN_POSTGRES_INTEGRATION: "1"
+          AGENTLEDGER_POSTGRES_DSN: postgresql://agentledger:agentledger@127.0.0.1:5432/agentledger
+          AGENTLEDGER_POSTGRES_SCHEMA: agentledger_ci
+          PYTHONDONTWRITEBYTECODE: "1"
+          PYTHONPATH: src
+        run: python -m unittest tests.test_postgres_integration -v
+
+  minio-integration:
+    name: MinIO integration
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install S3 optional dependency
+        run: python -m pip install ".[s3]"
+
+      - name: Start MinIO
+        run: |
+          docker run -d --name agentledger-minio \
+            -p 9000:9000 \
+            -e MINIO_ROOT_USER=agentledger \
+            -e MINIO_ROOT_PASSWORD=agentledger123 \
+            minio/minio:RELEASE.2025-04-22T22-12-26Z server /data
+          python - <<'PY'
+          import time
+          import urllib.request
+
+          for _ in range(60):
+              try:
+                  urllib.request.urlopen("http://127.0.0.1:9000/minio/health/ready", timeout=2).read()
+                  break
+              except Exception:
+                  time.sleep(1)
+          else:
+              raise SystemExit("MinIO did not become ready")
+          PY
+
+      - name: Create bucket
+        env:
+          AWS_ACCESS_KEY_ID: agentledger
+          AWS_SECRET_ACCESS_KEY: agentledger123
+          AWS_DEFAULT_REGION: us-east-1
+        run: |
+          python - <<'PY'
+          import boto3
+
+          client = boto3.client(
+              "s3",
+              endpoint_url="http://127.0.0.1:9000",
+              region_name="us-east-1",
+              aws_access_key_id="agentledger",
+              aws_secret_access_key="agentledger123",
+          )
+          client.create_bucket(Bucket="agentledger-runs")
+          PY
+
+      - name: Run real MinIO conformance
+        env:
+          AGENTLEDGER_RUN_S3_INTEGRATION: "1"
+          AGENTLEDGER_S3_BUCKET: agentledger-runs
+          AGENTLEDGER_S3_PREFIX: ci/blobs
+          AGENTLEDGER_S3_ENDPOINT_URL: http://127.0.0.1:9000
+          AGENTLEDGER_S3_REGION: us-east-1
+          AWS_ACCESS_KEY_ID: agentledger
+          AWS_SECRET_ACCESS_KEY: agentledger123
+          PYTHONDONTWRITEBYTECODE: "1"
+          PYTHONPATH: src
+        run: python -m unittest tests.test_s3_integration -v

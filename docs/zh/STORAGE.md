@@ -1,0 +1,140 @@
+# 存储与迁移
+
+本文是 `../STORAGE.md` 的中文主路径版本，说明 AgentLedger 的 runtime metadata 存储边界、schema、迁移和 adapter 要求。
+
+## 存储边界
+
+AgentLedger 只存 runtime metadata，不存业务数据。
+
+runtime metadata：
+
+```text
+runs
+steps
+events
+tool_ledger
+artifacts
+cost_records
+approval_requests
+schema_migrations
+```
+
+业务数据例如 user、order、document、task、domain objects 等，应该由用户应用自己负责。
+
+## 默认本地存储
+
+```text
+SQLite WAL StateStore
+Local file BlobStore
+```
+
+SQLite 适合：
+
+- 本地 demo
+- 单机开发
+- adapter 实验
+- conformance fixture
+- 可靠性语义验证
+
+## BlobStore
+
+BlobStore 保存 payload 和 artifact 内容，event 中只保存 ref：
+
+```text
+blob://sha256/<digest>.json
+```
+
+这样 event log 保持轻量，也便于 replay、evidence export 和 backup。
+
+## 迁移
+
+SQLite 默认在 `Runtime.local(...)` 和 `agentledger init` 时自动应用迁移。
+
+常用命令：
+
+```bash
+PYTHONPATH=src python3 -m agentledger migrate status
+PYTHONPATH=src python3 -m agentledger migrate up
+PYTHONPATH=src python3 -m agentledger migrate ddl --dialect sqlite
+PYTHONPATH=src python3 -m agentledger migrate ddl --dialect postgres
+```
+
+迁移状态记录在：
+
+```text
+schema_migrations
+```
+
+## Postgres
+
+Postgres 是 optional experimental StateStore adapter，适合 production pilot 前的验证。
+
+```bash
+AGENTLEDGER_POSTGRES_DSN=postgresql://agentledger:secret@localhost:5432/agentledger \
+AGENTLEDGER_POSTGRES_SCHEMA=agentledger \
+PYTHONPATH=src python3 -m agentledger migrate up --dialect postgres
+```
+
+Postgres adapter 支持：
+
+```text
+DDL catalog
+migration status/apply
+schema isolation
+JSONB handling
+native FOR UPDATE SKIP LOCKED claim path
+injected conformance test
+opt-in real-service test
+```
+
+不要把 conformance 或实验迁移命令指向真实业务数据。
+
+## StateStore Adapter 要求
+
+StateStore adapter 必须保留：
+
+```text
+create_run 原子创建 run/step/events
+claim_step 原子设置 owner/lease_token/attempt
+commit_state_patch 校验 lease_token 和 base_version
+events append-only and ordered per run
+recover_expired_leases 能恢复 abandoned work
+cancel_run 能 fence running workers
+Tool Ledger idempotency unique constraint
+approval state transitions
+```
+
+## Conformance
+
+```bash
+PYTHONPATH=src python3 -m agentledger state conformance --backend sqlite
+PYTHONPATH=src python3 -m agentledger worker conformance --backend sqlite --concurrent
+```
+
+Postgres：
+
+```bash
+AGENTLEDGER_POSTGRES_DSN=postgresql://agentledger:secret@localhost:5432/agentledger \
+AGENTLEDGER_POSTGRES_SCHEMA=agentledger \
+PYTHONPATH=src python3 -m agentledger state conformance --backend postgres
+```
+
+## Backup / Restore
+
+backup 必须覆盖：
+
+```text
+StateStore runtime metadata
+BlobStore payload refs
+artifact refs
+media/stream nested blob refs
+contract/schema version metadata
+```
+
+restore 后至少应验证：
+
+```bash
+PYTHONPATH=src python3 -m agentledger backup check <run_id>
+PYTHONPATH=src python3 -m agentledger evidence <run_id> --dir ./recovered-evidence/<run_id>
+PYTHONPATH=src python3 -m agentledger replay <run_id>
+```

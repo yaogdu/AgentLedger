@@ -91,11 +91,11 @@ cleanup/TTL
 taint flag for untrusted code
 ```
 
-MVP can provide local executor and Docker executor as plugin. It should not claim perfect sandbox security.
+The runtime-core provides local/fail-closed execution semantics and adapter seams for Docker, bubblewrap, Kubernetes/gVisor, E2B, Firecracker, and custom executors. It must not claim perfect sandbox security. Kubernetes/gVisor support starts as an auditable Job manifest and dry-run or gated execution path; production use still requires cluster hardening, RuntimeClass installation, NetworkPolicy, Pod Security admission, resource quotas, and namespace isolation.
 
 ## Enterprise Readiness Checklist
 
-Production pilot requires:
+Production pilot readiness requires validating:
 
 - Postgres backend
 - schema migrations
@@ -110,7 +110,7 @@ Production pilot requires:
 - Tool Ledger idempotency tests
 - side_effect_unknown / PENDING_VERIFICATION tests
 - policy/permission tests
-- retention and compaction jobs
+- retention plans and any future compaction jobs
 - security policy
 - threat model
 - CI and release process
@@ -167,3 +167,81 @@ Roadmap
 ```
 
 Recommended license: Apache-2.0 for enterprise-friendly adoption.
+
+
+## Dependency-free Policy YAML
+
+The local runtime supports a dependency-free YAML/JSON policy subset for early enterprise governance testing.
+
+Example:
+
+```yaml
+version: 1
+defaults:
+  low: allow
+  medium: allow
+  high: deny
+roles:
+  ExecutorAgent:
+    allow_tools:
+      - github.create_issue
+    deny_tools:
+      - shell.exec
+    deny_risk:
+      - destructive
+```
+
+Check a policy decision locally:
+
+```bash
+PYTHONPATH=src python3 -m agentledger policy check examples/policy/local.policy.yaml ExecutorAgent github.create_issue medium
+```
+
+Runtime use:
+
+```bash
+PYTHONPATH=src python3 -m agentledger --policy examples/policy/local.policy.yaml run examples/side_effect_idempotency
+```
+
+This is intentionally not a full OPA/Cedar replacement. It is a stable local policy shape that later adapters can compile into richer enterprise policy engines.
+
+
+## Cancellation and Lease Fencing
+
+Cancellation is a security and reliability boundary. A cancelled run clears active owners and lease tokens, then records run/step cancellation events. Any old worker that continues running is fenced by lease validation and cannot commit state. Expired leases follow the same fencing principle: recovery moves the step to `retry_scheduled`, clears the old lease token, and emits recovery events.
+
+
+## Audit Diff and Trace Export
+
+Evidence diff and structured trace export are audit tools, not side-effecting runtime operations. They read archived events, payload refs, ledgers, costs, and final state. They must not call models, tools, or external resources. Exported traces should avoid adding raw secrets; they carry metadata and payload refs rather than expanding secret-bearing content.
+
+
+## Approval, Sandbox, and Retention Hooks
+
+- `approval_required=True` on a tool creates a durable approval request and moves the step to `waiting_human`; approval re-schedules the step, denial fails it.
+- `sandbox_required=True` routes execution through a `SandboxExecutor` boundary and records `sandbox_started` / `sandbox_completed` events.
+- The default `LocalSandboxExecutor` is a contract test double, not OS isolation. `none` fails closed for required sandbox tools. Production adapters should inject real Docker, E2B, Firecracker, gVisor, Kubernetes, bubblewrap, or internal isolation executors.
+- Retention starts as a non-destructive plan and compaction marker. Physical deletion should only happen after evidence export, policy checks, and retention windows.
+
+
+### Sandbox Adapter Strategy
+
+AgentLedger core supports sandbox backends as adapters instead of hard dependencies:
+
+- `local`: executes in-process and is only suitable for trusted development/test tools.
+- `none` / `disabled`: refuses required sandbox execution and records an audit event.
+- `bubblewrap`: Linux-native lightweight isolation adapter slot.
+- `docker`: container adapter slot for common local/team deployments.
+- `kubernetes`: Job-based adapter with dry-run manifest generation; gVisor/Kata-style isolation is selected through `runtime_class`.
+- `firecracker` / `e2b` / `custom`: remote or microVM adapter slots for stronger isolation.
+
+External adapter slots intentionally fail closed in core until a real executor package, command execution opt-in, or enterprise executor is injected. The Kubernetes adapter is the exception for `dry_run: true`: it returns the generated Job manifest for review/testing and does not call `kubectl`.
+
+
+### Command-style sandbox tools
+
+External sandbox adapters do not serialize arbitrary Python callables. A tool that should run in bubblewrap or Docker must pass an explicit argv list in `_sandbox_command`, and the executor must set `allow_command_execution: true`. String commands are rejected unless an executor opts into `allow_shell: true`.
+
+Bubblewrap can optionally use `fallback_without_bwrap: true` for local development tests; this fallback records `fallback_isolation: none` and should not be used for untrusted production code. Docker execution requires a Docker CLI/daemon and fails closed when unavailable.
+
+Kubernetes execution requires `_sandbox_command: list[str]`, `allow_command_execution: true`, and `dry_run: false`. The executor writes a temporary Job manifest, runs `kubectl create`, optionally waits for completion, captures Job logs, and deletes the Job when `cleanup: true`. Missing `kubectl` or a failing Job fails closed. The generated manifest redacts config secrets in audit metadata, sets restrictive pod/container security context defaults, and records network-deny intent, but actual network isolation must be enforced by cluster policy.

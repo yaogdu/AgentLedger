@@ -1,0 +1,542 @@
+{
+  "artifact_contracts": {
+    "media_kinds": [
+      "audio",
+      "audio_segment",
+      "derived",
+      "embedding",
+      "frame",
+      "image",
+      "transcript",
+      "video",
+      "video_segment"
+    ],
+    "media_schema_version": "agentledger.media.v0",
+    "stream_checkpoint_fields": [
+      "stream_id",
+      "consumer_id",
+      "offset",
+      "watermark",
+      "chunk",
+      "partial_result_ref",
+      "backpressure"
+    ],
+    "stream_schema_version": "agentledger.stream.v0"
+  },
+  "conformance": {
+    "golden_contract_path": "contracts/agentledger.runtime.v1.json",
+    "required_for_media_runtime": [
+      "media_evidence_replay_chain",
+      "media_tool_ledger_chain"
+    ],
+    "required_for_storage_adapters": [
+      "create_claim_commit",
+      "stale_lease_rejected",
+      "expired_lease_recovered",
+      "cancel_fences_worker"
+    ],
+    "required_for_worker_adapters": [
+      "multi_worker_claims_distinct_steps",
+      "heartbeat_fences_wrong_owner",
+      "recovery_fences_previous_owner"
+    ]
+  },
+  "contract_version": "1.0",
+  "core_objects": [
+    "Run",
+    "Session",
+    "Step",
+    "StepClaim",
+    "AgentContext",
+    "RuntimeEvent",
+    "ToolRequest",
+    "ToolResult",
+    "ToolLedgerEntry",
+    "ArtifactRef",
+    "ArtifactLineage",
+    "MediaArtifact",
+    "MediaMetadata",
+    "StreamChunkRef",
+    "EventStreamCheckpoint",
+    "CostRecord",
+    "ApprovalRequest",
+    "EvidenceBundle",
+    "MigrationStatus"
+  ],
+  "event_types": [
+    "run_created",
+    "step_created",
+    "step_claimed",
+    "state_patch_committed",
+    "tool_call_requested",
+    "tool_permission_decided",
+    "tool_approval_required",
+    "tool_call_completed",
+    "tool_call_failed",
+    "sandbox_started",
+    "sandbox_completed",
+    "artifact_created",
+    "step_completed",
+    "step_failed",
+    "step_retry_scheduled",
+    "lease_heartbeat",
+    "lease_expired",
+    "run_cancel_requested",
+    "step_cancelled",
+    "run_cancelled",
+    "agent_result_returned"
+  ],
+  "invariants": [
+    "append-only event ordering per run",
+    "state commits require a valid lease token",
+    "state commits require the expected base state version",
+    "cancelled or expired workers are fenced from committing",
+    "managed side-effect tools reserve a unique idempotency key",
+    "PENDING_VERIFICATION side effects are not auto-retried",
+    "replay and shadow mode must not create external side effects",
+    "sandbox-required tools fail closed when the executor is missing or disabled",
+    "media and stream artifacts store refs, metadata, lineage, and checkpoints instead of raw codec processing"
+  ],
+  "language_targets": [
+    {
+      "language": "python",
+      "role": "reference-runtime",
+      "status": "active"
+    },
+    {
+      "language": "typescript",
+      "role": "sdk-worker-client",
+      "status": "planned"
+    },
+    {
+      "language": "rust",
+      "role": "runtime-or-high-performance-worker",
+      "status": "planned"
+    },
+    {
+      "language": "go",
+      "role": "worker-and-infra-adapter",
+      "status": "planned"
+    }
+  ],
+  "project": "agentledger",
+  "reference_implementation": {
+    "language": "python",
+    "package": "agentledger",
+    "status": "active"
+  },
+  "required_event_fields": [
+    "event_id",
+    "run_id",
+    "seq",
+    "type",
+    "timestamp",
+    "payload_hash",
+    "payload_ref"
+  ],
+  "stability": {
+    "external": [
+      "full eval systems",
+      "workflow/planning engines",
+      "RAG/vector memory systems",
+      "sandbox infrastructure",
+      "observability backends",
+      "distributed schedulers"
+    ],
+    "preview": [
+      "media and stream artifact schemas",
+      "dependency-free framework facades",
+      "evidence regression and golden corpus UX"
+    ],
+    "stable": [
+      "run/step/session state machine",
+      "lease/fencing/cancellation semantics",
+      "event log and evidence bundle shape",
+      "Tool Ledger statuses and idempotency semantics",
+      "StateStore and BlobStore conformance requirements",
+      "AgentContext tool/model/artifact boundary",
+      "sandbox policy/routing/fail-closed semantics"
+    ]
+  },
+  "state_store_operations": [
+    "create_run",
+    "claim_step",
+    "heartbeat",
+    "recover_expired_leases",
+    "cancel_run",
+    "load_state",
+    "commit_state_patch",
+    "append_event",
+    "reserve_ledger",
+    "update_ledger"
+  ],
+  "status": "stable-runtime-core",
+  "tool_conventions": {
+    "media_stream": [
+      {
+        "approval_required": false,
+        "description": "Transcribe an audio artifact ref and return transcript artifact refs.",
+        "idempotency_required": true,
+        "input_schema": {
+          "additionalProperties": false,
+          "properties": {
+            "_logical_operation": {
+              "type": "string"
+            },
+            "language": {
+              "type": "string"
+            },
+            "mime_type": {
+              "type": "string"
+            },
+            "options": {
+              "type": "object"
+            },
+            "source_ref": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "source_ref"
+          ],
+          "type": "object"
+        },
+        "name": "audio.transcribe",
+        "output_schema": {
+          "additionalProperties": false,
+          "properties": {
+            "artifact_id": {
+              "type": "string"
+            },
+            "language": {
+              "type": "string"
+            },
+            "metadata": {
+              "type": "object"
+            },
+            "segments": {
+              "items": {
+                "type": "object"
+              },
+              "type": "array"
+            },
+            "transcript_ref": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "transcript_ref"
+          ],
+          "type": "object"
+        },
+        "risk_level": "medium",
+        "sandbox_executor": null,
+        "sandbox_policy": {},
+        "sandbox_required": false,
+        "side_effect": "external_read",
+        "version": "v1"
+      },
+      {
+        "approval_required": false,
+        "description": "Extract frame artifact refs from a video artifact ref.",
+        "idempotency_required": true,
+        "input_schema": {
+          "additionalProperties": false,
+          "properties": {
+            "_logical_operation": {
+              "type": "string"
+            },
+            "interval_seconds": {
+              "minimum": 0,
+              "type": "number"
+            },
+            "max_frames": {
+              "minimum": 1,
+              "type": "integer"
+            },
+            "options": {
+              "type": "object"
+            },
+            "source_ref": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "source_ref"
+          ],
+          "type": "object"
+        },
+        "name": "video.extract_frames",
+        "output_schema": {
+          "additionalProperties": false,
+          "properties": {
+            "frame_refs": {
+              "items": {
+                "type": "object"
+              },
+              "type": "array"
+            },
+            "metadata": {
+              "type": "object"
+            },
+            "timeline_ref": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "frame_refs"
+          ],
+          "type": "object"
+        },
+        "risk_level": "medium",
+        "sandbox_executor": null,
+        "sandbox_policy": {},
+        "sandbox_required": false,
+        "side_effect": "external_read",
+        "version": "v1"
+      },
+      {
+        "approval_required": false,
+        "description": "Describe a frame artifact ref and return a derived text artifact ref.",
+        "idempotency_required": true,
+        "input_schema": {
+          "additionalProperties": false,
+          "properties": {
+            "_logical_operation": {
+              "type": "string"
+            },
+            "frame_ref": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "options": {
+              "type": "object"
+            },
+            "prompt": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "frame_ref"
+          ],
+          "type": "object"
+        },
+        "name": "frame.describe",
+        "output_schema": {
+          "additionalProperties": false,
+          "properties": {
+            "artifact_id": {
+              "type": "string"
+            },
+            "description": {
+              "type": "string"
+            },
+            "description_ref": {
+              "type": "string"
+            },
+            "metadata": {
+              "type": "object"
+            }
+          },
+          "required": [
+            "description"
+          ],
+          "type": "object"
+        },
+        "risk_level": "medium",
+        "sandbox_executor": null,
+        "sandbox_policy": {},
+        "sandbox_required": false,
+        "side_effect": "external_read",
+        "version": "v1"
+      },
+      {
+        "approval_required": false,
+        "description": "Summarize video, frame, transcript, or segment artifact refs.",
+        "idempotency_required": true,
+        "input_schema": {
+          "additionalProperties": false,
+          "properties": {
+            "_logical_operation": {
+              "type": "string"
+            },
+            "options": {
+              "type": "object"
+            },
+            "prompt": {
+              "type": "string"
+            },
+            "source_refs": {
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1,
+              "type": "array"
+            }
+          },
+          "required": [
+            "source_refs"
+          ],
+          "type": "object"
+        },
+        "name": "video.summarize",
+        "output_schema": {
+          "additionalProperties": false,
+          "properties": {
+            "metadata": {
+              "type": "object"
+            },
+            "summary": {
+              "type": "string"
+            },
+            "summary_ref": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "summary"
+          ],
+          "type": "object"
+        },
+        "risk_level": "medium",
+        "sandbox_executor": null,
+        "sandbox_policy": {},
+        "sandbox_required": false,
+        "side_effect": "external_read",
+        "version": "v1"
+      },
+      {
+        "approval_required": false,
+        "description": "Consume a stream chunk and return a durable checkpoint or partial result refs.",
+        "idempotency_required": true,
+        "input_schema": {
+          "additionalProperties": false,
+          "properties": {
+            "_logical_operation": {
+              "type": "string"
+            },
+            "consumer_id": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "max_chunks": {
+              "minimum": 1,
+              "type": "integer"
+            },
+            "offset": {
+              "type": [
+                "integer",
+                "string"
+              ]
+            },
+            "stream_id": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "stream_id",
+            "consumer_id",
+            "offset"
+          ],
+          "type": "object"
+        },
+        "name": "stream.consume",
+        "output_schema": {
+          "additionalProperties": false,
+          "properties": {
+            "checkpoint": {
+              "type": "object"
+            },
+            "chunks": {
+              "items": {
+                "type": "object"
+              },
+              "type": "array"
+            },
+            "partial_result_ref": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "checkpoint"
+          ],
+          "type": "object"
+        },
+        "risk_level": "medium",
+        "sandbox_executor": null,
+        "sandbox_policy": {},
+        "sandbox_required": false,
+        "side_effect": "external_read",
+        "version": "v1"
+      },
+      {
+        "approval_required": false,
+        "description": "Emit a stream event or derived chunk through a managed adapter.",
+        "idempotency_required": true,
+        "input_schema": {
+          "additionalProperties": false,
+          "properties": {
+            "_logical_operation": {
+              "type": "string"
+            },
+            "partition_key": {
+              "type": "string"
+            },
+            "payload_ref": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "stream_id": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "stream_id",
+            "payload_ref"
+          ],
+          "type": "object"
+        },
+        "name": "stream.emit",
+        "output_schema": {
+          "additionalProperties": false,
+          "properties": {
+            "external_id": {
+              "type": "string"
+            },
+            "metadata": {
+              "type": "object"
+            },
+            "offset": {
+              "type": [
+                "integer",
+                "string"
+              ]
+            }
+          },
+          "required": [
+            "external_id"
+          ],
+          "type": "object"
+        },
+        "risk_level": "medium",
+        "sandbox_executor": null,
+        "sandbox_policy": {},
+        "sandbox_required": false,
+        "side_effect": "external_write",
+        "version": "v1"
+      }
+    ]
+  },
+  "wire_format": {
+    "encoding": "json",
+    "hashes": "sha256:<hex>",
+    "ids": "string-with-prefix",
+    "state_patch": "json-merge-patch-compatible-object",
+    "timestamps": "unix_seconds_float"
+  }
+}

@@ -1,138 +1,197 @@
-# AgentLedger / Agent Runtime
+# AgentLedger
 
-> **AgentLedger** is a durable execution and reliability layer for production-grade AI agents.
+[English](README.md) | [中文](README.zh-CN.md)
 
-Most agent frameworks help agents think, plan, and coordinate. AgentLedger focuses on a different problem:
+![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)
+![Version 1.0.0 stable](https://img.shields.io/badge/Version-1.0.0--stable-111827)
+![License Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-0f766e)
+![Runtime Durable](https://img.shields.io/badge/Runtime-durable%20execution-1f6feb)
+![Storage SQLite/Postgres](https://img.shields.io/badge/Storage-SQLite%20%7C%20Postgres-b45309)
+![Replay Evidence](https://img.shields.io/badge/Replay-evidence%20driven-7c3aed)
+![Tool Ledger](https://img.shields.io/badge/Tools-ledger%20guarded-d97706)
 
-```text
-Make AI agent execution durable, auditable, replayable, and safe by default.
-```
+AgentLedger `1.0.0` is a durable execution and reliability runtime for AI agents. It does not try to teach agents how to reason; it makes agent runs durable, auditable, replayable, policy-governed, and recoverable when workers crash, tools fail, or prompts change.
 
-It is not intended to replace LangChain, LangGraph, CrewAI, AutoGen, OpenAI Agents SDK, LlamaIndex, Semantic Kernel, or custom agent frameworks. It is a framework-agnostic runtime layer that can sit underneath or beside them.
+Most agent frameworks focus on planning, reasoning, and workflow logic. AgentLedger sits underneath or beside LangChain, LangGraph, CrewAI, AutoGen, OpenAI Agents SDK, LlamaIndex, Semantic Kernel, or custom agents to provide runtime guarantees around state, tools, evidence, replay, and recovery.
 
-## Core Thesis
+Python is the current reference implementation. Rust, TypeScript, and Go implementations should target the same language-neutral runtime contract.
 
-Agent systems fail less like ordinary request/response apps and more like distributed workflows with untrusted decision makers:
+## Scope principle
 
-- workers crash mid-run
-- tools time out after producing side effects
-- retries duplicate external writes
-- memory and shared state get polluted
-- prompt or workflow changes introduce silent regressions
-- logs are insufficient for replay or attribution
-- high-risk tools need policy, audit, approval, and sandboxing
-
-AgentLedger treats agent execution as a durable state machine:
+AgentLedger keeps the runtime thin but hard to replace: core only owns guarantees that cannot be reliably enforced outside the runtime boundary. Everything else should integrate through adapters, contracts, conformance tests, and examples.
 
 ```text
-load checkpoint
-  -> acquire lease
-  -> execute one step through AgentContext
-  -> record model/tool/state/artifact events
-  -> commit state patch atomically with completion events
-  -> yield / wait / retry / complete
+Runtime core:
+  durable execution, governed tool use, evidence, replay, policy hooks,
+  leases, fencing, cancellation, budgets, attribution, and conformance
+
+Adapters:
+  agent frameworks, storage backends, blob stores, sandboxes, model providers,
+  observability sinks, policy engines, MCP, media processors, and deployers
+
+External tools:
+  planning/workflow engines, full eval systems, trace stores, RAG systems,
+  distributed schedulers, and sandbox infrastructure
 ```
 
-## What It Provides
-
-- **Durable Resume**: resume from the last committed checkpoint after worker crash or restart.
-- **Tool Ledger**: idempotency and audit ledger for external side effects.
-- **Event-level Replay**: deterministic replay from model/tool archives and event log.
-- **Run Evidence Bundle**: run spec, state, events, payload refs, artifacts, cost, failures.
-- **Policy Boundary**: runtime-enforced capability and tool access control.
-- **Shadow Mode**: run new prompts/workflows against historical evidence without real side effects.
-- **Time Travel Debugging**: inspect event timeline, state diffs, tool calls, and artifacts.
-- **Framework-agnostic SDK**: core runtime contracts plus optional adapters.
-
-## What It Is Not
-
-- Not a new general-purpose agent framework.
-- Not a new LLM SDK.
-- Not a full observability SaaS.
-- Not a replacement for Temporal, Ray, Kubernetes, or LangGraph.
-- Not a magic guarantee that all external systems are exactly-once.
-
-The honest guarantee is narrower: every runtime-managed side effect has a ledger entry, idempotency key, audit chain, and explicit `side_effect_unknown` / `PENDING_VERIFICATION` handling.
-
-## Architecture Layers
+Most extension areas follow a three-layer model:
 
 ```text
-Agent / Framework Layer
-  LangGraph, CrewAI, AutoGen, custom agents, Python functions, TS workers
+Core contract:
+  stable interfaces, events, invariants, failure semantics, and conformance
 
-Runtime Boundary
-  AgentContext, ToolGateway, PolicyEngine, BudgetController, CredentialBroker
+Built-in minimal implementation:
+  dependency-free local defaults for quickstart, demos, tests, and light use
 
-Scheduling Layer
-  Scheduler, Lease, Fencing Token, Worker Pool, Retry, Cancellation
-
-Durable State Layer
-  RunState, SessionState, StepState, EventLog, ToolLedger, Checkpoints
-
-Evidence Layer
-  Model/Tool Archive, Artifact Store, Blob Store, Trace, Cost, Failure Records
-
-Reliability Consumers
-  Replay, Repro Harness, Eval, Time Travel Debugger, Shadow Mode
+Optional production adapter:
+  mature integrations for real infrastructure, frameworks, and operations
 ```
 
-## Local-first Storage Defaults
+For example, sandbox semantics are core, but sandbox infrastructure is not. Core owns `SandboxPolicy`, fail-closed routing, audit/evidence records, and replay safety; Docker, E2B, bubblewrap, Kubernetes/gVisor, Firecracker, or custom executors are adapters.
 
-```text
-v0.1 local dev:
-  SQLite WAL + local blob store
+## What AgentLedger is for
 
-team / production:
-  Postgres + S3/MinIO + OpenTelemetry
+- Making long-running agent tasks resume from the last committed checkpoint after crash or restart
+- Preventing duplicate external side effects with a Tool Ledger, idempotency keys, and causal request records
+- Exporting complete evidence bundles for debugging, review, regression checks, and audit trails
+- Replaying historical runs without repeating model calls or tool side effects
+- Enforcing tool permissions, approvals, sandbox boundaries, cost budgets, and failure semantics at runtime
+- Providing adapter seams for agent frameworks, storage backends, blob stores, tool systems, traces, and sandbox executors
+- Keeping the core dependency-free for local development while allowing optional Postgres, S3/MinIO, OTLP, and framework adapters
 
-optional high-throughput event stream:
-  Kafka / Redpanda / Pulsar
-```
+## Key capabilities
 
-## Quickstart
+- Durable state machine: runs, steps, sessions, leases, fencing tokens, retries, cancellation, and checkpoint resume
+- Tool governance: schema validation, capability policy, approval gates, sandbox routing, audit events, and side-effect status tracking
+- Evidence and replay: event-level WAL, payload archives, evidence bundles, static HTML debug export, replay, diff, divergence, and shadow runs
+- Reliability engineering: failure taxonomy, failure injection suite, evidence regression gates, adversarial review checklist, backup readiness checks, and retention planning
+- Cost and budget control: token/cost records, in-flight budget enforcement, attribution by run, agent, step, tool, and model
+- Framework adoption: plain Python API plus adapter facades for LangGraph, LangChain, CrewAI, AutoGen, OpenAI Agents SDK, LlamaIndex, Semantic Kernel, and MCP-style tools/context
+- Storage choices: SQLite WAL + local blobs by default; optional Postgres StateStore and S3/MinIO BlobStore adapters
+- Media and stream contracts: durable refs, metadata, lineage, chunk refs, offsets, watermarks, and replay validation without codecs or stream transport in core
 
-Current scaffold has no third-party runtime dependencies. From the repo root:
+## Architecture
+
+![AgentLedger runtime architecture](docs/assets/agentledger-runtime-architecture.svg)
+
+- Documentation overview: [docs/README.md](docs/README.md)
+- Architecture guide: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+- Design and implementation: [docs/DESIGN_AND_IMPLEMENTATION.md](docs/DESIGN_AND_IMPLEMENTATION.md)
+- Runtime contract: [docs/RUNTIME_SPEC.md](docs/RUNTIME_SPEC.md)
+
+## Project policy
+
+- License: [Apache-2.0](LICENSE)
+- Security reporting: [SECURITY.md](SECURITY.md)
+- Contributing guide: [CONTRIBUTING.md](CONTRIBUTING.md)
+- Community conduct: [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
+- Release gates: [docs/RELEASE_CHECKLIST.md](docs/RELEASE_CHECKLIST.md)
+- Compatibility policy: [docs/VERSIONING.md](docs/VERSIONING.md)
+
+## Quick start
+
+### 1. Install for local development
+
+Use Python 3.11 or newer. If your system `python3` is older, replace `python3` with `python3.11` in the commands below.
 
 ```bash
-PYTHONPATH=src python3 -m agentledger init
-PYTHONPATH=src python3 -m agentledger run examples/side_effect_idempotency
-PYTHONPATH=src python3 -m agentledger debug <run_id>
-PYTHONPATH=src python3 -m agentledger replay <run_id>
-PYTHONPATH=src python3 -m agentledger ledger <run_id>
+python3 -m pip install -e .
+agentledger doctor
+```
+
+The source tree also works without installing the package:
+
+```bash
 PYTHONPATH=src python3 -m agentledger doctor
 ```
 
-After packaging/installing in editable mode, the CLI target is:
+### 2. Run the minimal API
+
+```python
+from agentledger import agent, run
+
+@agent
+def hello(ctx):
+    return "hello world"
+
+result = run(hello)
+print(result.output)
+print(result.run_id)
+```
+
+This looks like a normal function call, but the runtime still creates a durable run, claims a leased step, records events, commits state atomically, and can export evidence.
+
+### 3. Try CLI flows
 
 ```bash
-agentledger run examples/side_effect_idempotency
+PYTHONPATH=src python3 examples/hello_world/hello.py
+PYTHONPATH=src python3 -m agentledger init
+PYTHONPATH=src python3 -m agentledger run examples/side_effect_idempotency
+PYTHONPATH=src python3 -m agentledger debug <run_id> --json --include-diffs
+PYTHONPATH=src python3 -m agentledger replay <run_id>
+PYTHONPATH=src python3 -m agentledger evidence <run_id> --dir ./evidence/<run_id>
+PYTHONPATH=src python3 -m agentledger evidence <run_id> --html ./evidence.html
+PYTHONPATH=src python3 -m agentledger timetravel <run_id> --include-diffs --include-states --html ./time-travel.html
+PYTHONPATH=src python3 -m agentledger cost report <run_id>
+PYTHONPATH=src python3 -m agentledger failure report <run_id>
+PYTHONPATH=src python3 -m agentledger review checklist <run_id> --fail-on-risk
+PYTHONPATH=src python3 -m agentledger tools manifest --format agentledger --example examples/docs
+PYTHONPATH=src python3 -m agentledger contract export
 ```
 
-The flagship demo:
+## Runtime model
 
-```text
-1. Agent calls a side-effect tool, e.g. github.create_issue.
-2. Tool succeeds externally.
-3. Worker crashes before state commit.
-4. Runtime resumes from checkpoint.
-5. Tool Ledger prevents duplicate issue creation.
-6. Replay shows the full timeline and state diff.
-```
+| Layer | What it owns | Extension points |
+| --- | --- | --- |
+| Agent logic | user functions, framework nodes, prompts, model choices | LangGraph, LangChain, CrewAI, AutoGen, OpenAI Agents SDK, LlamaIndex, Semantic Kernel, custom workers |
+| Runtime boundary | `AgentContext`, tool gateway, policy, approval, budget, sandbox routing | tool registry, policy loader, approval store, sandbox executor |
+| Scheduling | step claim, lease, fencing, retry, heartbeat, cancellation, recovery | local worker loop, distributed worker recipes, custom claimers |
+| Durable state | runs, sessions, steps, events, tool ledger, checkpoints, migrations | SQLite, Postgres, custom StateStore |
+| Evidence | payload refs, blob refs, artifacts, media refs, traces, costs, failures | local blob store, S3/MinIO, OTLP JSON, static HTML export |
+| Reliability consumers | replay, diff, shadow mode, evidence regression, conformance, backup check | golden corpus, adapter certification, custom review gates |
 
-## Development
+## Compatibility boundary
+
+AgentLedger does not replace agent or workflow libraries.
+
+| Agent frameworks own | AgentLedger owns |
+| --- | --- |
+| Planning, reasoning, routing, graph structure, prompt strategy | Durable state, event log, Tool Ledger, policy, approval, sandbox boundary, evidence, replay, recovery |
+
+AgentLedger is also not a new LLM SDK, not a workflow engine, not a general observability product, not a full eval system, not a RAG system, not a sandbox infrastructure provider, not a replacement for Temporal/Ray/Kubernetes, and not a magic guarantee that every external system becomes exactly-once. The narrower guarantee is: each runtime-managed side effect should have a ledger entry, idempotency key, audit trail, and explicit unknown-state handling.
+
+## Current maturity
+
+AgentLedger is a v1.0 stable runtime-core release. It is suitable for local use, framework adapter integration, reliability semantics validation, and production pilot preparation with explicit adapter boundaries.
+
+The runtime-core contract is stable; optional production adapters and external infrastructure hardening remain separately tracked. See [docs/MATURITY_MODEL.md](docs/MATURITY_MODEL.md), [docs/IMPLEMENTATION_STATUS.md](docs/IMPLEMENTATION_STATUS.md), and [docs/ROADMAP.md](docs/ROADMAP.md).
+
+## Documentation navigation
+
+| Goal | Document |
+| --- | --- |
+| Use the runtime | [docs/USAGE.md](docs/USAGE.md) |
+| Understand architecture | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) |
+| Read implementation details | [docs/DESIGN_AND_IMPLEMENTATION.md](docs/DESIGN_AND_IMPLEMENTATION.md) |
+| Check runtime spec | [docs/RUNTIME_SPEC.md](docs/RUNTIME_SPEC.md) |
+| Extend storage, tools, and adapters | [docs/EXTENSIBILITY.md](docs/EXTENSIBILITY.md), [docs/STORAGE.md](docs/STORAGE.md), [docs/ADAPTER_CERTIFICATION.md](docs/ADAPTER_CERTIFICATION.md) |
+| Configure Postgres or S3/MinIO | [docs/POSTGRES.md](docs/POSTGRES.md), [docs/S3_MINIO.md](docs/S3_MINIO.md) |
+| Prepare releases | [docs/RELEASE_CHECKLIST.md](docs/RELEASE_CHECKLIST.md), [docs/VERSIONING.md](docs/VERSIONING.md) |
+| Read Chinese docs | [README.zh-CN.md](README.zh-CN.md), [docs/zh/README.md](docs/zh/README.md) |
+
+## Automated validation
 
 ```bash
-PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m unittest discover -s tests -v
+PYTHONPYCACHEPREFIX=/tmp/agentledger-pycache PYTHONPATH=src python3 -m compileall -q src tests examples
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m unittest discover -s tests -q
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src PYTHONTRACEMALLOC=10 python3 -W default::ResourceWarning -m unittest discover -s tests -q
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m agentledger contract export > /tmp/agentledger-contract.json
+python3 -m json.tool /tmp/agentledger-contract.json >/dev/null
+diff -u contracts/agentledger.runtime.v1.json /tmp/agentledger-contract.json
 ```
 
-## Documentation
-
-- `AI_Agent_Runtime_开源项目构想.md`: long-form project vision and architecture notes.
-- `docs/IMPLEMENTATION_PLAN.md`: phased implementation plan beyond MVP.
-- `docs/RUNTIME_SPEC.md`: runtime concepts, state model, event schema, tool ledger, invariants.
-- `docs/EXTENSIBILITY.md`: adapter model for storage, tools, frameworks, protocols, observability.
-- `docs/SECURITY_ENTERPRISE.md`: security model, enterprise readiness, open-source quality bar.
+See [docs/RELEASE_CHECKLIST.md](docs/RELEASE_CHECKLIST.md) for the complete release gate.
 
 ## License
 
-Apache-2.0. See `LICENSE`.
+Apache-2.0. See [LICENSE](LICENSE).

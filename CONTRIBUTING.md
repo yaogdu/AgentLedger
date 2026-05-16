@@ -5,7 +5,13 @@ AgentLedger is intentionally framework-agnostic. Contributions should preserve t
 ## Local Development
 
 ```bash
-PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m unittest discover -s tests -v
+PYTHONPYCACHEPREFIX=/tmp/agentledger-pycache PYTHONPATH=src python3 -m compileall -q src tests examples
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m unittest discover -s tests -q
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m agentledger --root /tmp/agentledger-dev-check conformance
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m agentledger lint boundary examples src --exclude src/agentledger --no-fail
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m agentledger contract export > /tmp/agentledger-contract.json
+python3 -m json.tool /tmp/agentledger-contract.json >/dev/null
+diff -u contracts/agentledger.runtime.v0.json /tmp/agentledger-contract.json
 ```
 
 ## Contribution Principles
@@ -15,6 +21,68 @@ PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m unittest discover -s tests -
 - Prefer explicit state transitions over hidden mutable state.
 - Add tests for failure paths, not only happy paths.
 - Do not make replay or shadow mode perform real external side effects.
+- Keep Python as the reference implementation, not the protocol boundary.
+- Keep Rust, TypeScript, and Go work aligned with `contracts/agentledger.runtime.v0.json`.
+
+## Required Checks
+
+Before opening a pull request, run:
+
+```bash
+PYTHONPYCACHEPREFIX=/tmp/agentledger-pycache PYTHONPATH=src python3 -m compileall -q src tests examples
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m unittest discover -s tests -q
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src PYTHONTRACEMALLOC=10 python3 -W default::ResourceWarning -m unittest discover -s tests -q
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m agentledger --root /tmp/agentledger-pr-check conformance >/tmp/agentledger-conformance.json
+python3 -m json.tool /tmp/agentledger-conformance.json >/dev/null
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m agentledger lint boundary examples src --exclude src/agentledger --no-fail >/tmp/agentledger-boundary-lint.json
+python3 -m json.tool /tmp/agentledger-boundary-lint.json >/dev/null
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m agentledger contract export > /tmp/agentledger-contract.json
+python3 -m json.tool /tmp/agentledger-contract.json >/dev/null
+diff -u contracts/agentledger.runtime.v0.json /tmp/agentledger-contract.json
+```
+
+The full release gate is documented in `docs/RELEASE_CHECKLIST.md`.
+
+If you change runtime events, wire objects, or invariants, update both `src/agentledger/contract.py` and `contracts/agentledger.runtime.v0.json`.
+
+If you change examples, tool catalogs, media/stream contracts, worker loops, or CLI docs, also run the relevant example smoke commands in `docs/RELEASE_CHECKLIST.md`.
+
+Do not add destructive database cleanup commands to the required check path. Adapter tests should use temporary data or explicitly configured test services only.
+
+Optional Postgres adapter changes should also run the real-service smoke test when credentials are available:
+
+```bash
+AGENTLEDGER_RUN_POSTGRES_INTEGRATION=1 AGENTLEDGER_POSTGRES_DSN=<dsn> PYTHONPATH=src python3 -m unittest tests.test_postgres_integration -v
+```
+
+Optional S3/MinIO adapter changes should also run the real-service smoke test when credentials are available:
+
+```bash
+AGENTLEDGER_RUN_S3_INTEGRATION=1 AGENTLEDGER_S3_BUCKET=<bucket> PYTHONPATH=src python3 -m unittest tests.test_s3_integration -v
+```
+
+If you change storage schema, update:
+
+```text
+src/agentledger/storage_schema.py
+migrations/sqlite/
+migrations/postgres/
+docs/STORAGE.md
+```
+
+## Compatibility Expectations
+
+Adapters and multi-language implementations should preserve:
+
+```text
+event ordering
+lease/fencing checks
+state version checks
+Tool Ledger idempotency
+approval-before-execution
+sandbox fail-closed behavior
+replay/shadow side-effect blocking
+```
 
 ## Roadmap Fit
 
@@ -25,3 +93,6 @@ Good first contribution areas:
 - richer policy engines and approval workflows
 - replay/evidence bundle export
 - observability exporters
+- TypeScript worker/client targeting the runtime contract
+- Rust runtime primitive or worker experiments
+- Go infrastructure worker/client experiments

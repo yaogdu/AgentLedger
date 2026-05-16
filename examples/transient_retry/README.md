@@ -1,0 +1,28 @@
+# Transient Retry Worker Demo
+
+This demo exercises the worker loop and retry policy without loading user code
+from disk. The CLI recognizes the `examples/transient_retry` example name and
+installs a small in-process agent that fails once with `RetryableAgentError`,
+then succeeds on the next worker attempt.
+
+Run a one-shot local worker:
+
+```bash
+PYTHONPATH=src python3 -m agentledger worker-run examples/transient_retry
+```
+
+Run the process-shaped worker service loop:
+
+```bash
+PYTHONPATH=src python3 -m agentledger worker serve examples/transient_retry --max-loops 5
+```
+
+Expected behavior:
+
+```text
+attempt 1 -> retryable failure -> retry_scheduled
+attempt 2 -> state commit -> completed
+```
+
+The demo is local and dependency-free. It does not start external services or
+delete runtime data.

@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "rules": [
+    {
+      "rule_id": "project-direct-internal-client",
+      "pattern": "internal_client.",
+      "prefix": true,
+      "category": "project-side-effect",
+      "message": "direct internal client calls bypass AgentLedger policy, ledger, replay, and audit",
+      "suggestion": "wrap the internal service call as a runtime-managed tool and call await ctx.call_tool(...)"
+    }
+  ]
+}

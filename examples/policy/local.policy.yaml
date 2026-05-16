@@ -1,0 +1,22 @@
+version: 1
+defaults:
+  low: allow
+  medium: allow
+  high: deny
+  destructive: deny
+  sensitive: deny
+roles:
+  ExecutorAgent:
+    allow_tools:
+      - github.create_issue
+      - math.add
+    deny_tools:
+      - shell.exec
+    deny_risk:
+      - destructive
+  ReaderAgent:
+    allow_risk:
+      - low
+    deny_risk:
+      - high
+      - sensitive

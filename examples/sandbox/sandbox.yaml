@@ -1,0 +1,43 @@
+default_executor: local
+fail_closed: true
+executors:
+  local:
+    type: local
+  none:
+    type: none
+  bubblewrap:
+    type: bubblewrap
+    network: deny
+    allow_command_execution: false
+    fallback_without_bwrap: false
+  docker:
+    type: docker
+    image: python:3.11-slim
+    allow_command_execution: false
+  k8s-gvisor:
+    type: kubernetes
+    runtime_class: gvisor
+    namespace: agentledger-sandbox
+    image: agentledger/sandbox:latest
+    dry_run: true
+    allow_command_execution: false
+    kubectl: kubectl
+    cleanup: true
+    wait_timeout_seconds: 60
+  firecracker:
+    type: firecracker
+    endpoint: https://sandbox.internal/execute
+tools:
+  docs.read:
+    required: false
+  shell.exec:
+    required: true
+    executor: bubblewrap
+    network: deny
+  repo.write:
+    required: true
+    executor: docker
+  untrusted_code.run:
+    required: true
+    executor: k8s-gvisor
+    timeout_seconds: 60

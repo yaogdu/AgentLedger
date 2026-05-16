@@ -1,0 +1,56 @@
+# Security Policy
+
+AgentLedger is currently alpha software. Do not use it as the sole safety boundary for untrusted code, regulated production workloads, or high-risk external actions without additional review and infrastructure controls.
+
+## Supported Versions
+
+| Version | Security support |
+|---|---|
+| `0.2.x-alpha` | Best-effort fixes while the project is pre-v1.0. |
+
+## Reporting Issues
+
+If this repository is public, please report security issues using the repository host's private vulnerability reporting feature when available. If private reporting is not available, avoid posting exploit details publicly; open a minimal issue asking maintainers for a private contact channel.
+
+## Security Scope
+
+In scope:
+
+```text
+Tool Ledger bypasses
+approval bypasses
+sandbox fail-open behavior
+secret leakage into events/evidence
+replay or shadow mode producing side effects
+lease/fencing bugs that allow stale workers to commit
+permission policy bypasses
+```
+
+Out of scope for runtime core:
+
+```text
+business application vulnerabilities
+third-party model provider behavior
+cluster hardening outside AgentLedger manifests
+Docker/Kubernetes/gVisor/Firecracker/E2B vulnerabilities
+user-provided tool implementation bugs
+```
+
+## Security Posture
+
+AgentLedger core provides governance hooks and audit trails. It does not claim to be a complete sandbox or application security system.
+
+Production deployments should add:
+
+```text
+external sandbox hardening
+secret management
+network policy
+least-privilege service accounts
+operator approval workflows
+observability and alerting
+backup/restore
+threat modeling
+```
+
+See `docs/SECURITY_ENTERPRISE.md` for the enterprise security model.
