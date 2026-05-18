@@ -196,18 +196,31 @@ console.log(ref);
 
 ## Rust
 
-Use the local crate in this repository today:
+Use the published crates.io package in a Rust project:
+
+```bash
+cargo add agentledger-runtime
+```
+
+Import the library crate as `agentledger`:
+
+```rust
+use agentledger::{simple_run, AgentContext, Result, State, Value};
+```
+
+Local repo verification:
 
 ```bash
 cd rust
-cargo test
+cargo test --lib --bins
 cargo run --quiet -- conformance
+cargo run --quiet --example quickstart
 ```
 
 Minimal runtime:
 
 ```rust
-use agentledger::{simple_run, state, AgentContext, Result, State, Value};
+use agentledger::{simple_run, AgentContext, Result, State, Value};
 
 fn agent(ctx: &mut AgentContext, input: State) -> Result<Option<Value>> {
     if let Some(name) = input.get("name") {
@@ -217,7 +230,9 @@ fn agent(ctx: &mut AgentContext, input: State) -> Result<Option<Value>> {
 }
 
 fn main() -> Result<()> {
-    let result = simple_run(agent, state(&[("name", "world".into())]))?;
+    let mut input = State::new();
+    input.insert("name".to_string(), "world".into());
+    let result = simple_run(agent, input)?;
     println!("{}", result.run_id);
     Ok(())
 }

@@ -67,7 +67,7 @@ def main() -> None:
         "rust_version": next(line.split("=", 1)[1].strip().strip('"') for line in (ROOT / "rust" / "Cargo.toml").read_text().splitlines() if line.startswith("version")),
         "python_version": next(line.split("=", 1)[1].strip().strip('"') for line in (ROOT / "pyproject.toml").read_text().splitlines() if line.startswith("version")),
     }
-    version_ok = metadata == {"typescript_version": "1.0.2", "rust_version": "1.0.2", "python_version": "1.0.2"}
+    version_ok = metadata == {"typescript_version": "1.0.4", "rust_version": "1.0.2", "python_version": "1.0.2"}
     checks.append({"name": "package-version-alignment", "ok": version_ok, "metadata": metadata})
 
     docs = [

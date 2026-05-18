@@ -101,7 +101,7 @@ Before parity:
 
 ```text
 Python uses stable releases.
-Go, TypeScript, and Rust should publish 1.0.2-aligned runtime-core packages once packaging metadata, examples, and CLI parity are verified.
+Go, TypeScript, and Rust should publish runtime-core packages on the same release train once packaging metadata, examples, and CLI parity are verified. Patch versions may differ for packaging-only fixes, but runtime-core conformance must remain green.
 SDK/client packages must not be described as full runtime implementations.
 ```
 

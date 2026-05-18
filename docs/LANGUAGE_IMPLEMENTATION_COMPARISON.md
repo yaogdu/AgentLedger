@@ -119,7 +119,7 @@ The current directories should stay as they are:
 | Directory | Keep? | Reason |
 |---|---:|---|
 | `go/` | Yes | Matches Go module conventions and keeps Go package isolated. |
-| `typescript/` | Yes | Clear source-language name; package name is `@agentledger/runtime`. The runtime targets Node.js but the implementation/documentation surface is TypeScript-compatible. |
+| `typescript/` | Yes | Clear source-language name; package name is `agentledger-runtime`. The runtime targets Node.js but the implementation/documentation surface is TypeScript-compatible. |
 | `rust/` | Yes | Matches Rust crate conventions and keeps Cargo files isolated. |
 | `src/agentledger/` | Yes | Python reference package layout. |
 

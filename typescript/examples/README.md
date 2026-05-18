@@ -19,4 +19,4 @@ node src/cli.js quickstart
 node src/cli.js conformance
 ```
 
-Package surface: `@agentledger/runtime`. See `../README.md` for package metadata and API examples.
+Package surface: `agentledger-runtime`. See `../README.md` for package metadata and API examples.

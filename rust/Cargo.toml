@@ -7,6 +7,17 @@ license = "Apache-2.0"
 repository = "https://github.com/yaogdu/AgentLedger"
 homepage = "https://github.com/yaogdu/AgentLedger"
 documentation = "https://github.com/yaogdu/AgentLedger/tree/main/rust"
+readme = "README.md"
+keywords = ["agent", "runtime", "replay", "durable", "ai"]
+categories = ["development-tools", "asynchronous"]
+include = [
+    "Cargo.toml",
+    "Cargo.lock",
+    "README.md",
+    "src/**",
+    "examples/README.md",
+    "examples/quickstart.rs"
+]
 
 [lib]
 name = "agentledger"

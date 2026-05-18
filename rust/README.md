@@ -1,8 +1,8 @@
-# AgentLedger Rust Runtime Preview
+# AgentLedger Rust Runtime
 
 This directory contains the dependency-free Rust runtime-core package for AgentLedger 1.0.2.
 
-It is still a preview crate surface, but it runs a native local runtime loop and participates in the shared Python/Go/TypeScript/Rust conformance gate.
+It runs a native local runtime loop and participates in the shared Python/Go/TypeScript/Rust conformance gate.
 
 ## Current Status
 
@@ -25,16 +25,38 @@ Implemented:
 
 Not claimed yet:
 
-- stable published Rust crate
 - live Postgres/S3/Docker/OTLP service-backed hardening
 - async runtime integration
 - production sandbox executors
 - full media processing and stream transport adapters
 
+
+## Install
+
+Use the published crates.io package in a Rust project:
+
+```bash
+cargo add agentledger-runtime
+```
+
+Import the library crate as `agentledger`:
+
+```rust
+use agentledger::{simple_run, AgentContext, Result, State, Value};
+```
+
+From this repository, use Cargo directly while developing:
+
+```bash
+cd rust
+cargo run --quiet -- quickstart
+cargo run --quiet --example quickstart
+```
+
 ## Quickstart
 
 ```rust
-use agentledger::{simple_run, state, AgentContext, Result, State, Value};
+use agentledger::{simple_run, AgentContext, Result, State, Value};
 
 fn agent(ctx: &mut AgentContext, input: State) -> Result<Option<Value>> {
     if let Some(name) = input.get("name") {
@@ -44,7 +66,9 @@ fn agent(ctx: &mut AgentContext, input: State) -> Result<Option<Value>> {
 }
 
 fn main() -> Result<()> {
-    let result = simple_run(agent, state(&[("name", "world".into())]))?;
+    let mut input = State::new();
+    input.insert("name".to_string(), "world".into());
+    let result = simple_run(agent, input)?;
     println!("{}", result.run_id);
     Ok(())
 }
@@ -67,7 +91,7 @@ println!("{}", reference);
 
 ```bash
 cd rust
-cargo test
+cargo test --lib --bins
 cargo run --quiet -- conformance
 cargo run --quiet -- contract validate
 ```

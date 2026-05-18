@@ -19,4 +19,4 @@ cargo run --quiet -- quickstart
 cargo run --quiet -- conformance
 ```
 
-Crate surface: `agentledger-runtime`. See `../README.md` for package metadata and API examples.
+Crate surface: `agentledger-runtime`. The library crate is imported as `agentledger`. See `../README.md` for package metadata and API examples.

@@ -10,8 +10,8 @@ This is the shortest path from install to a working AgentLedger run. If you are 
 |---|---|---|---|---|
 | Python | `pipx install agentledger-runtime` or `pip install agentledger-runtime` | `agentledger quickstart` | `../examples/README.md` | PyPI package `agentledger-runtime`, CLI `agentledger` |
 | Go | `go get github.com/yaogdu/AgentLedger/go@v1.0.2` inside a Go module | `cd go && go run ./examples/quickstart` from this repo | `../go/examples/README.md` | Go module `github.com/yaogdu/AgentLedger/go`, CLI package `.../go/cmd/agentledger-go` |
-| TypeScript | package surface: `@agentledger/runtime` | `node typescript/examples/quickstart/quickstart.js` | `../typescript/examples/README.md` | npm package `@agentledger/runtime`, CLI `agentledger-ts` |
-| Rust | crate surface: `agentledger-runtime` | `cd rust && cargo run --example quickstart` | `../rust/examples/README.md` | crate `agentledger-runtime`, binary `agentledger-rust` |
+| TypeScript | npm package: `agentledger-runtime` | `node typescript/examples/quickstart/quickstart.js` | `../typescript/examples/README.md` | npm package `agentledger-runtime`, CLI `agentledger-ts` |
+| Rust | crates.io package: `agentledger-runtime` | `cargo add agentledger-runtime` 或 `cd rust && cargo run --example quickstart` | `../rust/examples/README.md` | crate `agentledger-runtime`, binary `agentledger-rust` |
 
 ## 2. Install Or Run Locally
 
@@ -58,11 +58,17 @@ node src/cli.js quickstart
 node examples/quickstart/quickstart.js
 ```
 
-After package publication, use the npm package name documented in `typescript/README.md`.
+Use the published npm package name documented in `typescript/README.md`: `agentledger-runtime`.
 
 ### Rust
 
-From this repository:
+Use the published crate in a Rust project:
+
+```bash
+cargo add agentledger-runtime
+```
+
+Import it as `agentledger` in code. From this repository:
 
 ```bash
 cd rust
@@ -70,7 +76,7 @@ cargo run --quiet -- quickstart
 cargo run --quiet --example quickstart
 ```
 
-After crate publication, use the crate name documented in `rust/README.md`.
+The crate is published as `agentledger-runtime`; the library crate is imported as `agentledger`.
 
 ## 3. Find The Right Example
 

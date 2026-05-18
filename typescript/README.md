@@ -1,4 +1,4 @@
-# AgentLedger Node / TypeScript Runtime Preview
+# AgentLedger Node / TypeScript Runtime
 
 This directory contains the dependency-free Node/TypeScript-compatible runtime-core baseline for AgentLedger 1.0.2.
 
@@ -25,15 +25,38 @@ Implemented:
 
 Not claimed yet:
 
-- stable published npm package
 - live Postgres/S3/Docker/OTLP service-backed hardening
 - full framework-native packages
 - full media processing and stream transport adapters
 
+
+## Install
+
+Use the published npm package in a Node.js project:
+
+```bash
+npm install agentledger-runtime
+```
+
+Import the runtime API:
+
+```js
+import { Runtime, simpleRun } from 'agentledger-runtime';
+```
+
+Install or run the CLI through npm package binaries after installation:
+
+```bash
+npx agentledger-ts --help
+npx agentledger-ts quickstart
+```
+
+From this repository, use `node src/cli.js ...` while developing.
+
 ## Quickstart
 
 ```js
-import { Runtime, exportEvidence } from './src/index.js';
+import { Runtime, exportEvidence } from 'agentledger-runtime';
 
 const rt = await Runtime.local('.agentledger-ts/state.json');
 rt.registerTool({
@@ -58,7 +81,7 @@ console.log(exportEvidence(rt.store, runId).run.run_id);
 ## Adapter Quickstart
 
 ```js
-import { PostgresAdapter, S3BlobStoreAdapter, DockerSandboxAdapter } from './src/index.js';
+import { PostgresAdapter, S3BlobStoreAdapter, DockerSandboxAdapter } from 'agentledger-runtime';
 
 await new PostgresAdapter(injectedSqlClient).applyMigrations();
 

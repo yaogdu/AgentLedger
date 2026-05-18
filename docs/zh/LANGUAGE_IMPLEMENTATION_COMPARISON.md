@@ -119,7 +119,7 @@ portable runtime-core behavior + contract + conformance + CLI/DX + examples + pa
 | 目录 | 保留？ | 原因 |
 |---|---:|---|
 | `go/` | Yes | 符合 Go module 习惯，Go package 独立。 |
-| `typescript/` | Yes | 源语言命名清晰；package 名是 `@agentledger/runtime`。runtime 面向 Node.js，但实现/文档表面是 TypeScript-compatible。 |
+| `typescript/` | Yes | 源语言命名清晰；package 名是 `agentledger-runtime`。runtime 面向 Node.js，但实现/文档表面是 TypeScript-compatible。 |
 | `rust/` | Yes | 符合 Rust crate 习惯，Cargo 文件独立。 |
 | `src/agentledger/` | Yes | Python reference package layout。 |
 

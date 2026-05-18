@@ -1,9 +1,10 @@
 #!/usr/bin/env node
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import process from 'node:process';
+import { fileURLToPath } from 'node:url';
 import { FunctionAdapter, InMemoryMCPContextServer, InMemoryMCPToolServer, JSONStore, LocalBlobStore, LocalWorker, MCPContextAdapter, MCPToolAdapter, MethodFrameworkAdapter, RetryableAgentError, Runtime, RuntimeScheduler, WorkerService, checkBackupReadiness, costAttribution, debugHTML, ddlFor, debugSummary, diffEvidence, divergenceReport, exportEvidence, failureAttribution, latestSchemaVersion, migrationsFor, otlpTraceJSON, planRetention, replay, simpleRun, traceJSONL, traceSpans, scanBoundarySource, adversarialReview, evaluateEvidence, evaluateEvidenceRegression, runFailureInjectionSuite, diffStates, shadowReport, builtinGoldenNames, builtinGoldenEvidence, goldenRegression, timeTravel, timeTravelHTML, optionalAdapterCapabilities, PostgresAdapter, S3BlobStoreAdapter, OTLPTransport, DockerSandboxAdapter } from './index.js';
 
 const FIXTURE_CHECKS = {
@@ -193,7 +194,7 @@ export function validateFixtures() {
 }
 
 function usage() {
-  return `AgentLedger TypeScript Runtime 1.0.2\n\nUsage:\n  agentledger-ts doctor\n  agentledger-ts version\n  agentledger-ts quickstart\n  agentledger-ts conformance\n  agentledger-ts contract validate\n  agentledger-ts contract export\n\nProject: https://github.com/yaogdu/AgentLedger`;
+  return `AgentLedger TypeScript Runtime 1.0.4\n\nUsage:\n  agentledger-ts doctor\n  agentledger-ts version\n  agentledger-ts quickstart\n  agentledger-ts conformance\n  agentledger-ts contract validate\n  agentledger-ts contract export\n\nProject: https://github.com/yaogdu/AgentLedger`;
 }
 
 export async function runRuntimeSmoke() {
@@ -576,11 +577,11 @@ export async function main(args = process.argv.slice(2)) {
     return 0;
   }
   if (args.length === 1 && args[0] === 'version') {
-    console.log('agentledger-ts 1.0.2');
+    console.log('agentledger-ts 1.0.4');
     return 0;
   }
   if (args.length === 1 && args[0] === 'doctor') {
-    console.log(JSON.stringify({ language: 'typescript', version: '1.0.2', status: 'ok', runtime_core_parity: true }, null, 2));
+    console.log(JSON.stringify({ language: 'typescript', version: '1.0.4', status: 'ok', runtime_core_parity: true }, null, 2));
     return 0;
   }
   if (args.length === 1 && args[0] === 'quickstart') {
@@ -606,7 +607,16 @@ export async function main(args = process.argv.slice(2)) {
   return 1;
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+function isDirectCLIEntry() {
+  if (!process.argv[1]) return false;
+  try {
+    return realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url));
+  } catch {
+    return import.meta.url === `file://${process.argv[1]}`;
+  }
+}
+
+if (isDirectCLIEntry()) {
   try {
     process.exitCode = await main();
   } catch (error) {

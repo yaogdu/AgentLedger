@@ -1,6 +1,6 @@
 {
-  "name": "@agentledger/runtime",
-  "version": "1.0.2",
+  "name": "agentledger-runtime",
+  "version": "1.0.4",
   "private": false,
   "description": "Dependency-free Node/TypeScript-compatible runtime for AgentLedger.",
   "type": "module",
@@ -17,5 +17,11 @@
   },
   "bin": {
     "agentledger-ts": "src/cli.js"
-  }
+  },
+  "files": [
+    "src/",
+    "examples/README.md",
+    "examples/quickstart/",
+    "README.md"
+  ]
 }

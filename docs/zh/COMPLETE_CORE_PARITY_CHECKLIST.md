@@ -25,9 +25,9 @@
 
 1. 四语言 CLI baseline 已有自动化检查，不再只依赖 conformance。
 2. Go、TypeScript、Rust 已有 runnable quickstart example files。
-3. TypeScript/Rust package surface 已有 `npm pack --dry-run` / `cargo package --allow-dirty --no-verify` 发布 dry-run。
-4. Python、TypeScript、Rust 的 package version 已自动检查。
-5. Go module 外部消费仍依赖 Git tag/release，应放在 release 阶段验证，不再作为 runtime-core 实现缺口。
+3. TypeScript/Rust package surface 已有 `npm pack --dry-run` / `cargo package --allow-dirty --no-verify` 发布 dry-run，并已完成发布后 clean install smoke。
+4. Python、TypeScript、Rust 的 package version 已自动检查。TypeScript 为 `1.0.4`，因为 npm `1.0.2` 之后补了 CLI bin packaging fix；runtime-core 语义仍保持对齐。
+5. Go module 外部消费依赖 Git tag/release；`go/v1.0.2` 已完成 clean external `go get` smoke，后续 release 需要重复验证。
 6. 真实服务 hardening 仍不属于 core parity，继续作为 optional follow-up 记录。
 
 ## 必要完成 Gate

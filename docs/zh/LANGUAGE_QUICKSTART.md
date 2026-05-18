@@ -142,18 +142,31 @@ const { ref } = await s3.putJSON({ answer: 'ok' });
 
 ## Rust
 
-当前使用 repo 内本地 crate：
+在 Rust 项目中使用已发布 crates.io package：
+
+```bash
+cargo add agentledger-runtime
+```
+
+代码里以 `agentledger` 作为 library crate 导入：
+
+```rust
+use agentledger::{simple_run, AgentContext, Result, State, Value};
+```
+
+本地 repo 验证：
 
 ```bash
 cd rust
-cargo test
+cargo test --lib --bins
 cargo run --quiet -- conformance
+cargo run --quiet --example quickstart
 ```
 
 最小 runtime：
 
 ```rust
-use agentledger::{simple_run, state, AgentContext, Result, State, Value};
+use agentledger::{simple_run, AgentContext, Result, State, Value};
 
 fn agent(ctx: &mut AgentContext, input: State) -> Result<Option<Value>> {
     if let Some(name) = input.get("name") {
@@ -163,7 +176,9 @@ fn agent(ctx: &mut AgentContext, input: State) -> Result<Option<Value>> {
 }
 
 fn main() -> Result<()> {
-    let result = simple_run(agent, state(&[("name", "world".into())]))?;
+    let mut input = State::new();
+    input.insert("name".to_string(), "world".into());
+    let result = simple_run(agent, input)?;
     println!("{}", result.run_id);
     Ok(())
 }
@@ -172,11 +187,14 @@ fn main() -> Result<()> {
 Official optional adapter 形态：
 
 ```rust
+use agentledger::{PostgresAdapter, S3BlobStoreAdapter};
+
 let mut pg = PostgresAdapter::new(injected_sql_client, "agentledger");
 pg.apply_migrations()?;
 
 let mut s3 = S3BlobStoreAdapter::new(injected_object_client, "agentledger-test", "agentledger/blobs");
 let (_digest, reference) = s3.put_json(&value)?;
+println!("{}", reference);
 ```
 
 ## 聚合验证
