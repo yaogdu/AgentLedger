@@ -1,0 +1,16 @@
+{
+  "schema_version": "agentledger.conformance.shadow.v1",
+  "contract_version": "1.0",
+  "purpose": "Language-neutral shadow-mode report and state-diff semantics for comparing source and candidate run final state without producing side effects.",
+  "scenarios": [
+    {
+      "id": "shadow_state_diff_reports_changed_keys",
+      "input": { "source": { "answer": "old", "stable": true }, "shadow": { "answer": "new", "stable": true, "extra": 1 } },
+      "expected": { "changed_count": 2, "changed_keys": ["answer", "extra"] }
+    },
+    {
+      "id": "shadow_report_carries_source_shadow_and_ok",
+      "expected_fields": ["source_run_id", "shadow_run_id", "ok", "state_diff"]
+    }
+  ]
+}

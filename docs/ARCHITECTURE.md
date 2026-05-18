@@ -1,6 +1,6 @@
 # Architecture
 
-AgentLedger is a durable runtime layer for AI agents. It is not an agent framework, model SDK, workflow engine, eval system, observability suite, RAG system, or sandbox infrastructure provider.
+AgentLedger is an agent execution safety and evidence layer. It is not an agent framework, model SDK, workflow engine, eval system, observability suite, RAG system, or sandbox infrastructure provider.
 
 The architecture keeps runtime core thin but hard to replace: it only owns guarantees that must be enforced at the boundary between agent logic and external effects. Mature systems integrate through adapters and conformance tests instead of being rebuilt inside core.
 
@@ -133,12 +133,15 @@ Application tables such as users, orders, documents, or tasks remain owned by th
 
 Python is the current reference implementation. It is not the protocol boundary.
 
-Rust, TypeScript, and Go implementations should target:
+The long-term target is native runtime-core parity across Python, Go, TypeScript, and Rust. SDK/client-only packages can help adoption, but they are not the protocol boundary and do not count as runtime-ready by themselves.
+
+Go, TypeScript, and Rust implementations should target:
 
 ```text
 contracts/agentledger.runtime.v1.json
 docs/RUNTIME_SPEC.md
 docs/MULTI_LANGUAGE.md
+docs/LANGUAGE_PARITY_MATRIX.md
 StateStore conformance semantics
 evidence/replay golden fixtures
 ```

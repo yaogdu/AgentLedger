@@ -43,7 +43,8 @@ The goal of this document is to make maturity explicit so users know which parts
 | Failure injection suite | `Stable core` | Local crash/retry/lease/cancellation probes for reliability regression checks. |
 | Failure attribution report | `Stable core` | Read-only failure summary for steps, approvals, pending verification, and failure events. |
 | Storage migrations | `Stable core` | SQLite runner, Postgres migration status/apply path, and SQLite/Postgres DDL catalog. |
-| Runtime contract JSON | `Stable core` | Golden fixture for future Rust/TypeScript/Go implementations. |
+| Runtime contract JSON | `Stable core` | Golden fixture for Python plus Go/TypeScript/Rust preview native runtime implementations. |
+| Cross-language parity runner | `Preview` | `scripts/check_language_parity.py` runs Python, Go, TypeScript, Rust, contract diff, Markdown links, and whitespace checks locally. |
 | Release checklist and CI gates | `Stable core` | Local release checklist, contributor checks, ResourceWarning-sensitive tests, root conformance, boundary lint, contract export, and dependency-free example smoke. |
 | Policy YAML | `Stable core` | Dependency-free role/tool policy loader. |
 | Sandbox boundary | `Stable core` | `none`, `local`, router, events, fail-closed semantics. |
@@ -55,9 +56,9 @@ The goal of this document is to make maturity explicit so users know which parts
 | LangGraph adapter | `Preview` | Dependency-free checkpointer/node facade; exact LangGraph package integration remains optional. |
 | MCP adapter | `Skeleton` | Tool descriptor mapping, context-read adapter, and dependency-free fixtures exist; exact MCP SDK integration is roadmap. |
 | CrewAI/AutoGen/LangChain/OpenAI Agents/LlamaIndex/Semantic Kernel facades | `Preview` | Dependency-free method adapters exist; exact framework package integrations remain optional. |
-| TypeScript SDK | `Roadmap` | Should target `contracts/agentledger.runtime.v1.json`. |
-| Rust implementation | `Roadmap` | Should start with runtime primitives or worker/sandbox components. |
-| Go implementation | `Roadmap` | Should start with worker/infra adapters. |
+| Go runtime implementation | `Preview` | Dependency-free native runtime-core parity baseline exists under `go/`, including policy/approval/sandbox and cost/failure semantics; runtime-ready still requires production adapters and stable packaged conformance. |
+| TypeScript runtime implementation | `Preview` | Dependency-free Node/TypeScript-compatible runtime-core parity baseline exists under `typescript/`, including policy/approval/sandbox and cost/failure semantics; runtime-ready still requires production adapters, framework packages, and stable packaged conformance. |
+| Rust runtime implementation | `Preview` | Dependency-free in-memory runtime-core parity baseline exists under `rust/`, including policy/approval/sandbox and cost/failure semantics; runtime-ready still requires production persistence adapters, async integration, and stable packaged conformance. |
 | Static time-travel report | `Preview` | Optional static HTML inspection export for local incident review; a long-running web app is a non-goal for runtime-core. |
 | Lint for runtime bypass | `Stable core` | AST-based CLI check for common direct shell, HTTP, SDK, cloud, and model calls that bypass `ctx.call_tool`. |
 | Media artifact contract | `Preview` | `MediaArtifact`, `MediaMetadata`, and `ArtifactLineage` store refs, metadata, and lineage; codecs and media processing remain external. |

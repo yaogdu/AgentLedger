@@ -1,0 +1,79 @@
+{
+  "schema_version": "agentledger.conformance.runtime_baseline.v1",
+  "contract_version": "1.0",
+  "purpose": "Shared cross-language preview fixture for the minimum native runtime loop. It is intentionally small and must be expanded before any non-Python runtime can claim stable parity.",
+  "required_scenarios": [
+    {
+      "name": "durable_run_evidence_replay",
+      "description": "Create a run, execute one leased step, commit a state patch, export evidence, and replay without side effects.",
+      "required_event_types": [
+        "run_created",
+        "step_created",
+        "step_claimed",
+        "agent_started",
+        "state_patch_committed",
+        "step_completed"
+      ],
+      "required_assertions": [
+        "final_state_contains_agent_output",
+        "evidence_schema_version_is_agentledger_evidence_v1",
+        "replay_safe_is_true",
+        "replay_event_count_matches_evidence"
+      ]
+    },
+    {
+      "name": "tool_ledger_idempotent_retry",
+      "description": "A side-effect tool succeeds, the agent crashes or retries, and the next attempt reuses the Tool Ledger response instead of executing the tool again.",
+      "required_event_types": [
+        "tool_call_requested",
+        "tool_permission_decided",
+        "tool_call_completed",
+        "step_retry_scheduled"
+      ],
+      "required_assertions": [
+        "side_effect_tool_executed_once",
+        "single_tool_ledger_entry",
+        "ledger_status_succeeded",
+        "retry_uses_archived_response"
+      ]
+    },
+    {
+      "name": "lease_recovery_fences_stale_worker",
+      "description": "An expired lease is recovered and the previous owner cannot commit state with the old fencing token.",
+      "required_event_types": [
+        "lease_expired",
+        "step_retry_scheduled"
+      ],
+      "required_assertions": [
+        "expired_lease_recovered",
+        "stale_lease_commit_rejected",
+        "recovered_step_claimable"
+      ]
+    },
+    {
+      "name": "cancellation_fences_worker",
+      "description": "A cancelled run fences a worker that still holds a previous lease token.",
+      "required_event_types": [
+        "run_cancel_requested",
+        "step_cancelled",
+        "run_cancelled"
+      ],
+      "required_assertions": [
+        "cancelled_step_count_matches_open_steps",
+        "cancelled_worker_commit_rejected"
+      ]
+    }
+  ],
+  "preview_languages_expected_to_read_this_fixture": [
+    "go",
+    "typescript",
+    "rust"
+  ],
+  "not_yet_stable_requirements": [
+    "policy_approval_sandbox_parity",
+    "cost_failure_attribution_parity",
+    "media_stream_processing_adapter_parity",
+    "production_storage_adapter_parity",
+    "shared_machine_readable_conformance_report"
+  ]
+}

@@ -1,0 +1,136 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1350" viewBox="0 0 1080 1350" role="img" aria-labelledby="title desc">
+  <title id="title">AgentLedger Runtime Architecture</title>
+  <desc id="desc">AgentLedger production AI agent reliability runtime architecture poster.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fff7ed"/>
+      <stop offset="0.46" stop-color="#f8fafc"/>
+      <stop offset="1" stop-color="#e0f2fe"/>
+    </linearGradient>
+    <linearGradient id="core" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0f172a"/>
+      <stop offset="1" stop-color="#164e63"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#f97316"/>
+      <stop offset="1" stop-color="#0ea5e9"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="18" stdDeviation="22" flood-color="#0f172a" flood-opacity="0.14"/>
+    </filter>
+    <filter id="soft" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="35"/>
+    </filter>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth">
+      <path d="M2,2 L10,6 L2,10 Z" fill="#475569"/>
+    </marker>
+    <style>
+      .title { font-family: 'Avenir Next', 'PingFang SC', 'Hiragino Sans GB', sans-serif; font-weight: 800; fill: #0f172a; }
+      .sub { font-family: 'Avenir Next', 'PingFang SC', 'Hiragino Sans GB', sans-serif; font-weight: 500; fill: #475569; }
+      .label { font-family: 'Avenir Next', 'PingFang SC', 'Hiragino Sans GB', sans-serif; font-weight: 750; fill: #0f172a; }
+      .small { font-family: 'Avenir Next', 'PingFang SC', 'Hiragino Sans GB', sans-serif; font-weight: 500; fill: #64748b; }
+      .white { fill: #ffffff; }
+      .mutedWhite { fill: #cbd5e1; }
+      .card { fill: rgba(255,255,255,0.88); stroke: rgba(15,23,42,0.10); stroke-width: 1.5; }
+      .card2 { fill: rgba(255,255,255,0.76); stroke: rgba(14,165,233,0.20); stroke-width: 1.5; }
+      .line { stroke: #475569; stroke-width: 3; fill: none; marker-end: url(#arrow); opacity: 0.82; }
+      .dash { stroke: #64748b; stroke-width: 2.5; stroke-dasharray: 8 9; fill: none; opacity: 0.65; }
+      .chip { fill: #0f172a; opacity: 0.06; }
+    </style>
+  </defs>
+
+  <rect width="1080" height="1350" fill="url(#bg)"/>
+  <circle cx="145" cy="145" r="110" fill="#fed7aa" opacity="0.55" filter="url(#soft)"/>
+  <circle cx="940" cy="260" r="145" fill="#bae6fd" opacity="0.58" filter="url(#soft)"/>
+  <circle cx="860" cy="1160" r="170" fill="#bbf7d0" opacity="0.35" filter="url(#soft)"/>
+
+  <g transform="translate(72 58)">
+    <rect x="0" y="0" width="936" height="1234" rx="42" fill="rgba(255,255,255,0.56)" stroke="rgba(15,23,42,0.08)"/>
+
+    <text x="42" y="88" class="title" font-size="72">AgentLedger</text>
+    <rect x="42" y="112" width="328" height="8" rx="4" fill="url(#accent)"/>
+    <text x="42" y="160" class="sub" font-size="30">Production AI Agent Reliability Runtime</text>
+    <text x="42" y="202" class="sub" font-size="24">不替代 Agent 框架，而是让 Agent 在生产环境稳定活下去</text>
+
+    <g transform="translate(42 242)">
+      <rect x="0" y="0" width="852" height="78" rx="26" class="card" filter="url(#shadow)"/>
+      <text x="36" y="35" class="label" font-size="24">Agent Frameworks / Custom Agents</text>
+      <text x="36" y="62" class="small" font-size="20">LangGraph · LangChain · CrewAI · AutoGen · OpenAI Agents SDK · 自定义 Agent</text>
+    </g>
+
+    <path d="M468 332 L468 386" class="line"/>
+
+    <g transform="translate(42 392)" filter="url(#shadow)">
+      <rect x="0" y="0" width="852" height="332" rx="34" fill="url(#core)"/>
+      <text x="36" y="55" class="white" font-family="Avenir Next, PingFang SC, sans-serif" font-weight="800" font-size="34">AgentLedger Runtime Boundary</text>
+      <text x="36" y="91" class="mutedWhite" font-family="Avenir Next, PingFang SC, sans-serif" font-size="21">AgentContext · Tool Gateway · Scheduler · Policy · Sandbox · Budget</text>
+
+      <g transform="translate(36 126)">
+        <rect x="0" y="0" width="246" height="142" rx="24" fill="rgba(255,255,255,0.10)" stroke="rgba(255,255,255,0.18)"/>
+        <text x="22" y="38" class="white" font-family="Avenir Next, PingFang SC, sans-serif" font-weight="750" font-size="24">AgentContext</text>
+        <text x="22" y="72" class="mutedWhite" font-family="Avenir Next, PingFang SC, sans-serif" font-size="18">state · tools · model</text>
+        <text x="22" y="102" class="mutedWhite" font-family="Avenir Next, PingFang SC, sans-serif" font-size="18">artifacts · memory refs</text>
+      </g>
+
+      <g transform="translate(304 126)">
+        <rect x="0" y="0" width="246" height="142" rx="24" fill="rgba(255,255,255,0.10)" stroke="rgba(255,255,255,0.18)"/>
+        <text x="22" y="38" class="white" font-family="Avenir Next, PingFang SC, sans-serif" font-weight="750" font-size="24">Tool Gateway</text>
+        <text x="22" y="72" class="mutedWhite" font-family="Avenir Next, PingFang SC, sans-serif" font-size="18">schema · policy · audit</text>
+        <text x="22" y="102" class="mutedWhite" font-family="Avenir Next, PingFang SC, sans-serif" font-size="18">approval · sandbox</text>
+      </g>
+
+      <g transform="translate(572 126)">
+        <rect x="0" y="0" width="244" height="142" rx="24" fill="rgba(255,255,255,0.10)" stroke="rgba(255,255,255,0.18)"/>
+        <text x="22" y="38" class="white" font-family="Avenir Next, PingFang SC, sans-serif" font-weight="750" font-size="24">Worker Runtime</text>
+        <text x="22" y="72" class="mutedWhite" font-family="Avenir Next, PingFang SC, sans-serif" font-size="18">lease · fencing · retry</text>
+        <text x="22" y="102" class="mutedWhite" font-family="Avenir Next, PingFang SC, sans-serif" font-size="18">cancel · recovery</text>
+      </g>
+    </g>
+
+    <path d="M280 724 L230 790" class="line"/>
+    <path d="M468 724 L468 790" class="line"/>
+    <path d="M656 724 L706 790" class="line"/>
+
+    <g transform="translate(42 802)">
+      <rect x="0" y="0" width="262" height="172" rx="28" class="card" filter="url(#shadow)"/>
+      <text x="28" y="42" class="label" font-size="25">Durable State</text>
+      <text x="28" y="76" class="small" font-size="19">runs · steps · sessions</text>
+      <text x="28" y="105" class="small" font-size="19">checkpoints · migrations</text>
+      <rect x="28" y="126" width="150" height="30" rx="15" fill="#e0f2fe"/>
+      <text x="47" y="148" class="small" font-size="17" fill="#0369a1">SQLite / Postgres</text>
+    </g>
+
+    <g transform="translate(337 802)">
+      <rect x="0" y="0" width="262" height="172" rx="28" class="card" filter="url(#shadow)"/>
+      <text x="28" y="42" class="label" font-size="25">Tool Ledger</text>
+      <text x="28" y="76" class="small" font-size="19">idempotency · causal token</text>
+      <text x="28" y="105" class="small" font-size="19">side-effect status · audit</text>
+      <rect x="28" y="126" width="154" height="30" rx="15" fill="#ffedd5"/>
+      <text x="50" y="148" class="small" font-size="17" fill="#9a3412">Once-only guard</text>
+    </g>
+
+    <g transform="translate(632 802)">
+      <rect x="0" y="0" width="262" height="172" rx="28" class="card" filter="url(#shadow)"/>
+      <text x="28" y="42" class="label" font-size="25">Evidence / Replay</text>
+      <text x="28" y="76" class="small" font-size="19">event log · payload refs</text>
+      <text x="28" y="105" class="small" font-size="19">debug · diff · shadow run</text>
+      <rect x="28" y="126" width="142" height="30" rx="15" fill="#dcfce7"/>
+      <text x="51" y="148" class="small" font-size="17" fill="#166534">Local / S3</text>
+    </g>
+
+    <path d="M173 974 L173 1030" class="line"/>
+    <path d="M468 974 L468 1030" class="line"/>
+    <path d="M763 974 L763 1030" class="line"/>
+
+    <g transform="translate(42 1044)">
+      <rect x="0" y="0" width="852" height="96" rx="28" class="card2" filter="url(#shadow)"/>
+      <text x="34" y="38" class="label" font-size="25">Reliability Consumers</text>
+      <text x="34" y="70" class="small" font-size="20">Replay · Time Travel · Evidence Export · Conformance · Regression · Review Gates</text>
+    </g>
+
+    <g transform="translate(42 1174)">
+      <rect x="0" y="0" width="852" height="42" rx="21" class="chip"/>
+      <text x="28" y="28" class="small" font-size="18">GitHub: github.com/yaogdu/AgentLedger · PyPI: pipx install agentledger-runtime</text>
+    </g>
+  </g>
+</svg>

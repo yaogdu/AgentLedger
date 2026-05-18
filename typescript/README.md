@@ -1,0 +1,96 @@
+# AgentLedger Node / TypeScript Runtime Preview
+
+This directory contains the dependency-free Node/TypeScript-compatible runtime-core baseline for AgentLedger 1.0.2.
+
+It is still a preview package surface, but it runs a native local runtime loop and participates in the shared Python/Go/TypeScript/Rust conformance gate.
+
+## Current Status
+
+Implemented:
+
+- local JSON store with atomic file writes and in-memory store for tests
+- run/session/step state model
+- leased step claim, heartbeat, lease recovery, and cancellation fencing
+- `AgentContext` with state patch writes and runtime-managed tool calls
+- `ToolGateway` with Tool Ledger idempotency for side-effect tools
+- evidence export, replay, trace/diff/debug consumers, time-travel timeline, repro helpers
+- policy denial, approval pause/resume, sandbox fail-closed behavior
+- cost records, budget enforcement, and failure attribution
+- media artifact refs and stream checkpoint refs in evidence/replay
+- scheduler facade, worker service, failure injection, adversarial review, evidence regression
+- MCP-style and dependency-free framework adapters
+- `.d.ts` declarations
+- official optional adapter APIs for Postgres, S3/MinIO, OTLP transport, and Docker sandbox manifests
+- CLI for `conformance`, `contract validate`, and `contract export`
+
+Not claimed yet:
+
+- stable published npm package
+- live Postgres/S3/Docker/OTLP service-backed hardening
+- full framework-native packages
+- full media processing and stream transport adapters
+
+## Quickstart
+
+```js
+import { Runtime, exportEvidence } from './src/index.js';
+
+const rt = await Runtime.local('.agentledger-ts/state.json');
+rt.registerTool({
+  name: 'docs.echo',
+  func: async (args) => ({ echo: args.text }),
+});
+
+const { runId } = await rt.createRun({ input: 'hello' });
+await rt.runOnce({
+  runId,
+  workerId: 'worker-ts',
+  agentRole: 'Agent',
+  agent: async (ctx, state) => {
+    const result = await ctx.callTool('docs.echo', { text: state.input });
+    await ctx.writeState('result', result);
+  },
+});
+
+console.log(exportEvidence(rt.store, runId).run.run_id);
+```
+
+## Adapter Quickstart
+
+```js
+import { PostgresAdapter, S3BlobStoreAdapter, DockerSandboxAdapter } from './src/index.js';
+
+await new PostgresAdapter(injectedSqlClient).applyMigrations();
+
+const s3 = new S3BlobStoreAdapter(injectedObjectClient, { bucket: 'agentledger-test' });
+const { ref } = await s3.putJSON({ answer: 'ok' });
+console.log(ref);
+
+const manifest = new DockerSandboxAdapter().manifest({ network: 'deny' }, ['echo', 'ok']);
+console.log(manifest);
+```
+
+## Verify
+
+```bash
+cd typescript
+npm test
+npm run check
+npm run conformance
+npm run contract:validate
+```
+
+From the repository root:
+
+```bash
+python3.11 scripts/check_language_parity.py --json-report /tmp/agentledger-language-parity.json
+```
+
+## Compatibility Target
+
+```text
+../contracts/agentledger.runtime.v1.json
+../contracts/conformance/runtime_semantics.v1.json
+../docs/LANGUAGE_QUICKSTART.md
+../docs/LANGUAGE_PARITY_MATRIX.md
+```

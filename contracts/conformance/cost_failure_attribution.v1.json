@@ -1,0 +1,51 @@
+{
+  "schema_version": "agentledger.conformance.cost_failure_attribution.v1",
+  "contract_version": "1.0",
+  "purpose": "Shared cross-language fixture for token/cost accounting, budget enforcement, and failure attribution semantics. Preview runtimes must execute these semantics before claiming runtime-core parity.",
+  "required_scenarios": [
+    {
+      "name": "tool_and_model_cost_attributed_to_run_step_role",
+      "description": "Tool and model usage records should be attributed to run, session, step, agent role, tool/model name, amount, and unit.",
+      "required_event_types": [
+        "model_call_completed",
+        "tool_call_completed",
+        "cost_recorded"
+      ],
+      "required_assertions": [
+        "cost_records_include_run_id",
+        "cost_records_include_step_id",
+        "cost_records_include_category_name_amount_unit",
+        "cost_summary_matches_records"
+      ]
+    },
+    {
+      "name": "budget_exhaustion_blocks_execution",
+      "description": "A runtime budget limit should block model or tool execution before additional cost is created.",
+      "required_event_types": [
+        "budget_check_failed",
+        "step_failed"
+      ],
+      "required_assertions": [
+        "blocked_call_not_executed",
+        "budget_failure_is_audited",
+        "failure_type_is_budget_exhausted"
+      ]
+    },
+    {
+      "name": "failure_attribution_classifies_agent_tool_model_runtime",
+      "description": "Failures should be classified by source and linked to run, step, tool/model, retryability, and final step status.",
+      "required_event_types": [
+        "failure_classified",
+        "error_raised",
+        "step_failed"
+      ],
+      "required_assertions": [
+        "failure_has_source",
+        "failure_has_error_type",
+        "failure_has_retryability",
+        "failure_links_to_step_and_optional_tool_or_model"
+      ]
+    }
+  ],
+  "preview_status": "implemented by Go, TypeScript, and Rust preview runtimes as runtime-core parity gates; production adapter hardening remains separate"
+}

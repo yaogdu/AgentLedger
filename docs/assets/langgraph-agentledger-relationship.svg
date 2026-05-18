@@ -1,0 +1,136 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="920" viewBox="0 0 1400 920" role="img" aria-labelledby="title desc">
+  <title id="title">LangGraph and AgentLedger relationship</title>
+  <desc id="desc">A comparison diagram showing overlap and differences between LangGraph and AgentLedger, and how AgentLedger can sit beneath LangGraph as a reliability runtime layer.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f7f3e7"/>
+      <stop offset="0.48" stop-color="#eef5ef"/>
+      <stop offset="1" stop-color="#e8f1f7"/>
+    </linearGradient>
+    <linearGradient id="lg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#dbeafe"/>
+      <stop offset="1" stop-color="#bfdbfe"/>
+    </linearGradient>
+    <linearGradient id="al" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#dcfce7"/>
+      <stop offset="1" stop-color="#bbf7d0"/>
+    </linearGradient>
+    <linearGradient id="overlap" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fef3c7"/>
+      <stop offset="1" stop-color="#fde68a"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="16" stdDeviation="18" flood-color="#17211b" flood-opacity="0.13"/>
+    </filter>
+    <style>
+      .title{font:700 46px Georgia,'Times New Roman',serif;fill:#17211b;letter-spacing:-1.4px}
+      .subtitle{font:400 21px Georgia,'Times New Roman',serif;fill:#53635a}
+      .h{font:700 27px Georgia,'Times New Roman',serif;fill:#17211b}
+      .subh{font:700 18px ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;fill:#334155;text-transform:uppercase;letter-spacing:1.1px}
+      .body{font:500 19px ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;fill:#26342d}
+      .small{font:500 16px ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;fill:#526158}
+      .tiny{font:600 14px ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;fill:#64748b;text-transform:uppercase;letter-spacing:.8px}
+      .box{rx:28;filter:url(#shadow);stroke:#ffffff;stroke-width:2}
+      .line{stroke:#64748b;stroke-width:2.5;fill:none;stroke-linecap:round;stroke-linejoin:round}
+      .arrow{marker-end:url(#arrow)}
+      .chip{rx:18;fill:#ffffff;stroke:#d8e1da;stroke-width:1.4}
+      .chipText{font:700 15px ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;fill:#34433a}
+    </style>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto" markerUnits="strokeWidth">
+      <path d="M2,2 L10,6 L2,10 Z" fill="#64748b"/>
+    </marker>
+  </defs>
+
+  <rect width="1400" height="920" fill="url(#bg)"/>
+  <circle cx="117" cy="103" r="116" fill="#fef3c7" opacity="0.58"/>
+  <circle cx="1260" cy="210" r="160" fill="#dbeafe" opacity="0.54"/>
+  <circle cx="1110" cy="810" r="210" fill="#dcfce7" opacity="0.50"/>
+
+  <text x="70" y="78" class="title">LangGraph × AgentLedger</text>
+  <text x="72" y="114" class="subtitle">不是替代关系：LangGraph 管 workflow orchestration，AgentLedger 管 production runtime reliability。</text>
+
+  <g transform="translate(70 158)">
+    <rect class="box" width="380" height="420" fill="url(#lg)"/>
+    <text x="32" y="55" class="h">LangGraph</text>
+    <text x="32" y="86" class="subh">Workflow / Graph Layer</text>
+
+    <g transform="translate(32 126)">
+      <text class="body" y="0">• graph / node / edge 编排</text>
+      <text class="body" y="40">• planning / routing / control flow</text>
+      <text class="body" y="80">• graph state checkpoint</text>
+      <text class="body" y="120">• interrupt / resume / HITL</text>
+      <text class="body" y="160">• time travel / state history</text>
+      <text class="body" y="200">• streaming / LangSmith tracing</text>
+      <text class="body" y="240">• durable workflow execution</text>
+    </g>
+
+    <rect x="30" y="352" width="320" height="44" class="chip"/>
+    <text x="52" y="380" class="chipText">核心问题：Agent 应该怎么走流程？</text>
+  </g>
+
+  <g transform="translate(510 158)">
+    <rect class="box" width="380" height="420" fill="url(#overlap)"/>
+    <text x="32" y="55" class="h">Overlap</text>
+    <text x="32" y="86" class="subh">共同涉及的能力</text>
+
+    <g transform="translate(32 126)">
+      <text class="body" y="0">• durable execution</text>
+      <text class="body" y="40">• checkpoint / persisted state</text>
+      <text class="body" y="80">• resume after interruption</text>
+      <text class="body" y="120">• replay / time-travel style debug</text>
+      <text class="body" y="160">• human-in-the-loop pauses</text>
+      <text class="body" y="200">• run history / trace visibility</text>
+      <text class="body" y="240">• long-running agent workflow</text>
+    </g>
+
+    <rect x="30" y="352" width="320" height="44" class="chip"/>
+    <text x="51" y="380" class="chipText">重叠点：状态持久化 + 恢复 + 调试</text>
+  </g>
+
+  <g transform="translate(950 158)">
+    <rect class="box" width="380" height="420" fill="url(#al)"/>
+    <text x="32" y="55" class="h">AgentLedger</text>
+    <text x="32" y="86" class="subh">Runtime Reliability Layer</text>
+
+    <g transform="translate(32 126)">
+      <text class="body" y="0">• Tool Gateway / Tool Ledger</text>
+      <text class="body" y="40">• idempotency / causal token</text>
+      <text class="body" y="80">• side-effect safe replay</text>
+      <text class="body" y="120">• policy / approval / sandbox</text>
+      <text class="body" y="160">• lease / fencing / cancellation</text>
+      <text class="body" y="200">• evidence bundle / audit trail</text>
+      <text class="body" y="240">• cost / failure attribution</text>
+    </g>
+
+    <rect x="30" y="352" width="320" height="44" class="chip"/>
+    <text x="52" y="380" class="chipText">核心问题：执行出事后怎么可控？</text>
+  </g>
+
+  <g transform="translate(142 635)">
+    <rect class="box" width="1116" height="190" fill="#fbfff8"/>
+    <text x="34" y="48" class="h">Recommended Integration</text>
+    <text x="34" y="80" class="small">LangGraph 不需要被替代。更好的用法是：LangGraph node / tool 通过 AgentLedger runtime boundary 执行外部副作用。</text>
+
+    <g transform="translate(46 116)">
+      <rect width="205" height="54" rx="18" fill="#dbeafe" stroke="#93c5fd"/>
+      <text x="30" y="35" class="chipText">LangGraph graph</text>
+      <path d="M210 27 H330" class="line arrow"/>
+
+      <rect x="340" width="205" height="54" rx="18" fill="#e0f2fe" stroke="#7dd3fc"/>
+      <text x="380" y="35" class="chipText">Node / Tool</text>
+      <path d="M550 27 H670" class="line arrow"/>
+
+      <rect x="680" width="205" height="54" rx="18" fill="#dcfce7" stroke="#86efac"/>
+      <text x="715" y="35" class="chipText">AgentLedger</text>
+      <path d="M890 27 H1010" class="line arrow"/>
+
+      <rect x="1020" width="205" height="54" rx="18" fill="#fef3c7" stroke="#facc15"/>
+      <text x="1046" y="35" class="chipText">External World</text>
+    </g>
+  </g>
+
+  <g transform="translate(72 860)">
+    <text class="tiny" y="0">Positioning</text>
+    <text class="small" x="108" y="0">Overlap can be handled by either layer depending on where the guarantee should live. AgentLedger also works standalone; with LangGraph, it sits underneath graph nodes/tools for side-effect safety, audit evidence, policy, sandbox, budgets, and failure semantics.</text>
+  </g>
+</svg>

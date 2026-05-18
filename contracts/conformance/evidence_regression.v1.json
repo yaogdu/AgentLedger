@@ -1,0 +1,22 @@
+{
+  "schema_version": "agentledger.conformance.evidence_regression.v1",
+  "contract_version": "1.0",
+  "purpose": "Language-neutral side-effect-free evidence regression checks that runtime evidence can feed into external eval systems.",
+  "scenarios": [
+    {
+      "id": "evidence_health_checks_pass_for_clean_bundle",
+      "expected_checks": ["no_failed_steps", "no_pending_verification", "completed_steps_have_events", "managed_side_effects_are_ledgered"],
+      "expected": { "passed": true }
+    },
+    {
+      "id": "regression_detects_final_state_and_event_type_changes",
+      "expected_checks": ["final_state_regression", "event_type_regression"],
+      "expected": { "passed": false }
+    },
+    {
+      "id": "regression_cost_delta_limit_blocks",
+      "expected_checks": ["max_total_usd_delta"],
+      "expected": { "passed": false }
+    }
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "schema_version": "agentledger.conformance.evidence_consumers.v1",
+  "contract_version": "1.0",
+  "purpose": "Shared smoke scenarios for evidence consumers: trace spans, evidence diff, divergence reports, and static debug summaries.",
+  "scenarios": [
+    {
+      "name": "trace_spans_from_evidence",
+      "requires": ["export_evidence", "trace_spans"],
+      "expected": {
+        "event_span_id_prefix": "evt-",
+        "media_span_name": "media_artifact",
+        "stream_span_name": "stream_checkpoint",
+        "required_attributes": ["agentledger.run_id", "agentledger.seq", "agentledger.payload_hash", "agentledger.payload_ref"]
+      }
+    },
+    {
+      "name": "evidence_diff_detects_state_and_event_changes",
+      "requires": ["diff_evidence"],
+      "expected_changed_sections": ["final_state", "event_types", "media_artifacts", "stream_checkpoints"]
+    },
+    {
+      "name": "divergence_report_lists_changed_dimensions",
+      "requires": ["divergence_report"],
+      "expected_changed_dimensions": ["events", "state", "media_artifacts", "stream_checkpoints"]
+    },
+    {
+      "name": "static_debug_summary_is_exportable",
+      "requires": ["debug_summary"],
+      "expected_fields": ["run_id", "event_count", "state_change_count", "final_state"]
+    }
+  ],
+  "non_goals": [
+    "The fixture does not require non-Python runtimes to render Python's full HTML report.",
+    "The fixture validates a language-neutral debug summary that static HTML exporters can consume."
+  ]
+}

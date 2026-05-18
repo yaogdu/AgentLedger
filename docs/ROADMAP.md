@@ -21,6 +21,10 @@ Most capabilities should be evaluated in three layers: core contract, built-in m
 | Session / HITL | run/session/step state machine, approval request lifecycle, audit events | external human review queues, chat/app integrations | business review backend or workflow back office |
 | FinOps / Cost Control | token/call/cost records, budget enforcement hooks, cost attribution reports | provider price catalogs, finance exports, alerts | invoice or payment system |
 
+Execution backend positioning is documented in `EXECUTION_BACKENDS.md`: Temporal, Ray, and Kubernetes are backend adapters for generic distributed execution, while AgentLedger keeps agent-specific runtime invariants.
+
+Adapter prioritization is documented in `ADAPTER_ROADMAP.md`: official adapters are added when the ecosystem is mature and the boundary can preserve AgentLedger invariants; otherwise the integration remains experimental or community-owned.
+
 This scope map is part of the release gate: a new feature should either fit runtime-core as a production execution reliability contract, land as an optional adapter, become a separate evidence consumer, or be documented as out of scope. The default choice is adapter or external consumer unless runtime-core is the only layer that can enforce the invariant.
 
 ## v1.0 Stable Runtime-Core Baseline
@@ -158,6 +162,42 @@ Exit criteria:
 - media pipeline replay can reuse captured frame/segment artifacts instead of reprocessing raw media
 - regression and external eval results link back to evidence bundles
 
+## Post-v1 - Sub-agent And Multi-agent Runtime Semantics
+
+Status: roadmap. AgentLedger should not become a full multi-agent planner or collaboration framework, but it should provide reliable runtime primitives for sub-agent and multi-agent execution relationships.
+
+Goals:
+
+```text
+make parent/child agent runs durable and replayable
+make multi-agent execution evidence attributable across runs
+keep orchestration/planning in frameworks such as LangGraph, AutoGen, CrewAI, Temporal, or user code
+```
+
+Planned runtime-core primitives:
+
+- parent-child run links: `parent_run_id`, `parent_step_id`, `child_run_id`, `child_role`
+- sub-agent lifecycle events: `agent_spawn_requested`, `agent_spawned`, `agent_joined`, `agent_spawn_failed`
+- replay-safe join semantics that read prior child evidence instead of spawning duplicate child work
+- cost/failure attribution from child runs back to the parent run and step
+- cancellation propagation from parent run to child runs, with fencing for stale child workers
+- policy, approval, sandbox, and budget inheritance rules for child runs
+- evidence bundle links so parent and child runs can be reviewed together
+- conformance fixtures for child run creation, cancellation, failure propagation, and replay-safe joins
+
+Explicit non-goals:
+
+- building a competing planner, debate system, voting system, or autonomous multi-agent collaboration engine
+- replacing LangGraph, AutoGen, CrewAI, Temporal, Ray, or Kubernetes
+- hiding sub-agent side effects from the normal Tool Ledger, approval, sandbox, and evidence pipeline
+
+Exit criteria:
+
+- a parent run can spawn and join a child run with durable evidence links
+- child run failures and costs are visible in parent attribution reports
+- parent cancellation fences child workers and records propagation evidence
+- replay of a parent run does not create duplicate child runs or duplicate child side effects
+
 ## Post-v1 - Multimodal and Stream Adapters
 
 Status: preview contracts are implemented in the Python reference runtime; processing adapters remain future work.
@@ -230,13 +270,23 @@ Release gates:
 
 ## Multi-language Track
 
-The language plan should not block Python progress, but it must prevent semantic drift.
+The language plan should not block Python progress, but it must prevent semantic drift. The final target is native runtime-core parity across Python, Go, TypeScript, and Rust, not SDK-only packages.
 
-| Language | First milestone | Later milestone |
+| Language | First milestone | Runtime-ready milestone |
 |---|---|---|
-| Python | reference runtime | production runtime for Python users |
-| TypeScript | protocol client and worker SDK | TS framework adapters |
-| Rust | runtime primitives or sandbox worker | high-performance runtime engine |
-| Go | worker/infra adapter | Kubernetes/controller-friendly deployment services |
+| Python | reference runtime | stable v1.0 runtime-core |
+| Go | preview runtime-core parity baseline under `go/`, covering lease/cancel, Tool Ledger, policy/approval/sandbox, and cost/failure; infra adapters next | production adapters, worker/deployment hardening, and packaged per-language conformance |
+| TypeScript | preview runtime-core parity baseline under `typescript/` with `.d.ts`; TS framework adapters next | production adapters, framework integration, and packaged per-language conformance for Node.js services |
+| Rust | preview in-memory runtime-core parity baseline under `rust/`; persistence/async/worker components next | full runtime-core conformance or certified high-performance core subset |
 
-All language implementations should target `contracts/agentledger.runtime.v1.json` and equivalent conformance fixtures.
+Process:
+
+1. keep Python as the reference implementation;
+2. freeze shared contract and evidence/conformance fixtures;
+3. maintain native runtime-core parity baselines in Go, TypeScript, and Rust without semantic drift;
+4. keep optional framework, storage, sandbox, and observability integrations behind adapters;
+5. move to a unified release train only after all stable language runtimes pass shared conformance.
+
+Before parity, non-Python implementations may publish 0.x preview packages. After parity, runtime contract changes require synchronized language updates and conformance results.
+
+See `MULTI_LANGUAGE.md` and `LANGUAGE_PARITY_MATRIX.md`.

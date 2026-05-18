@@ -3,18 +3,18 @@
 [English](README.md) | [中文](README.zh-CN.md)
 
 ![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)
-![Version 1.0.1 stable](https://img.shields.io/badge/Version-1.0.1--stable-111827)
+![Version 1.0.2 stable](https://img.shields.io/badge/Version-1.0.2--stable-111827)
 ![License Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-0f766e)
 ![Runtime Durable](https://img.shields.io/badge/Runtime-durable%20execution-1f6feb)
 ![Storage SQLite/Postgres](https://img.shields.io/badge/Storage-SQLite%20%7C%20Postgres-b45309)
 ![Replay Evidence](https://img.shields.io/badge/Replay-evidence%20driven-7c3aed)
 ![Tool Ledger](https://img.shields.io/badge/Tools-ledger%20guarded-d97706)
 
-AgentLedger `1.0.1` is a durable execution and reliability runtime for AI agents. It does not try to teach agents how to reason; it makes agent runs durable, auditable, replayable, policy-governed, and recoverable when workers crash, tools fail, or prompts change.
+AgentLedger `1.0.2` is an agent execution safety, evidence, and reliability layer. It does not try to teach agents how to reason; it makes agent runs durable, auditable, replayable, policy-governed, and recoverable when workers crash, tools fail, or prompts change.
 
 Most agent frameworks focus on planning, reasoning, and workflow logic. AgentLedger sits underneath or beside LangChain, LangGraph, CrewAI, AutoGen, OpenAI Agents SDK, LlamaIndex, Semantic Kernel, or custom agents to provide runtime guarantees around state, tools, evidence, replay, and recovery.
 
-Python is the current reference implementation. Rust, TypeScript, and Go implementations should target the same language-neutral runtime contract.
+Python is the current reference implementation. The long-term target is native runtime-core parity across Go, TypeScript, Rust, and Python, all aligned to the same language-neutral runtime contract.
 
 ## At a glance
 
@@ -22,9 +22,9 @@ Python is the current reference implementation. Rust, TypeScript, and Go impleme
 | --- | --- |
 | What is stable? | Python v1.0 runtime-core: local durable execution, Tool Ledger, evidence/replay, policy/approval/sandbox boundaries, cost/failure reports, worker/conformance, and the runtime contract. |
 | What is optional? | Postgres, S3/MinIO, framework-native packages, OTLP collector transport, sandbox infrastructure, distributed deployment recipes, and real-service hardening. |
-| What is preview? | Media/stream artifact contracts and some dependency-free adapter facades. |
+| What is preview? | Go/Node/TypeScript/Rust runtime-core baselines, media/stream artifact contracts, and some dependency-free adapter facades. |
 | What is not in core? | Planning engines, full eval systems, RAG/vector memory, trace stores, hosted application products, and hosted sandbox infrastructure. |
-| How should other languages work? | This repo is contract-first. Python is the reference runtime; TypeScript, Rust, and Go should target `contracts/agentledger.runtime.v1.json` and shared conformance fixtures. |
+| How should other languages work? | This repo is contract-first. Python is the reference runtime; Go, Node/TypeScript, and Rust now have preview native runtime baselines under `go/`, `typescript/`, and `rust/`. Runtime-ready requires `contracts/agentledger.runtime.v1.json`, the shared semantic manifest `contracts/conformance/runtime_semantics.v1.json`, shared conformance fixtures, and per-language conformance commands. |
 
 ## Scope principle
 
@@ -84,8 +84,44 @@ For example, sandbox semantics are core, but sandbox infrastructure is not. Core
 
 ![AgentLedger runtime architecture](docs/assets/agentledger-runtime-architecture.svg)
 
+## Relationship to adjacent tools
+
+Some capabilities sound similar to existing agent, workflow, observability, and eval tools. The distinction is where the guarantee is enforced.
+
+AgentLedger is intentionally in the execution path. It controls the boundary where agent code reads state, calls models, invokes tools, writes checkpoints, spends budget, and produces evidence. Adjacent tools can still own planning, tracing UI, eval datasets, worker fleets, or retrieval systems.
+
+| Adjacent layer | Best at | AgentLedger owns | How they work together |
+| --- | --- | --- | --- |
+| LangGraph, LangChain, CrewAI, AutoGen, OpenAI Agents SDK | planning, graph routing, agent logic, prompt/workflow structure | durable state, Tool Ledger, policy/approval/sandbox, replay-safe tool/model boundaries | wrap framework nodes or tools with AgentLedger runtime guarantees |
+| Temporal, Ray, Kubernetes | distributed workflow lifecycle, worker execution, scheduling infrastructure | agent-specific leases, fencing, checkpoints, evidence, cost/failure attribution | run AgentLedger-managed agent steps inside those execution backends |
+| LangSmith, Langfuse, OpenTelemetry | traces, dashboards, evals, monitoring, team debugging | runtime evidence, side-effect governance, replay artifacts, policy decisions before execution | export traces/evidence from AgentLedger into observability/eval systems |
+| Eval platforms and benchmark tools | datasets, experiments, scorers, reports | replay, deterministic evidence bundles, side-effect-free regression inputs | eval tools consume AgentLedger evidence instead of re-running unsafe side effects |
+| Vector DBs and RAG systems | long-term knowledge retrieval and semantic memory | short-term/session state, durable memory refs, replayable state transitions | store retrieval outputs as runtime-visible refs and evidence |
+
+If a term overlaps, read it this way: AgentLedger records trace/eval/cost/failure data because those records are needed for correctness, recovery, replay, and audit. It does not try to become a full trace store, eval platform, RAG system, workflow engine, or sandbox provider.
+
+## Relative focus and advantages
+
+- In-path enforcement: policy, approval, sandbox, budget, and idempotency checks happen before model/tool side effects, not only after-the-fact in traces.
+- Side-effect safety: Tool Ledger, causal tokens, idempotency keys, and pending-verification states prevent unsafe duplicate external writes.
+- Crash recovery: leases, fencing tokens, checkpoints, and cancellation semantics let a new worker resume while blocking stale workers.
+- Replay-safe evidence: event logs, payload refs, state versions, cost records, and artifacts allow debugging without repeating real model/tool calls.
+- Thin core: built-in local defaults work out of the box, while Postgres, S3/MinIO, OTLP, framework packages, and sandboxes stay adapter-driven.
+- Framework-neutral contract: Python is the stable reference runtime; Go, Node/TypeScript, and Rust preview baselines target the same runtime semantics.
+
+## LangGraph relationship
+
+![LangGraph and AgentLedger relationship](docs/assets/langgraph-agentledger-relationship.svg)
+
+## Temporal relationship
+
+Temporal, Ray, and Kubernetes should be treated as execution backends, not competitors to AgentLedger. AgentLedger keeps the agent-specific runtime contract above them: Tool Ledger, idempotency, policy/approval/sandbox boundaries, evidence, replay safety, and cost/failure attribution. See [docs/EXECUTION_BACKENDS.md](docs/EXECUTION_BACKENDS.md).
+
+Temporal + LangGraph + AgentLedger is a valid production stack: Temporal runs the outer distributed workflow, LangGraph organizes the agent graph, and AgentLedger governs the inner model/tool/side-effect boundary.
+
 - Documentation overview: [docs/README.md](docs/README.md)
 - Architecture guide: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+- Comparisons and overlap: [docs/COMPARISONS.md](docs/COMPARISONS.md)
 - Design and implementation: [docs/DESIGN_AND_IMPLEMENTATION.md](docs/DESIGN_AND_IMPLEMENTATION.md)
 - Runtime contract: [docs/RUNTIME_SPEC.md](docs/RUNTIME_SPEC.md)
 
@@ -190,7 +226,7 @@ AgentLedger is also not a new LLM SDK, not a workflow engine, not a general obse
 
 ## Current maturity
 
-AgentLedger is a v1.0 stable runtime-core release. It is suitable for local use, framework adapter integration, reliability semantics validation, and production pilot preparation with explicit adapter boundaries.
+AgentLedger 1.0.2 is a stable runtime-core release with Python reference parity gates for Go, TypeScript, and Rust. It is suitable for local use, framework adapter integration, reliability semantics validation, and production pilot preparation with explicit adapter boundaries.
 
 The runtime-core contract is stable; optional production adapters and external infrastructure hardening remain separately tracked. See [docs/MATURITY_MODEL.md](docs/MATURITY_MODEL.md), [docs/IMPLEMENTATION_STATUS.md](docs/IMPLEMENTATION_STATUS.md), and [docs/ROADMAP.md](docs/ROADMAP.md).
 
@@ -200,11 +236,13 @@ The runtime-core contract is stable; optional production adapters and external i
 | --- | --- |
 | Use the runtime | [docs/USAGE.md](docs/USAGE.md) |
 | Understand architecture | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) |
+| Compare with adjacent tools | [docs/COMPARISONS.md](docs/COMPARISONS.md) |
 | Read implementation details | [docs/DESIGN_AND_IMPLEMENTATION.md](docs/DESIGN_AND_IMPLEMENTATION.md) |
 | Check runtime spec | [docs/RUNTIME_SPEC.md](docs/RUNTIME_SPEC.md) |
-| Extend storage, tools, and adapters | [docs/EXTENSIBILITY.md](docs/EXTENSIBILITY.md), [docs/STORAGE.md](docs/STORAGE.md), [docs/ADAPTER_CERTIFICATION.md](docs/ADAPTER_CERTIFICATION.md) |
+| Extend storage, tools, and adapters | [docs/EXTENSIBILITY.md](docs/EXTENSIBILITY.md), [docs/STORAGE.md](docs/STORAGE.md), [docs/ADAPTER_ROADMAP.md](docs/ADAPTER_ROADMAP.md), [docs/ADAPTER_CERTIFICATION.md](docs/ADAPTER_CERTIFICATION.md) |
 | Configure Postgres or S3/MinIO | [docs/POSTGRES.md](docs/POSTGRES.md), [docs/S3_MINIO.md](docs/S3_MINIO.md) |
 | Prepare releases | [docs/RELEASE_CHECKLIST.md](docs/RELEASE_CHECKLIST.md), [docs/VERSIONING.md](docs/VERSIONING.md) |
+| Understand multi-language parity | [docs/LANGUAGE_QUICKSTART.md](docs/LANGUAGE_QUICKSTART.md), [docs/MULTI_LANGUAGE.md](docs/MULTI_LANGUAGE.md), [docs/LANGUAGE_PARITY_MATRIX.md](docs/LANGUAGE_PARITY_MATRIX.md) |
 | Read Chinese docs | [README.zh-CN.md](README.zh-CN.md), [docs/zh/README.md](docs/zh/README.md) |
 
 ## Repository layout
@@ -215,7 +253,10 @@ tests/               unit, conformance, and integration-style tests
 examples/            dependency-free examples and adapter facades
 docs/                English documentation and runtime design docs
 docs/zh/             Chinese primary reader path
-contracts/           language-neutral runtime contract snapshot
+contracts/           language-neutral runtime contract, semantic manifest, and conformance fixtures
+go/                  Go native runtime preview baseline
+typescript/          Node/TypeScript-compatible runtime preview baseline
+rust/                Rust runtime preview baseline
 migrations/          SQLite/Postgres DDL and migration baselines
 ```
 
@@ -228,6 +269,10 @@ PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src PYTHONTRACEMALLOC=10 python3 -W default
 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m agentledger contract export > /tmp/agentledger-contract.json
 python3 -m json.tool /tmp/agentledger-contract.json >/dev/null
 diff -u contracts/agentledger.runtime.v1.json /tmp/agentledger-contract.json
+python3.11 scripts/check_language_parity.py
+cd go && go run ./cmd/agentledger-go conformance
+cd ../typescript && npm run conformance
+cd ../rust && cargo run --quiet -- conformance
 ```
 
 See [docs/RELEASE_CHECKLIST.md](docs/RELEASE_CHECKLIST.md) for the complete release gate.

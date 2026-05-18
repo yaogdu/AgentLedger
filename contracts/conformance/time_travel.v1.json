@@ -1,0 +1,19 @@
+{
+  "schema_version": "agentledger.conformance.time_travel.v1",
+  "contract_version": "1.0",
+  "purpose": "Language-neutral time-travel timeline and state-at-sequence reconstruction from evidence events.",
+  "scenarios": [
+    {
+      "id": "timeline_reconstructs_state_at_selected_seq",
+      "expected": { "state_at_seq": { "answer": "ok" }, "selected_seq": 6 }
+    },
+    {
+      "id": "timeline_marks_state_changed_frames",
+      "expected_fields": ["seq", "type", "state_changed", "changed_keys", "patch"]
+    },
+    {
+      "id": "time_travel_report_exports_static_html",
+      "expected_tokens": ["AgentLedger Time Travel Report", "State At Selected Point", "Selected Event"]
+    }
+  ]
+}

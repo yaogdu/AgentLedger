@@ -1,0 +1,50 @@
+{
+  "schema_version": "agentledger.conformance.local_persistence.v1",
+  "contract_version": "1.0",
+  "purpose": "Shared cross-language fixture for dependency-free local durable state persistence. Preview runtimes must prove a completed run, event log, artifacts, Tool Ledger data, and evidence/replay chain can survive process restart or store reopen without using an external database.",
+  "required_scenarios": [
+    {
+      "name": "local_store_round_trips_completed_run",
+      "description": "A completed run written to a local durable store can be reopened and returns the same final state and step status.",
+      "required_event_types": [
+        "run_created",
+        "step_created",
+        "step_claimed",
+        "state_patch_committed",
+        "step_completed"
+      ],
+      "required_assertions": [
+        "reopened_store_loads_run",
+        "final_state_matches_committed_patch",
+        "completed_step_status_preserved",
+        "state_version_preserved"
+      ]
+    },
+    {
+      "name": "local_store_preserves_evidence_replay_chain",
+      "description": "Evidence export and replay summary from the reopened store match the original event log without re-executing model or tool calls.",
+      "required_event_types": [
+        "tool_call_requested",
+        "tool_call_completed",
+        "state_patch_committed"
+      ],
+      "required_assertions": [
+        "event_count_matches_after_reopen",
+        "tool_ledger_entries_preserved",
+        "evidence_bundle_hash_present",
+        "replay_safe_is_true"
+      ]
+    },
+    {
+      "name": "local_store_uses_atomic_snapshot_write",
+      "description": "The local persistence implementation writes a complete snapshot using a temp file plus atomic replace, or an equivalent crash-safe snapshot mechanism documented by the implementation.",
+      "required_event_types": [],
+      "required_assertions": [
+        "partial_snapshot_not_committed",
+        "reopen_after_flush_is_valid_json_or_valid_snapshot",
+        "writer_creates_parent_directory"
+      ]
+    }
+  ],
+  "preview_status": "implemented by Go, TypeScript, and Rust preview runtimes as dependency-free local persistence parity; production database adapter parity remains separate"
+}

@@ -1,0 +1,10 @@
+[package]
+name = "agentledger-runtime-preview"
+version = "0.1.0-preview"
+edition = "2021"
+description = "Dependency-free Rust preview runtime for AgentLedger"
+license = "Apache-2.0"
+
+[lib]
+name = "agentledger"
+path = "src/lib.rs"

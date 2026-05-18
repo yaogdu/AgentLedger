@@ -1,0 +1,36 @@
+{
+  "schema_version": "agentledger.conformance.worker_service.v1",
+  "contract_version": "1.0",
+  "purpose": "Shared cross-language fixture for local worker/service execution semantics. Runtimes must expose stateless worker loops that recover expired leases, execute claimable steps through Runtime.run_once, stop on terminal status, and report idle/stop summaries without owning durable state.",
+  "required_scenarios": [
+    {
+      "name": "local_worker_runs_until_terminal",
+      "description": "A local worker repeatedly claims and executes a run until it reaches a terminal status.",
+      "required_assertions": [
+        "attempts_recorded",
+        "succeeded_attempts_recorded",
+        "final_status_completed",
+        "stopped_reason_terminal_status"
+      ]
+    },
+    {
+      "name": "worker_service_stops_after_idle_poll",
+      "description": "A service loop with no claimable work exits after max idle polls and reports idle state.",
+      "required_assertions": [
+        "idle_polls_recorded",
+        "stopped_reason_idle",
+        "no_fake_attempt_recorded"
+      ]
+    },
+    {
+      "name": "worker_loop_recovers_expired_leases",
+      "description": "A worker loop recovers an expired lease and fences the previous owner before the replacement attempt commits.",
+      "required_assertions": [
+        "recovered_leases_recorded",
+        "stale_worker_commit_rejected",
+        "replacement_worker_completes"
+      ]
+    }
+  ],
+  "preview_status": "implemented by Go, TypeScript, and Rust preview runtimes as local worker/service parity; distributed scheduler backends remain optional adapters"
+}

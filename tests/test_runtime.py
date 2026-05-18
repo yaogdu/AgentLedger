@@ -206,7 +206,7 @@ class RuntimeTests(unittest.TestCase):
         self.assertIn("s3", project["optional-dependencies"])
         self.assertIn("Programming Language :: Python :: 3.11", project["classifiers"])
         self.assertIn("Programming Language :: Python :: 3.12", project["classifiers"])
-        self.assertEqual(project["version"], "1.0.1")
+        self.assertEqual(project["version"], "1.0.2")
 
     def test_cli_help_points_to_github_docs(self) -> None:
         stdout = io.StringIO()
@@ -1967,16 +1967,30 @@ roles:
             if old_schema is not None:
                 os.environ["AGENTLEDGER_POSTGRES_SCHEMA"] = old_schema
 
-    def test_runtime_contract_declares_python_reference_and_future_languages(self) -> None:
+    def test_runtime_contract_declares_python_reference_and_preview_languages(self) -> None:
         contract = runtime_contract()
         languages = {entry["language"]: entry for entry in contract["language_targets"]}
         self.assertEqual(contract["reference_implementation"]["language"], "python")
         self.assertEqual(languages["python"]["status"], "active")
-        self.assertEqual(languages["typescript"]["status"], "planned")
-        self.assertEqual(languages["rust"]["status"], "planned")
-        self.assertEqual(languages["go"]["status"], "planned")
+        self.assertEqual(languages["typescript"]["status"], "preview")
+        self.assertEqual(languages["rust"]["status"], "preview")
+        self.assertEqual(languages["go"]["status"], "preview")
         self.assertIn("state commits require a valid lease token", contract["invariants"])
         self.assertIn("tool_call_completed", contract["event_types"])
+        self.assertEqual(contract["conformance"]["runtime_semantics_manifest_path"], "contracts/conformance/runtime_semantics.v1.json")
+        self.assertIn("contracts/conformance/local_persistence.v1.json", contract["conformance"]["runtime_core_fixture_paths"])
+        self.assertIn("contracts/conformance/local_blob_store.v1.json", contract["conformance"]["runtime_core_fixture_paths"])
+        self.assertIn("contracts/conformance/tool_schema_validation.v1.json", contract["conformance"]["runtime_core_fixture_paths"])
+        self.assertIn("contracts/conformance/worker_service.v1.json", contract["conformance"]["runtime_core_fixture_paths"])
+        self.assertIn("contracts/conformance/media_stream_artifacts.v1.json", contract["conformance"]["runtime_core_fixture_paths"])
+        self.assertIn("contracts/conformance/evidence_consumers.v1.json", contract["conformance"]["runtime_core_fixture_paths"])
+        self.assertIn("contracts/conformance/static_debug_html.v1.json", contract["conformance"]["runtime_core_fixture_paths"])
+        self.assertIn("contracts/conformance/ops_readiness.v1.json", contract["conformance"]["runtime_core_fixture_paths"])
+        self.assertIn("contracts/conformance/storage_schema.v1.json", contract["conformance"]["runtime_core_fixture_paths"])
+        self.assertIn("contracts/conformance/mcp_adapters.v1.json", contract["conformance"]["runtime_core_fixture_paths"])
+        self.assertIn("contracts/conformance/framework_adapters.v1.json", contract["conformance"]["runtime_core_fixture_paths"])
+        self.assertIn("contracts/conformance/otlp_trace_export.v1.json", contract["conformance"]["runtime_core_fixture_paths"])
+        self.assertIn("contracts/conformance/simple_api.v1.json", contract["conformance"]["runtime_core_fixture_paths"])
         self.assertIn('"contract_version": "1.0"', contract_json())
 
     def test_runtime_contract_matches_checked_in_golden_fixture(self) -> None:
@@ -1991,9 +2005,13 @@ roles:
             "docs/zh/README.md",
             "docs/assets/agentledger-runtime-architecture.svg",
             "docs/ARCHITECTURE.md",
+            "docs/COMPARISONS.md",
             "docs/MATURITY_MODEL.md",
             "docs/ROADMAP.md",
             "docs/MULTI_LANGUAGE.md",
+            "docs/LANGUAGE_PARITY_MATRIX.md",
+            "docs/LANGUAGE_PARITY_AUDIT.md",
+            "docs/EXECUTION_BACKENDS.md",
             "docs/STORAGE.md",
             "docs/POSTGRES.md",
             "docs/S3_MINIO.md",
@@ -2001,11 +2019,33 @@ roles:
             "docs/DISTRIBUTED_WORKERS.md",
             "docs/VERSIONING.md",
             "docs/ADAPTER_CERTIFICATION.md",
+            "docs/zh/LANGUAGE_PARITY_MATRIX.md",
+            "docs/zh/LANGUAGE_PARITY_AUDIT.md",
+            "docs/zh/EXECUTION_BACKENDS.md",
+            "docs/zh/COMPARISONS.md",
             "CONTRIBUTING.md",
             "CODE_OF_CONDUCT.md",
             "CHANGELOG.md",
             "SECURITY.md",
             ".github/workflows/ci.yml",
+            "scripts/check_language_parity.py",
+            "contracts/conformance/runtime_semantics.v1.json",
+            "contracts/conformance/local_persistence.v1.json",
+            "contracts/conformance/local_blob_store.v1.json",
+            "contracts/conformance/tool_schema_validation.v1.json",
+            "contracts/conformance/worker_service.v1.json",
+            "contracts/conformance/evidence_consumers.v1.json",
+            "contracts/conformance/static_debug_html.v1.json",
+            "contracts/conformance/ops_readiness.v1.json",
+            "contracts/conformance/storage_schema.v1.json",
+            "contracts/conformance/mcp_adapters.v1.json",
+            "contracts/conformance/framework_adapters.v1.json",
+            "contracts/conformance/otlp_trace_export.v1.json",
+            "contracts/conformance/simple_api.v1.json",
+            "go/cmd/agentledger-go/main.go",
+            "typescript/src/cli.js",
+            "rust/src/main.rs",
+            "docs/assets/langgraph-agentledger-relationship.svg",
         ]
         for path in required_paths:
             self.assertTrue(Path(path).exists(), path)
@@ -2014,17 +2054,38 @@ roles:
         maturity = Path("docs/MATURITY_MODEL.md").read_text(encoding="utf-8")
         roadmap = Path("docs/ROADMAP.md").read_text(encoding="utf-8")
         ci = Path(".github/workflows/ci.yml").read_text(encoding="utf-8")
+        parity_script = Path("scripts/check_language_parity.py").read_text(encoding="utf-8")
         self.assertIn("[English](README.md) | [中文](README.zh-CN.md)", readme)
-        self.assertIn("![Version 1.0.1 stable]", readme)
+        self.assertIn("![Version 1.0.2 stable]", readme)
         self.assertIn("python3 -m pip install agentledger-runtime", readme)
         self.assertIn("https://github.com/yaogdu/AgentLedger", readme)
         self.assertIn("docs/assets/agentledger-runtime-architecture.svg", readme)
+        self.assertIn("Relationship to adjacent tools", readme)
+        self.assertIn("LangSmith, Langfuse, OpenTelemetry", readme)
+        self.assertIn("In-path enforcement", readme)
+        self.assertIn("not try to become a full trace store", readme)
         self.assertIn("[English](README.md) | [中文](README.zh-CN.md)", zh_readme)
         self.assertIn("适合什么场景", zh_readme)
+        self.assertIn("和相邻工具的关系", zh_readme)
+        self.assertIn("相对重点和优势", zh_readme)
         self.assertIn("Capability Matrix", maturity)
         self.assertIn("v1.0 - Stable Runtime Contract", roadmap)
+        self.assertIn("Execution backend positioning", roadmap)
         self.assertIn("unittest discover", ci)
         self.assertIn("lint boundary", ci)
+        self.assertIn("Go runtime preview", ci)
+        self.assertIn("SEMANTIC_MANIFEST_PATH", parity_script)
+        self.assertIn("load_semantic_manifest", parity_script)
+        self.assertIn("language_conformance", parity_script)
+        semantic_manifest = json.loads(Path("contracts/conformance/runtime_semantics.v1.json").read_text(encoding="utf-8"))
+        semantic_ids = {entry["id"] for entry in semantic_manifest["required_semantic_checks"]}
+        self.assertIn("local_persistence_smoke", semantic_ids)
+        self.assertIn("local_blob_store_smoke", semantic_ids)
+        self.assertIn("tool_schema_validation_smoke", semantic_ids)
+        self.assertIn("worker_service_smoke", semantic_ids)
+        self.assertIn("tool_ledger_idempotent_retry", semantic_ids)
+        self.assertIn("policy_approval_sandbox_smoke", semantic_ids)
+        self.assertIn("media_stream_artifacts_smoke", semantic_ids)
 
     def test_runtime_boundary_linter_detects_direct_tool_bypass(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

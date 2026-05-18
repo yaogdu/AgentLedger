@@ -1,0 +1,22 @@
+{
+  "schema_version": "agentledger.conformance.optional_adapters.v1",
+  "contract_version": "1.0",
+  "purpose": "Language-neutral contract for optional adapter/back-end capability descriptors. These descriptors let Go, TypeScript, and Rust expose the same runtime extension boundaries as the Python reference without forcing heavy SDK dependencies into core.",
+  "scenarios": [
+    {
+      "name": "optional_backend_capabilities_are_discoverable",
+      "requires": ["optional_adapter_capabilities"],
+      "expected_categories": ["storage", "blobstore", "sandbox", "framework", "mcp", "shadow"],
+      "expected_adapters": ["postgres", "s3", "docker", "e2b", "bubblewrap", "kubernetes", "gvisor", "firecracker", "langgraph", "langchain", "crewai", "autogen", "openai-agents-sdk", "llamaindex", "semantic-kernel", "mcp-transport", "shadow-runner"],
+      "expected_contract": {
+        "core_imports_heavy_sdks": false,
+        "adapter_is_optional": true,
+        "fail_closed_without_adapter": true
+      }
+    }
+  ],
+  "non_goals": [
+    "This fixture does not require live Postgres, S3, Docker, Kubernetes, E2B, MCP, LangGraph, LangChain, CrewAI, AutoGen, LlamaIndex, or Semantic Kernel dependencies.",
+    "Concrete production adapters may live in optional packages or be injected by the application, while runtime core owns contracts, policy, audit, evidence, and fail-closed behavior."
+  ]
+}

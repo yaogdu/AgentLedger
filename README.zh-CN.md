@@ -3,18 +3,18 @@
 [English](README.md) | [中文](README.zh-CN.md)
 
 ![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)
-![Version 1.0.1 stable](https://img.shields.io/badge/Version-1.0.1--stable-111827)
+![Version 1.0.2 stable](https://img.shields.io/badge/Version-1.0.2--stable-111827)
 ![License Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-0f766e)
 ![Runtime Durable](https://img.shields.io/badge/Runtime-durable%20execution-1f6feb)
 ![Storage SQLite/Postgres](https://img.shields.io/badge/Storage-SQLite%20%7C%20Postgres-b45309)
 ![Replay Evidence](https://img.shields.io/badge/Replay-evidence%20driven-7c3aed)
 ![Tool Ledger](https://img.shields.io/badge/Tools-ledger%20guarded-d97706)
 
-AgentLedger `1.0.1` 是一个面向 AI Agent 的 durable execution 与 reliability runtime。它不负责让 Agent 更会“思考”，而是让 Agent run 在 worker 崩溃、工具失败、prompt 变更和长任务恢复时，仍然具备持久化、可审计、可重放、可治理和可恢复能力。
+AgentLedger `1.0.2` 是一个面向 AI Agent 的 agent execution safety、evidence 与 reliability layer。它不负责让 Agent 更会“思考”，而是让 Agent run 在 worker 崩溃、工具失败、prompt 变更和长任务恢复时，仍然具备持久化、可审计、可重放、可治理和可恢复能力。
 
 大多数 Agent 框架关注 planning、reasoning 和 workflow logic。AgentLedger 放在 LangChain、LangGraph、CrewAI、AutoGen、OpenAI Agents SDK、LlamaIndex、Semantic Kernel 或自定义 Agent 的下方或旁边，提供 state、tool、evidence、replay、recovery 相关的 runtime guarantees。
 
-Python 是当前 reference implementation。后续 Rust、TypeScript、Go 实现应对齐同一份 language-neutral runtime contract。
+Python 是当前 reference implementation。长期目标是 Go、TypeScript、Rust、Python 四种语言实现 native runtime-core parity，并共同对齐同一份 language-neutral runtime contract。
 
 ## 快速判断
 
@@ -22,9 +22,9 @@ Python 是当前 reference implementation。后续 Rust、TypeScript、Go 实现
 | --- | --- |
 | 哪些是稳定的？ | Python v1.0 runtime-core：本地 durable execution、Tool Ledger、evidence/replay、policy/approval/sandbox boundary、cost/failure report、worker/conformance 和 runtime contract。 |
 | 哪些是可选的？ | Postgres、S3/MinIO、framework-native package、OTLP collector transport、sandbox infrastructure、distributed deployment recipe 和真实服务 hardening。 |
-| 哪些是 preview？ | Media/stream artifact contracts，以及部分 dependency-free adapter facade。 |
+| 哪些是 preview？ | Go/Node/TypeScript/Rust runtime-core baseline、media/stream artifact contracts，以及部分 dependency-free adapter facade。 |
 | 哪些不属于 core？ | Planning engine、完整 eval 系统、RAG/vector memory、trace store、托管应用产品和托管 sandbox infrastructure。 |
-| 其它语言怎么做？ | 这个 repo 是 contract-first。Python 是 reference runtime；TypeScript、Rust、Go 后续应对齐 `contracts/agentledger.runtime.v1.json` 和共享 conformance fixtures。 |
+| 其它语言怎么做？ | 这个 repo 是 contract-first。Python 是 reference runtime；Go、Node/TypeScript、Rust 已在 `go/`、`typescript/`、`rust/` 下有 preview native runtime baseline。runtime-ready 必须对齐 `contracts/agentledger.runtime.v1.json` 和共享语义清单 `contracts/conformance/runtime_semantics.v1.json`，通过共享 conformance fixtures，并提供各语言 conformance command。 |
 
 ## 范围原则
 
@@ -84,8 +84,44 @@ Optional production adapter:
 
 ![AgentLedger runtime architecture](docs/assets/agentledger-runtime-architecture.svg)
 
+## 和相邻工具的关系
+
+有些能力名看起来会和已有 Agent、workflow、observability、eval 工具重合。关键差异不是“有没有这个名词”，而是“这个保证在哪一层被强制执行”。
+
+AgentLedger 刻意放在执行路径里。它控制 Agent 代码读取 state、调用 model、调用 tool、写 checkpoint、消耗 budget、产出 evidence 的边界。相邻工具仍然可以负责 planning、trace UI、eval dataset、worker fleet 或 retrieval system。
+
+| 相邻层 | 更擅长什么 | AgentLedger 负责什么 | 怎么一起用 |
+| --- | --- | --- | --- |
+| LangGraph、LangChain、CrewAI、AutoGen、OpenAI Agents SDK | planning、graph routing、agent logic、prompt/workflow structure | durable state、Tool Ledger、policy/approval/sandbox、replay-safe tool/model boundary | 用 AgentLedger 包住 framework node 或 tool，给它们补 runtime guarantees |
+| Temporal、Ray、Kubernetes | distributed workflow lifecycle、worker execution、scheduling infrastructure | agent-specific lease、fencing、checkpoint、evidence、cost/failure attribution | 在这些 execution backend 里运行 AgentLedger-managed agent step |
+| LangSmith、Langfuse、OpenTelemetry | trace、dashboard、eval、monitoring、团队调试 | runtime evidence、side-effect governance、replay artifact、执行前 policy decision | 把 AgentLedger 的 trace/evidence 导出给 observability/eval 系统消费 |
+| Eval platform / benchmark tool | dataset、experiment、scorer、report | replay、deterministic evidence bundle、side-effect-free regression input | eval 工具消费 AgentLedger evidence，而不是重新执行危险副作用 |
+| Vector DB / RAG 系统 | 长期知识检索和 semantic memory | short-term/session state、durable memory refs、replayable state transition | 把检索结果作为 runtime 可见的 ref 和 evidence 记录下来 |
+
+如果某个词看起来重合，可以这样理解：AgentLedger 记录 trace/eval/cost/failure 数据，是因为 correctness、recovery、replay、audit 需要这些证据；它不试图变成完整 trace store、eval platform、RAG system、workflow engine 或 sandbox provider。
+
+## 相对重点和优势
+
+- 执行路径内强制：policy、approval、sandbox、budget、idempotency 在 model/tool 副作用发生前执行，而不是事后只在 trace 里看到。
+- 副作用安全：Tool Ledger、causal token、idempotency key、pending-verification 状态用于避免重复外部写入。
+- 崩溃恢复：lease、fencing token、checkpoint、cancellation semantics 让新 worker 可以恢复，同时挡住旧 worker 的过期提交。
+- 可安全 replay 的证据：event log、payload ref、state version、cost record、artifact 支持排查问题，但不重复真实 model/tool call。
+- 薄 core：本地默认实现开箱可用；Postgres、S3/MinIO、OTLP、framework package、sandbox 都走 adapter。
+- Framework-neutral contract：Python 是 stable reference runtime；Go、Node/TypeScript、Rust preview baseline 对齐同一套 runtime 语义。
+
+## LangGraph 关系
+
+![LangGraph and AgentLedger relationship](docs/assets/langgraph-agentledger-relationship.svg)
+
+## Temporal 关系
+
+Temporal、Ray、Kubernetes 应作为 execution backends，而不是 AgentLedger 的竞争对象。AgentLedger 保留其上方的 agent-specific runtime contract：Tool Ledger、idempotency、policy/approval/sandbox boundary、evidence、replay safety、cost/failure attribution。详见 [docs/zh/EXECUTION_BACKENDS.md](docs/zh/EXECUTION_BACKENDS.md)。
+
+Temporal + LangGraph + AgentLedger 是合理的生产组合：Temporal 跑外层 distributed workflow，LangGraph 组织 agent graph，AgentLedger 治理内部 model/tool/side-effect boundary。
+
 - 文档总览：[docs/zh/README.md](docs/zh/README.md)
 - 架构说明：[docs/zh/ARCHITECTURE.md](docs/zh/ARCHITECTURE.md)
+- 对比与重合边界：[docs/zh/COMPARISONS.md](docs/zh/COMPARISONS.md)
 - 设计与实现：[docs/zh/DESIGN_AND_IMPLEMENTATION.md](docs/zh/DESIGN_AND_IMPLEMENTATION.md)
 - Runtime contract：[docs/zh/RUNTIME_SPEC.md](docs/zh/RUNTIME_SPEC.md)
 
@@ -190,7 +226,7 @@ AgentLedger 也不是新的 LLM SDK，不是 workflow engine，不是通用 obse
 
 ## 当前成熟度
 
-AgentLedger 现在是 v1.0 stable runtime-core release，适合本地使用、framework adapter integration、reliability semantics 验证，以及在明确 adapter 边界下做 production pilot 准备。
+AgentLedger 1.0.2 现在是 stable runtime-core release，并已建立 Go、TypeScript、Rust 对 Python reference 的 runtime-core parity gate，适合本地使用、framework adapter integration、reliability semantics 验证，以及在明确 adapter 边界下做 production pilot 准备。
 
 runtime-core contract 已稳定；optional production adapter 和外部基础设施加固仍按独立阶段推进。详见 [docs/MATURITY_MODEL.md](docs/MATURITY_MODEL.md)、[docs/zh/IMPLEMENTATION_STATUS.md](docs/zh/IMPLEMENTATION_STATUS.md) 和 [docs/zh/ROADMAP.md](docs/zh/ROADMAP.md)。
 
@@ -200,12 +236,14 @@ runtime-core contract 已稳定；optional production adapter 和外部基础设
 | --- | --- |
 | 学会使用 runtime | [docs/zh/USAGE.md](docs/zh/USAGE.md) |
 | 理解整体架构 | [docs/zh/ARCHITECTURE.md](docs/zh/ARCHITECTURE.md) |
+| 对比相邻工具 | [docs/zh/COMPARISONS.md](docs/zh/COMPARISONS.md) |
 | 阅读实现细节 | [docs/zh/DESIGN_AND_IMPLEMENTATION.md](docs/zh/DESIGN_AND_IMPLEMENTATION.md) |
 | 查看 runtime spec | [docs/zh/RUNTIME_SPEC.md](docs/zh/RUNTIME_SPEC.md) |
-| 扩展存储、工具和 adapter | [docs/zh/EXTENSIBILITY.md](docs/zh/EXTENSIBILITY.md)、[docs/zh/STORAGE.md](docs/zh/STORAGE.md)、[docs/zh/ADAPTER_CERTIFICATION.md](docs/zh/ADAPTER_CERTIFICATION.md) |
+| 扩展存储、工具和 adapter | [docs/zh/EXTENSIBILITY.md](docs/zh/EXTENSIBILITY.md)、[docs/zh/STORAGE.md](docs/zh/STORAGE.md)、[docs/zh/ADAPTER_ROADMAP.md](docs/zh/ADAPTER_ROADMAP.md)、[docs/zh/ADAPTER_CERTIFICATION.md](docs/zh/ADAPTER_CERTIFICATION.md) |
 | 配置 Postgres 或 S3/MinIO | [docs/POSTGRES.md](docs/POSTGRES.md)、[docs/S3_MINIO.md](docs/S3_MINIO.md) |
 | 准备发布 | [docs/zh/RELEASE_CHECKLIST.md](docs/zh/RELEASE_CHECKLIST.md)、[docs/VERSIONING.md](docs/VERSIONING.md) |
 | 阅读英文文档 | [README.md](README.md)、[docs/README.md](docs/README.md) |
+| 理解多语言 parity | [docs/MULTI_LANGUAGE.md](docs/MULTI_LANGUAGE.md)、[docs/zh/LANGUAGE_PARITY_MATRIX.md](docs/zh/LANGUAGE_PARITY_MATRIX.md) |
 
 ## 仓库结构
 
@@ -215,7 +253,10 @@ tests/               unit、conformance 和 integration-style tests
 examples/            dependency-free examples 和 adapter facades
 docs/                英文文档和 runtime design docs
 docs/zh/             中文主阅读路径
-contracts/           language-neutral runtime contract snapshot
+contracts/           language-neutral runtime contract、semantic manifest 和 conformance fixtures
+go/                  Go native runtime preview baseline
+typescript/          Node/TypeScript-compatible runtime preview baseline
+rust/                Rust runtime preview baseline
 migrations/          SQLite/Postgres DDL 和 migration baselines
 ```
 
@@ -228,6 +269,10 @@ PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src PYTHONTRACEMALLOC=10 python3 -W default
 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m agentledger contract export > /tmp/agentledger-contract.json
 python3 -m json.tool /tmp/agentledger-contract.json >/dev/null
 diff -u contracts/agentledger.runtime.v1.json /tmp/agentledger-contract.json
+python3.11 scripts/check_language_parity.py
+cd go && go run ./cmd/agentledger-go conformance
+cd ../typescript && npm run conformance
+cd ../rust && cargo run --quiet -- conformance
 ```
 
 完整 release gate 见 [docs/zh/RELEASE_CHECKLIST.md](docs/zh/RELEASE_CHECKLIST.md)。

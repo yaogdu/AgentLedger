@@ -1,0 +1,21 @@
+{
+  "schema_version": "agentledger.conformance.framework_adapters.v1",
+  "contract_version": "1.0",
+  "purpose": "Shared smoke scenarios for dependency-free framework/function adapter base contracts equivalent to Python adapters.py and MethodFrameworkAdapter facades.",
+  "scenarios": [
+    {
+      "name": "function_adapter_maps_run_spec_and_invokes_agent",
+      "requires": ["function_adapter"],
+      "expected": {"adapter": "function", "role": "Agent", "agent_callable": true}
+    },
+    {
+      "name": "method_framework_adapter_uses_first_available_method_and_writes_output",
+      "requires": ["method_framework_adapter"],
+      "expected": {"adapter": "method-framework", "method_priority": true, "output_key": "output"}
+    }
+  ],
+  "non_goals": [
+    "The fixture does not require importing real LangGraph, LangChain, CrewAI, AutoGen, OpenAI Agents SDK, LlamaIndex, or Semantic Kernel packages.",
+    "The fixture validates dependency-free adapter boundary semantics; package-specific adapters can layer on top."
+  ]
+}

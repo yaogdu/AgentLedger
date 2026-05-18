@@ -1,0 +1,26 @@
+{
+  "schema_version": "agentledger.conformance.mcp_adapters.v1",
+  "contract_version": "1.0",
+  "purpose": "Shared smoke scenarios for dependency-free MCP-style in-memory tool/context adapters equivalent to Python adapters_mcp.py fixtures.",
+  "scenarios": [
+    {
+      "name": "in_memory_mcp_tool_server_lists_and_calls_tools",
+      "requires": ["in_memory_mcp_tool_server"],
+      "expected": {"sorted_tools": true, "missing_tool_errors": true}
+    },
+    {
+      "name": "mcp_tool_descriptor_maps_to_tool_spec",
+      "requires": ["mcp_tool_adapter"],
+      "expected": {"side_effect_from_annotations": true, "risk_level_from_annotations": true, "idempotency_default_for_side_effects": true}
+    },
+    {
+      "name": "in_memory_mcp_context_server_reads_resources",
+      "requires": ["in_memory_mcp_context_server", "mcp_context_adapter"],
+      "expected": {"mimeType": "application/json", "read_tool": "mcp.context.read"}
+    }
+  ],
+  "non_goals": [
+    "The fixture does not require a real MCP SDK transport.",
+    "The fixture validates adapter contract shape so real MCP clients can be added without changing runtime core."
+  ]
+}

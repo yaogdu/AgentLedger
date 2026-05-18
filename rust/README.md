@@ -1,0 +1,88 @@
+# AgentLedger Rust Runtime Preview
+
+This directory contains the dependency-free Rust runtime-core preview baseline for AgentLedger 1.0.2.
+
+It is still a preview crate surface, but it runs a native local runtime loop and participates in the shared Python/Go/TypeScript/Rust conformance gate.
+
+## Current Status
+
+Implemented:
+
+- in-memory runtime store and local snapshot save/load
+- run/session/step state model
+- leased step claim, lease recovery, and cancellation fencing
+- `AgentContext` with state patch writes
+- runtime-managed tool calls through `Runtime::call_tool`
+- Tool Ledger idempotency for side-effect tools
+- evidence export, replay, trace/diff/debug consumers, time-travel timeline, repro helpers
+- policy denial, approval pause/resume, sandbox fail-closed behavior
+- cost records, budget enforcement, and failure attribution
+- media artifact refs and stream checkpoint refs in evidence/replay
+- scheduler facade, worker service semantics, failure injection, adversarial review, evidence regression
+- MCP-style and dependency-free framework adapters
+- official optional adapter APIs for Postgres, S3/MinIO, OTLP transport, and Docker sandbox manifests
+- CLI for `conformance`, `contract validate`, and `contract export`
+
+Not claimed yet:
+
+- stable published Rust crate
+- live Postgres/S3/Docker/OTLP service-backed hardening
+- async runtime integration
+- production sandbox executors
+- full media processing and stream transport adapters
+
+## Quickstart
+
+```rust
+use agentledger::{simple_run, state, AgentContext, Result, State, Value};
+
+fn agent(ctx: &mut AgentContext, input: State) -> Result<Option<Value>> {
+    if let Some(name) = input.get("name") {
+        ctx.write_state("message", Value::String(format!("hello {:?}", name)));
+    }
+    Ok(Some(Value::String("done".to_string())))
+}
+
+fn main() -> Result<()> {
+    let result = simple_run(agent, state(&[("name", "world".into())]))?;
+    println!("{}", result.run_id);
+    Ok(())
+}
+```
+
+## Adapter Quickstart
+
+```rust
+use agentledger::{PostgresAdapter, S3BlobStoreAdapter};
+
+let mut pg = PostgresAdapter::new(injected_sql_client, "agentledger");
+pg.apply_migrations()?;
+
+let mut s3 = S3BlobStoreAdapter::new(injected_object_client, "agentledger-test", "agentledger/blobs");
+let (_digest, reference) = s3.put_json(&value)?;
+println!("{}", reference);
+```
+
+## Verify
+
+```bash
+cd rust
+cargo test
+cargo run --quiet -- conformance
+cargo run --quiet -- contract validate
+```
+
+From the repository root:
+
+```bash
+python3.11 scripts/check_language_parity.py --json-report /tmp/agentledger-language-parity.json
+```
+
+## Compatibility Target
+
+```text
+../contracts/agentledger.runtime.v1.json
+../contracts/conformance/runtime_semantics.v1.json
+../docs/LANGUAGE_QUICKSTART.md
+../docs/LANGUAGE_PARITY_MATRIX.md
+```

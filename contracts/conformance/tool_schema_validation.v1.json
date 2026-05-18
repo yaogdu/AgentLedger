@@ -1,0 +1,58 @@
+{
+  "schema_version": "agentledger.conformance.tool_schema_validation.v1",
+  "contract_version": "1.0",
+  "purpose": "Shared cross-language fixture for dependency-free ToolSpec input/output schema validation. Preview runtimes must reject invalid tool inputs before execution and reject invalid outputs before recording successful tool completion.",
+  "required_scenarios": [
+    {
+      "name": "invalid_tool_input_rejected_before_execution",
+      "description": "A tool with an object input_schema rejects missing required fields and does not call the tool function.",
+      "required_event_types": [
+        "tool_call_requested",
+        "step_failed"
+      ],
+      "required_assertions": [
+        "input_validation_error_raised",
+        "tool_function_not_executed",
+        "step_marked_failed"
+      ]
+    },
+    {
+      "name": "valid_tool_input_and_output_pass",
+      "description": "A tool with input_schema and output_schema executes successfully when both values match the portable schema subset.",
+      "required_event_types": [
+        "tool_call_completed",
+        "state_patch_committed"
+      ],
+      "required_assertions": [
+        "tool_function_executed_once",
+        "output_schema_validated",
+        "step_completed"
+      ]
+    },
+    {
+      "name": "invalid_tool_output_rejected",
+      "description": "A tool whose output does not match output_schema fails the step instead of recording a successful tool_call_completed event.",
+      "required_event_types": [
+        "tool_call_failed",
+        "step_failed"
+      ],
+      "required_assertions": [
+        "output_validation_error_raised",
+        "successful_tool_completion_not_recorded"
+      ]
+    }
+  ],
+  "portable_schema_subset": [
+    "type",
+    "properties",
+    "required",
+    "additionalProperties",
+    "enum",
+    "const",
+    "minLength",
+    "maxLength",
+    "minimum",
+    "maximum"
+  ],
+  "preview_status": "implemented by Go, TypeScript, and Rust preview runtimes as dependency-free tool schema parity; optional full JSON Schema integrations remain external adapters"
+}

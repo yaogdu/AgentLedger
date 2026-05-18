@@ -1,0 +1,19 @@
+{
+  "schema_version": "agentledger.conformance.repro.v1",
+  "contract_version": "1.0",
+  "purpose": "Language-neutral built-in golden evidence and repro regression semantics.",
+  "scenarios": [
+    {
+      "id": "builtin_golden_names_are_available",
+      "expected_names": ["media-stream-checkpoint", "minimal-success", "tool-ledger-success"]
+    },
+    {
+      "id": "minimal_success_golden_is_valid_evidence",
+      "expected": { "schema_version": "agentledger.evidence.v1", "final_state": { "answer": "ok" } }
+    },
+    {
+      "id": "golden_regression_detects_changed_final_state",
+      "expected": { "passed": false, "check": "final_state_regression" }
+    }
+  ]
+}

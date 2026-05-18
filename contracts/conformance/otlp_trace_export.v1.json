@@ -1,0 +1,22 @@
+{
+  "schema_version": "agentledger.conformance.otlp_trace_export.v1",
+  "contract_version": "1.0",
+  "purpose": "Shared smoke scenarios for dependency-free OTLP/JSON trace export equivalent to Python OTLPTraceExporter.to_otlp_json().",
+  "scenarios": [
+    {
+      "name": "otlp_json_contains_resource_scope_and_spans",
+      "requires": ["trace_spans", "otlp_trace_json"],
+      "expected": {
+        "top_level": "resourceSpans",
+        "resource_attribute": "service.name",
+        "scope_name": "agentledger",
+        "span_fields": ["traceId", "spanId", "name", "attributes"],
+        "required_attributes": ["agentledger.original_trace_id", "agentledger.original_span_id", "agentledger.run_id"]
+      }
+    }
+  ],
+  "non_goals": [
+    "The fixture does not require languages to POST to a collector.",
+    "The fixture validates the dependency-free OTLP/JSON bridge shape that collector adapters can consume."
+  ]
+}

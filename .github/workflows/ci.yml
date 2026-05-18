@@ -7,6 +7,113 @@ on:
     branches: ["main"]
 
 jobs:
+
+  docs-hygiene:
+    name: Docs and repository hygiene
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Markdown local links
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re, urllib.parse
+          root = Path('.')
+          missing = []
+          files = (
+              list(root.glob('README*.md'))
+              + [p for p in [root/'CHANGELOG.md', root/'CONTRIBUTING.md', root/'SECURITY.md', root/'CODE_OF_CONDUCT.md'] if p.exists()]
+              + list(root.glob('docs/**/*.md'))
+              + list(root.glob('examples/**/*.md'))
+              + list(root.glob('go/**/*.md'))
+              + list(root.glob('typescript/**/*.md'))
+              + list(root.glob('rust/**/*.md'))
+          )
+          for path in files:
+              if 'target' in path.parts:
+                  continue
+              text = path.read_text(encoding='utf-8')
+              for match in re.finditer(r'\[[^\]]+\]\(([^)]+)\)', text):
+                  target = match.group(1).split('#', 1)[0]
+                  if not target or re.match(r'^[a-zA-Z][a-zA-Z0-9+.-]*:', target):
+                      continue
+                  resolved = (path.parent / urllib.parse.unquote(target)).resolve()
+                  if not resolved.exists():
+                      missing.append((str(path), target))
+          if missing:
+              print('\n'.join(f'{source} -> {target}' for source, target in missing))
+              raise SystemExit(1)
+          print('markdown local links ok')
+          PY
+
+      - name: Diff whitespace check
+        run: git diff --check
+
+
+  rust:
+    name: Rust runtime preview
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Test Rust preview runtime
+        working-directory: rust
+        run: |
+          cargo test
+          cargo run --quiet -- conformance
+          cargo run --quiet -- contract validate
+
+
+  typescript:
+    name: Node / TypeScript runtime preview
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Test TypeScript-compatible preview runtime
+        working-directory: typescript
+        run: |
+          npm test
+          npm run check
+          npm run conformance
+          npm run contract:validate
+
+
+  go:
+    name: Go runtime preview
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+
+      - name: Test Go preview runtime
+        working-directory: go
+        run: |
+          go test ./...
+          go run ./cmd/agentledger-go conformance
+          go run ./cmd/agentledger-go contract validate
+
   python:
     name: Python ${{ matrix.python-version }}
     runs-on: ubuntu-latest

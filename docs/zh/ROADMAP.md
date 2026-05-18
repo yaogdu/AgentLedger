@@ -21,7 +21,11 @@
 | Session / HITL | run/session/step 状态机、approval request lifecycle、audit events | 外部人工 review 队列、chat/app integrations | 业务 review 后台或流程后台 |
 | FinOps / Cost Control | token/call/cost records、budget enforcement hooks、cost attribution reports | provider price catalogs、finance exports、alerts | 发票或支付系统 |
 
+Execution backend 定位见 `EXECUTION_BACKENDS.md`：Temporal、Ray、Kubernetes 是通用分布式执行 backend adapters，AgentLedger 保留 agent-specific runtime invariants。
+
 这张范围地图也是 release gate 的一部分：新增能力要么作为生产执行可靠性 contract 进入 runtime-core，要么作为 optional adapter，要么作为独立 evidence consumer，要么明确写入 out of scope。默认选择应是 adapter 或外部 consumer，除非只有 runtime-core 才能强制保证对应 invariant。
+
+Adapter 优先级见 `ADAPTER_ROADMAP.md`：生态成熟且边界能保持 AgentLedger invariant 时进入官方 adapter；否则保持 experimental 或 community-owned。
 
 ## v1.0 Stable Runtime-Core Baseline
 
@@ -139,6 +143,48 @@ richer evidence cross-links
 adapter-level replay semantics for reusing captured media artifacts
 ```
 
+## Post-v1 - Sub-agent 与 Multi-agent Runtime Semantics
+
+状态：roadmap。AgentLedger 不应该变成完整 multi-agent planner 或协作框架，但应该提供 sub-agent / multi-agent 执行关系的可靠 runtime primitives。
+
+目标：
+
+```text
+让 parent / child agent run 具备 durable 和 replayable 语义
+让 multi-agent execution evidence 可以跨 run 归因
+orchestration / planning 仍交给 LangGraph、AutoGen、CrewAI、Temporal 或用户代码
+```
+
+计划中的 runtime-core primitives：
+
+```text
+parent_run_id / parent_step_id / child_run_id / child_role
+agent_spawn_requested / agent_spawned / agent_joined / agent_spawn_failed
+replay-safe join：读取历史 child evidence，而不是重复 spawn child work
+child run cost/failure attribution 回到 parent run/step
+parent cancellation propagation 到 child run，并 fence stale child worker
+child run 的 policy / approval / sandbox / budget inheritance rules
+parent/child evidence bundle links
+child run creation、cancellation、failure propagation、replay-safe join 的 conformance fixtures
+```
+
+明确非目标：
+
+```text
+不重做 planner、debate system、voting system 或 autonomous multi-agent collaboration engine
+不替代 LangGraph、AutoGen、CrewAI、Temporal、Ray 或 Kubernetes
+不绕过 Tool Ledger、approval、sandbox 和 evidence pipeline 来隐藏 sub-agent side effects
+```
+
+退出标准：
+
+- parent run 可以 spawn / join child run，并产生 durable evidence links
+- child run 的 failure 和 cost 可以在 parent attribution report 中看到
+- parent cancel 会 fence child worker 并记录 propagation evidence
+- replay parent run 不会重复创建 child run 或重复 child side effects
+
+Adapter 优先级见 `ADAPTER_ROADMAP.md`：生态成熟且边界能保持 AgentLedger invariant 时进入官方 adapter；否则保持 experimental 或 community-owned。
+
 ## v1.0 - Stable Runtime Contract
 
 状态：Python runtime-core contract 已实现。
@@ -167,11 +213,23 @@ release gate：
 
 ## 多语言 Track
 
-| Language | First milestone | Later milestone |
-|---|---|---|
-| Python | reference runtime | production runtime for Python users |
-| TypeScript | protocol client and worker SDK | TS framework adapters |
-| Rust | runtime primitives or sandbox worker | high-performance runtime engine |
-| Go | worker/infra adapter | deployment-friendly worker/infra services |
+多语言计划不应阻塞 Python 版本继续稳定，但必须防止语义漂移。最终目标是 Python、Go、TypeScript、Rust 四种语言的 native runtime-core parity，而不是只提供 SDK-only packages。
 
-所有语言实现都应以 `contracts/agentledger.runtime.v1.json` 和 conformance fixtures 为语义边界。
+| Language | First milestone | Runtime-ready milestone |
+|---|---|---|
+| Python | reference runtime | stable v1.0 runtime-core |
+| Go | `go/` 下已有 preview runtime-core parity baseline，覆盖 lease/cancel、Tool Ledger、policy/approval/sandbox、cost/failure；下一步补 infra adapters | production adapters + worker/deployment hardening + packaged per-language conformance |
+| TypeScript | `typescript/` 下已有 preview runtime-core parity baseline 和 `.d.ts`；下一步补 TS framework adapters | Node.js services 的 production adapters + framework integration + packaged per-language conformance |
+| Rust | `rust/` 下已有 preview in-memory runtime-core parity baseline；下一步补 persistence/async/worker components | full runtime-core conformance 或 certified high-performance core subset |
+
+过程：
+
+1. Python 继续作为 reference implementation；
+2. 冻结 shared contract、evidence fixtures 和 conformance fixtures；
+3. 维护 Go、TypeScript、Rust 的 native runtime-core parity baselines，避免语义漂移；
+4. framework、storage、sandbox、observability 等重依赖能力继续放在 adapter 层；
+5. 只有当 stable language runtimes 都通过共享 conformance 后，才进入统一 release train。
+
+达到 parity 前，非 Python 实现可以发布 0.x preview packages。达到 parity 后，runtime contract 变更必须同步更新各语言实现和 conformance 结果。
+
+详见 `../MULTI_LANGUAGE.md` 和 `LANGUAGE_PARITY_MATRIX.md`。

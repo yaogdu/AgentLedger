@@ -1,0 +1,109 @@
+# AgentLedger Go Runtime Preview
+
+This directory contains the native Go runtime-core baseline for AgentLedger 1.0.2.
+
+The package is dependency-free and runs a real local runtime loop. It is still a preview package surface, but it participates in the shared Python/Go/TypeScript/Rust conformance gate.
+
+## Current Status
+
+Implemented:
+
+- local `JSONStore` with atomic file writes and in-memory store for tests
+- run/session/step state model
+- leased step claim, heartbeat, lease recovery, and cancellation fencing
+- `AgentContext` with state patch writes and runtime-managed tool calls
+- `ToolGateway` with Tool Ledger idempotency for side-effect tools
+- evidence export, replay, trace/diff/debug consumers, time-travel timeline, repro helpers
+- policy denial, approval pause/resume, sandbox fail-closed behavior
+- cost records, budget enforcement, and failure attribution
+- media artifact refs and stream checkpoint refs in evidence/replay
+- scheduler facade, worker service, failure injection, adversarial review, evidence regression
+- MCP-style and dependency-free framework adapters
+- official optional adapter APIs for Postgres, S3/MinIO, OTLP transport, and Docker sandbox manifests
+- CLI for `conformance`, `contract validate`, and `contract export`
+
+Not claimed yet:
+
+- stable published Go module release
+- live Postgres/S3/Docker/OTLP service-backed hardening
+- framework-native packages for ecosystems that do not exist in Go
+- full media processing and stream transport adapters
+
+## Quickstart
+
+```go
+package main
+
+import (
+    "context"
+    "fmt"
+
+    agentledger "github.com/yaogdu/AgentLedger/go"
+)
+
+func main() {
+    rt, err := agentledger.NewLocalRuntime(".agentledger-go/state.json")
+    if err != nil { panic(err) }
+
+    _ = rt.RegisterTool(agentledger.ToolSpec{
+        Name: "docs.echo",
+        Func: func(ctx context.Context, args agentledger.JSONObject) (any, error) {
+            return agentledger.JSONObject{"echo": args["text"]}, nil
+        },
+    })
+
+    runID, _, _ := rt.CreateRun(agentledger.JSONObject{"input": "hello"})
+    _, err = rt.RunOnce(context.Background(), runID, "worker-go", "Agent", 60,
+        func(ctx context.Context, agentCtx *agentledger.AgentContext, state agentledger.JSONObject) error {
+            result, err := agentCtx.CallTool(ctx, "docs.echo", agentledger.JSONObject{"text": state["input"]})
+            if err != nil { return err }
+            return agentCtx.WriteState("result", result)
+        },
+    )
+    if err != nil { panic(err) }
+
+    bundle, _ := agentledger.ExportEvidence(rt.Store, runID)
+    fmt.Println(bundle.Run.RunID)
+}
+```
+
+## Adapter Quickstart
+
+```go
+pg := agentledger.NewPostgresAdapter("agentledger", injectedSQLClient)
+_ = pg.ApplyMigrations(context.Background())
+
+s3 := agentledger.NewS3BlobStore("agentledger-test", "agentledger/blobs", injectedObjectClient)
+_, ref, _ := s3.PutJSON(context.Background(), agentledger.JSONObject{"answer": "ok"})
+fmt.Println(ref)
+
+manifest := (agentledger.DockerSandboxAdapter{}).Manifest(
+    agentledger.SandboxPolicy{Network: "deny"},
+    []string{"echo", "ok"},
+)
+fmt.Println(manifest)
+```
+
+## Verify
+
+```bash
+cd go
+go test ./...
+go run ./cmd/agentledger-go conformance
+go run ./cmd/agentledger-go contract validate
+```
+
+From the repository root:
+
+```bash
+python3.11 scripts/check_language_parity.py --json-report /tmp/agentledger-language-parity.json
+```
+
+## Compatibility Target
+
+```text
+../contracts/agentledger.runtime.v1.json
+../contracts/conformance/runtime_semantics.v1.json
+../docs/LANGUAGE_QUICKSTART.md
+../docs/LANGUAGE_PARITY_MATRIX.md
+```

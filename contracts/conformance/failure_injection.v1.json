@@ -1,0 +1,11 @@
+{
+  "schema_version": "agentledger.conformance.failure_injection.v1",
+  "contract_version": "1.0",
+  "purpose": "Language-neutral failure injection probes for retry exhaustion, lease fencing, cancellation fencing, and side-effect idempotency semantics.",
+  "scenarios": [
+    { "id": "retry_exhaustion_marks_run_failed", "expected": { "passed": true } },
+    { "id": "lease_fencing_rejects_stale_commit", "expected": { "recovered_steps": 1, "passed": true } },
+    { "id": "cancellation_fencing_rejects_late_commit", "expected": { "cancelled_steps": 1, "passed": true } },
+    { "id": "side_effect_idempotency_executes_once_across_retry", "expected": { "external_call_count": 1, "passed": true } }
+  ]
+}

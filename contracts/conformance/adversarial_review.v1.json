@@ -1,0 +1,29 @@
+{
+  "schema_version": "agentledger.conformance.adversarial_review.v1",
+  "contract_version": "1.0",
+  "purpose": "Language-neutral side-effect-free adversarial review checks over AgentLedger evidence bundles.",
+  "scenarios": [
+    {
+      "id": "clean_evidence_passes_blocker_review",
+      "expected_checks": [
+        "no_failed_steps",
+        "no_pending_verification",
+        "no_pending_approvals",
+        "completed_steps_have_completion_events",
+        "ledger_statuses_known",
+        "event_sequence_contiguous"
+      ],
+      "expected": { "passed": true }
+    },
+    {
+      "id": "pending_high_risk_approval_blocks_review",
+      "expected_checks": ["no_pending_approvals", "high_risk_approvals_decided"],
+      "expected": { "passed": false }
+    },
+    {
+      "id": "max_total_usd_limit_blocks_review",
+      "expected_checks": ["max_total_usd"],
+      "expected": { "passed": false }
+    }
+  ]
+}

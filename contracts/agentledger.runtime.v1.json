@@ -39,7 +39,27 @@
       "multi_worker_claims_distinct_steps",
       "heartbeat_fences_wrong_owner",
       "recovery_fences_previous_owner"
-    ]
+    ],
+    "runtime_baseline_fixture_path": "contracts/conformance/runtime_baseline.v1.json",
+    "runtime_core_fixture_paths": [
+      "contracts/conformance/runtime_baseline.v1.json",
+      "contracts/conformance/local_persistence.v1.json",
+      "contracts/conformance/local_blob_store.v1.json",
+      "contracts/conformance/tool_schema_validation.v1.json",
+      "contracts/conformance/worker_service.v1.json",
+      "contracts/conformance/evidence_consumers.v1.json",
+      "contracts/conformance/static_debug_html.v1.json",
+      "contracts/conformance/ops_readiness.v1.json",
+      "contracts/conformance/storage_schema.v1.json",
+      "contracts/conformance/mcp_adapters.v1.json",
+      "contracts/conformance/framework_adapters.v1.json",
+      "contracts/conformance/otlp_trace_export.v1.json",
+      "contracts/conformance/simple_api.v1.json",
+      "contracts/conformance/policy_approval_sandbox.v1.json",
+      "contracts/conformance/cost_failure_attribution.v1.json",
+      "contracts/conformance/media_stream_artifacts.v1.json"
+    ],
+    "runtime_semantics_manifest_path": "contracts/conformance/runtime_semantics.v1.json"
   },
   "contract_version": "1.0",
   "core_objects": [
@@ -84,7 +104,13 @@
     "run_cancel_requested",
     "step_cancelled",
     "run_cancelled",
-    "agent_result_returned"
+    "agent_result_returned",
+    "tool_approval_decided",
+    "step_waiting_human",
+    "model_call_completed",
+    "cost_recorded",
+    "budget_check_failed",
+    "failure_classified"
   ],
   "invariants": [
     "append-only event ordering per run",
@@ -105,18 +131,18 @@
     },
     {
       "language": "typescript",
-      "role": "sdk-worker-client",
-      "status": "planned"
+      "role": "node-runtime-preview",
+      "status": "preview"
     },
     {
       "language": "rust",
-      "role": "runtime-or-high-performance-worker",
-      "status": "planned"
+      "role": "runtime-preview",
+      "status": "preview"
     },
     {
       "language": "go",
-      "role": "worker-and-infra-adapter",
-      "status": "planned"
+      "role": "runtime-preview",
+      "status": "preview"
     }
   ],
   "project": "agentledger",
@@ -146,7 +172,8 @@
     "preview": [
       "media and stream artifact schemas",
       "dependency-free framework facades",
-      "evidence regression and golden corpus UX"
+      "evidence regression and golden corpus UX",
+      "go/typescript/rust runtime-core parity preview baselines"
     ],
     "stable": [
       "run/step/session state machine",
@@ -168,7 +195,12 @@
     "commit_state_patch",
     "append_event",
     "reserve_ledger",
-    "update_ledger"
+    "update_ledger",
+    "request_approval",
+    "approve_request",
+    "deny_request",
+    "record_cost",
+    "cost_summary"
   ],
   "status": "stable-runtime-core",
   "tool_conventions": {

@@ -1,0 +1,270 @@
+{
+  "schema_version": "agentledger.conformance.runtime_semantics.v1",
+  "contract_version": "1.0",
+  "purpose": "Language-neutral manifest for semantic runtime-core checks that every AgentLedger runtime implementation must report before claiming parity. This file is the authority consumed by the aggregate parity runner; per-language CLIs may execute the checks natively, but they must report these ids.",
+  "required_semantic_checks": [
+    {
+      "id": "runtime_smoke_evidence_replay",
+      "fixture": "contracts/conformance/runtime_baseline.v1.json",
+      "scenario_refs": [
+        "durable_run_evidence_replay"
+      ],
+      "description": "Create a durable run, commit state under a valid lease, export evidence, and replay without side effects."
+    },
+    {
+      "id": "local_persistence_smoke",
+      "fixture": "contracts/conformance/local_persistence.v1.json",
+      "scenario_refs": [
+        "local_store_round_trips_completed_run",
+        "local_store_preserves_evidence_replay_chain",
+        "local_store_uses_atomic_snapshot_write"
+      ],
+      "description": "Persist a completed run to the dependency-free local store, reopen it, and prove final state, evidence, Tool Ledger, and replay remain intact."
+    },
+    {
+      "id": "local_blob_store_smoke",
+      "fixture": "contracts/conformance/local_blob_store.v1.json",
+      "scenario_refs": [
+        "blob_roundtrip_json_value",
+        "blob_content_address_is_stable",
+        "blob_bad_ref_is_rejected"
+      ],
+      "description": "Write, read, and validate stable content-addressed refs in the dependency-free local blob store."
+    },
+    {
+      "id": "tool_schema_validation_smoke",
+      "fixture": "contracts/conformance/tool_schema_validation.v1.json",
+      "scenario_refs": [
+        "invalid_tool_input_rejected_before_execution",
+        "valid_tool_input_and_output_pass",
+        "invalid_tool_output_rejected"
+      ],
+      "description": "Validate ToolSpec input/output schemas at the runtime boundary before treating a tool call as successful."
+    },
+    {
+      "id": "worker_service_smoke",
+      "fixture": "contracts/conformance/worker_service.v1.json",
+      "scenario_refs": [
+        "local_worker_runs_until_terminal",
+        "worker_service_stops_after_idle_poll",
+        "worker_loop_recovers_expired_leases"
+      ],
+      "description": "Run local worker/service loops until terminal, idle, and recovered-lease outcomes are reported correctly."
+    },
+    {
+      "id": "tool_ledger_idempotent_retry",
+      "fixture": "contracts/conformance/runtime_baseline.v1.json",
+      "scenario_refs": [
+        "tool_ledger_idempotent_retry"
+      ],
+      "description": "Retry a side-effecting tool call through the Tool Ledger and prove the external action executes once."
+    },
+    {
+      "id": "policy_approval_sandbox_smoke",
+      "fixture": "contracts/conformance/policy_approval_sandbox.v1.json",
+      "scenario_refs": [
+        "policy_denies_unapproved_high_risk_tool",
+        "approval_pauses_and_resumes_step",
+        "sandbox_required_tool_fails_closed"
+      ],
+      "description": "Enforce policy denial, human approval pause/resume, and sandbox fail-closed behavior at the runtime boundary."
+    },
+    {
+      "id": "cost_failure_attribution_smoke",
+      "fixture": "contracts/conformance/cost_failure_attribution.v1.json",
+      "scenario_refs": [
+        "tool_and_model_cost_attributed_to_run_step_role",
+        "budget_exhaustion_blocks_execution",
+        "failure_attribution_classifies_agent_tool_model_runtime"
+      ],
+      "description": "Attribute model/tool cost, enforce budgets in flight, and classify failures by source and retryability."
+    },
+    {
+      "id": "media_stream_artifacts_smoke",
+      "fixture": "contracts/conformance/media_stream_artifacts.v1.json",
+      "scenario_refs": [
+        "media_artifact_ref_is_indexed_in_evidence",
+        "stream_checkpoint_ref_is_indexed_in_evidence"
+      ],
+      "description": "Record media artifact refs and event-stream checkpoints as replayable evidence without owning codec processing or stream transport."
+    },
+    {
+      "id": "evidence_consumers_smoke",
+      "fixture": "contracts/conformance/evidence_consumers.v1.json",
+      "scenario_refs": [
+        "trace_spans_from_evidence",
+        "evidence_diff_detects_state_and_event_changes",
+        "divergence_report_lists_changed_dimensions",
+        "static_debug_summary_is_exportable"
+      ],
+      "description": "Export language-neutral trace spans, evidence diffs, divergence dimensions, and static debug summaries from evidence bundles."
+    },
+    {
+      "id": "simple_api_smoke",
+      "fixture": "contracts/conformance/simple_api.v1.json",
+      "scenario_refs": [
+        "simple_run_returns_output_and_state"
+      ],
+      "description": "Run a one-function hello-world agent through the minimal simple API and prove output, state, and result event are recorded."
+    },
+    {
+      "id": "otlp_trace_export_smoke",
+      "fixture": "contracts/conformance/otlp_trace_export.v1.json",
+      "scenario_refs": [
+        "otlp_json_contains_resource_scope_and_spans"
+      ],
+      "description": "Translate evidence trace spans into dependency-free OTLP/JSON with resource, scope, spans, and original AgentLedger identifiers."
+    },
+    {
+      "id": "static_debug_html_smoke",
+      "fixture": "contracts/conformance/static_debug_html.v1.json",
+      "scenario_refs": [
+        "static_debug_html_contains_run_events_and_state"
+      ],
+      "description": "Export a dependency-free static HTML debug artifact containing run metadata, event timeline, and final state."
+    },
+    {
+      "id": "ops_readiness_smoke",
+      "fixture": "contracts/conformance/ops_readiness.v1.json",
+      "scenario_refs": [
+        "retention_plan_is_non_destructive_and_counts_evidence",
+        "backup_readiness_reports_required_checks"
+      ],
+      "description": "Produce read-only retention plans and backup readiness reports from evidence without destructive cleanup."
+    },
+    {
+      "id": "storage_schema_smoke",
+      "fixture": "contracts/conformance/storage_schema.v1.json",
+      "scenario_refs": [
+        "latest_schema_version_and_ddl_are_available"
+      ],
+      "description": "Expose language-neutral storage schema metadata and DDL helpers for SQLite and Postgres dialects."
+    },
+    {
+      "id": "mcp_adapters_smoke",
+      "fixture": "contracts/conformance/mcp_adapters.v1.json",
+      "scenario_refs": [
+        "in_memory_mcp_tool_server_lists_and_calls_tools",
+        "mcp_tool_descriptor_maps_to_tool_spec",
+        "in_memory_mcp_context_server_reads_resources"
+      ],
+      "description": "Map dependency-free MCP-style tool descriptors and context resources into runtime tool specs."
+    },
+    {
+      "id": "framework_adapters_smoke",
+      "fixture": "contracts/conformance/framework_adapters.v1.json",
+      "scenario_refs": [
+        "function_adapter_maps_run_spec_and_invokes_agent",
+        "method_framework_adapter_uses_first_available_method_and_writes_output"
+      ],
+      "description": "Expose dependency-free function and method framework adapter base contracts without importing framework SDKs."
+    },
+    {
+      "id": "boundary_lint_smoke",
+      "fixture": "contracts/conformance/boundary_lint.v1.json",
+      "scenario_refs": [
+        "direct_shell_and_http_calls_are_reported",
+        "ignored_lines_are_not_reported"
+      ],
+      "description": "Detect direct shell/network/model/tool calls that bypass runtime policy, ledger, sandbox, audit, and replay boundaries while honoring explicit line ignores."
+    },
+    {
+      "id": "scheduler_smoke",
+      "fixture": "contracts/conformance/scheduler.v1.json",
+      "scenario_refs": [
+        "scheduler_status_reports_run_steps_and_cost",
+        "scheduler_recover_and_cancel_delegate_to_store"
+      ],
+      "description": "Expose a scheduler facade for runtime-owned status inspection, lease recovery, and cancellation without owning distributed execution backends."
+    },
+    {
+      "id": "adversarial_review_smoke",
+      "fixture": "contracts/conformance/adversarial_review.v1.json",
+      "scenario_refs": [
+        "clean_evidence_passes_blocker_review",
+        "pending_high_risk_approval_blocks_review",
+        "max_total_usd_limit_blocks_review"
+      ],
+      "description": "Run side-effect-free adversarial review checks over evidence bundles for release-readiness blockers, approvals, event sequence, durable refs, and optional cost limits."
+    },
+    {
+      "id": "evidence_regression_smoke",
+      "fixture": "contracts/conformance/evidence_regression.v1.json",
+      "scenario_refs": [
+        "evidence_health_checks_pass_for_clean_bundle",
+        "regression_detects_final_state_and_event_type_changes",
+        "regression_cost_delta_limit_blocks"
+      ],
+      "description": "Run side-effect-free evidence health and regression checks over evidence bundles without embedding a full eval platform in runtime core."
+    },
+    {
+      "id": "failure_injection_smoke",
+      "fixture": "contracts/conformance/failure_injection.v1.json",
+      "scenario_refs": [
+        "retry_exhaustion_marks_run_failed",
+        "lease_fencing_rejects_stale_commit",
+        "cancellation_fencing_rejects_late_commit",
+        "side_effect_idempotency_executes_once_across_retry"
+      ],
+      "description": "Run executable dependency-free reliability probes for retry exhaustion, stale lease fencing, cancellation fencing, and Tool Ledger side-effect idempotency."
+    },
+    {
+      "id": "shadow_smoke",
+      "fixture": "contracts/conformance/shadow.v1.json",
+      "scenario_refs": [
+        "shadow_state_diff_reports_changed_keys",
+        "shadow_report_carries_source_shadow_and_ok"
+      ],
+      "description": "Expose dependency-free shadow report and state diff semantics; full side-effect-replay ShadowRunner remains runtime/adapter-specific."
+    },
+    {
+      "id": "repro_golden_smoke",
+      "fixture": "contracts/conformance/repro.v1.json",
+      "scenario_refs": [
+        "builtin_golden_names_are_available",
+        "minimal_success_golden_is_valid_evidence",
+        "golden_regression_detects_changed_final_state"
+      ],
+      "description": "Expose built-in golden evidence and side-effect-free regression checks for repro harnesses; file-backed corpus UX may remain language/package specific."
+    },
+    {
+      "id": "time_travel_timeline_smoke",
+      "fixture": "contracts/conformance/time_travel.v1.json",
+      "scenario_refs": [
+        "timeline_reconstructs_state_at_selected_seq",
+        "timeline_marks_state_changed_frames",
+        "time_travel_report_exports_static_html"
+      ],
+      "description": "Reconstruct a time-travel timeline and state-at-sequence from evidence events, and export dependency-free static HTML."
+    },
+    {
+      "id": "optional_adapters_smoke",
+      "fixture": "contracts/conformance/optional_adapters.v1.json",
+      "scenario_refs": [
+        "optional_backend_capabilities_are_discoverable"
+      ],
+      "description": "Expose language-neutral optional adapter capability descriptors for backend, sandbox, framework, MCP transport, and shadow-runner extension boundaries without making heavy SDKs part of runtime core."
+    },
+    {
+      "id": "official_adapters_smoke",
+      "fixture": "contracts/conformance/official_adapters.v1.json",
+      "scenario_refs": [
+        "postgres_adapter_plans_and_applies_migrations_with_injected_client",
+        "s3_blob_adapter_round_trips_json_with_injected_client",
+        "otlp_transport_posts_json_with_injected_client",
+        "docker_sandbox_adapter_builds_manifest_without_daemon"
+      ],
+      "description": "Verify official optional adapter contracts through injected clients and dry-run manifests without importing cloud SDKs or requiring local daemons in runtime-core."
+    }
+  ],
+  "reporting_contract": {
+    "per_language_cli_field": "checks",
+    "aggregate_report_field": "required_semantic_checks",
+    "rule": "Every runtime conformance CLI must return passed=true and include every required semantic check id in its checks array."
+  },
+  "preview_languages_expected_to_report": [
+    "go",
+    "typescript",
+    "rust"
+  ]
+}

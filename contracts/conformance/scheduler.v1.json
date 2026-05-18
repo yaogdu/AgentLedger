@@ -1,0 +1,22 @@
+{
+  "schema_version": "agentledger.conformance.scheduler.v1",
+  "contract_version": "1.0",
+  "purpose": "Language-neutral scheduler facade semantics for runtime-owned recovery, cancellation, and status inspection.",
+  "scenarios": [
+    {
+      "id": "scheduler_status_reports_run_steps_and_cost",
+      "expected": {
+        "status_fields": ["run_id", "run_status", "state_version", "steps", "cost_summary"],
+        "step_fields": ["step_id", "status", "owner", "attempt", "lease_until", "last_error_type"]
+      }
+    },
+    {
+      "id": "scheduler_recover_and_cancel_delegate_to_store",
+      "expected": {
+        "recovered_steps": 1,
+        "cancelled_steps": 1,
+        "terminal_status": "cancelled"
+      }
+    }
+  ]
+}

@@ -1,0 +1,52 @@
+{
+  "schema_version": "agentledger.conformance.policy_approval_sandbox.v1",
+  "contract_version": "1.0",
+  "purpose": "Shared cross-language fixture for policy, approval, and sandbox runtime-boundary semantics. Preview runtimes must execute these semantics before claiming runtime-core parity.",
+  "required_scenarios": [
+    {
+      "name": "policy_denies_unapproved_high_risk_tool",
+      "description": "A high-risk tool should be denied before execution unless policy and approval allow it.",
+      "required_event_types": [
+        "tool_call_requested",
+        "tool_permission_decided"
+      ],
+      "required_assertions": [
+        "tool_function_not_executed_when_denied",
+        "permission_decision_recorded",
+        "denial_reason_recorded"
+      ]
+    },
+    {
+      "name": "approval_pauses_and_resumes_step",
+      "description": "An approval-required tool creates an approval request, pauses the step, and resumes after approval without losing runtime state.",
+      "required_event_types": [
+        "tool_approval_required",
+        "step_waiting_human",
+        "tool_approval_decided",
+        "step_retry_scheduled"
+      ],
+      "required_assertions": [
+        "approval_request_has_stable_key",
+        "step_paused_before_tool_execution",
+        "approved_step_can_resume",
+        "denied_approval_fails_step"
+      ]
+    },
+    {
+      "name": "sandbox_required_tool_fails_closed",
+      "description": "A sandbox-required tool must fail closed when no compatible sandbox executor is available.",
+      "required_event_types": [
+        "tool_call_requested",
+        "tool_permission_decided",
+        "sandbox_started",
+        "tool_call_failed"
+      ],
+      "required_assertions": [
+        "tool_function_not_executed_without_sandbox",
+        "failure_is_audited",
+        "no_external_side_effect_created"
+      ]
+    }
+  ],
+  "preview_status": "implemented by Go, TypeScript, and Rust preview runtimes as runtime-core parity gates; production adapter hardening remains separate"
+}

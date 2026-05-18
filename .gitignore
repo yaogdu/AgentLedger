@@ -22,8 +22,15 @@ venv/
 .env
 .DS_Store
 **/.DS_Store
+node_modules/
+**/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
 
 # Local notes, research dumps, and generated reports that should not ship.
+.claude/
 AI_Agent_Runtime_开源项目构想.md
 *.pdf
 *.docx
@@ -36,3 +43,20 @@ time-travel*.html
 
 # Local external installer/download artifacts.
 rce
+
+# Rust build outputs.
+target/
+**/target/
+# Local transient files
+*.tmp
+*.log
+*.bak
+*.swp
+*.swo
+*.orig
+
+# Python/pytest leftovers not always covered by tool output
+.coverage.*
+htmlcov/
+.ipynb_checkpoints/
+

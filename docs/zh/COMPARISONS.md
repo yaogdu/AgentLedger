@@ -1,0 +1,60 @@
+# 对比与重合边界
+
+AgentLedger 会和 agent framework、workflow runtime、tracing/eval 工具、RAG 系统在词汇上有重合。关键不是“有没有同名功能”，而是：**哪个层能真正执行和保证这个语义**。
+
+AgentLedger 是 execution safety 和 evidence layer。它位于 agent code 读取状态、调用模型、调用工具、消耗预算、写 checkpoint、生成 evidence 的边界上。其它工具仍应负责 planning、workflow shape、trace UI、实验、检索和部署基础设施。
+
+## 一句话区别
+
+```text
+LangGraph / LangChain / CrewAI / AutoGen:
+  决定 Agent 下一步该做什么
+
+Temporal / Ray / Kubernetes:
+  运行和调度分布式工作
+
+LangSmith / Langfuse / OpenTelemetry:
+  观察、比较、评估和调试行为
+
+RAG / vector stores:
+  检索长期知识
+
+AgentLedger:
+  让每一步执行 durable、governed、replayable，并在副作用边界上安全
+```
+
+## 常见工具详细对比
+
+| 工具 | 主要层级 | 和 AgentLedger 的重合 | 核心差异 | 推荐组合方式 |
+| --- | --- | --- | --- | --- |
+| LangChain | agent app framework 和 integrations | tools、callbacks/tracing hooks、memory abstractions、runnable chains | LangChain 负责组合 agent logic；AgentLedger 负责 durable execution、Tool Ledger 幂等、replay-safe evidence、approval、sandbox 和 recovery | LangChain Runnable 由 AgentLedger runtime/tool gateway 包裹 |
+| LangGraph | stateful graph/agent workflow | checkpoint、state、interrupt、多步 graph execution | LangGraph 负责 graph topology 和 node routing；AgentLedger 负责 side-effect ledger、runtime evidence、policy/sandbox boundary、cost/failure attribution 和跨框架 conformance | LangGraph node/checkpointer adapter + AgentLedger tool/evidence boundary |
+| CrewAI | role/team based agent orchestration | multi-agent role、task delegation、tool use | CrewAI 协调角色；AgentLedger 让每个 execution step 可恢复、可审计、可 replay、副作用安全 | CrewAI kickoff/run 包成 AgentLedger managed step |
+| AutoGen | multi-agent conversation framework | agents、messages、tool calls、group chat | AutoGen 负责 conversation dynamics；AgentLedger 负责 durable run state、lease、fenced commit、Tool Ledger、approval、replay 和 evidence bundle | AutoGen agent/team 放在 AgentLedger runtime boundary 下 |
+| OpenAI Agents SDK | OpenAI-native agent SDK | agent runs、tools、handoff、tracing concepts | SDK 提供模型/工具编程表面；AgentLedger 是 framework-neutral reliability infra | OpenAI agent runner 由 AgentLedger 治理工具和 evidence |
+| LlamaIndex | data/RAG 和 knowledge-agent framework | agents、tools、memory、callbacks | LlamaIndex 强在 retrieval/knowledge workflow；AgentLedger 不拥有 retrieval，但会把 retrieval 输出/ref 记录为 execution evidence | LlamaIndex query/agent output 写入 AgentLedger state/evidence ref |
+| Semantic Kernel | enterprise orchestration 和 skills/functions | planner、function、memory connector | Semantic Kernel 组合 AI function；AgentLedger 控制 runtime invariant 和 side-effect governance | SK function/kernel adapter 接入 AgentLedger policy 和 Tool Ledger |
+| LangSmith | LangChain 生态 observability、dataset、eval | trace、run comparison、eval workflow、debugging | LangSmith 主要是事后观测/eval；AgentLedger 在执行路径内，可在副作用发生前 block/approve/sandbox | AgentLedger evidence/trace 导出给 LangSmith 类分析 |
+| Langfuse | LLM observability、trace、prompt/version analytics、eval | trace、cost、session、scoring/eval | Langfuse 存储和分析 trace；AgentLedger 生成 replay-safe evidence，并在 tool 执行前强制 idempotency/policy | AgentLedger OTLP/trace/evidence 导出到 Langfuse 或类似工具 |
+| OpenTelemetry | 通用 telemetry protocol | span、metric/log、service metadata | OTel 负责传输 telemetry；AgentLedger 定义 agent-specific event/evidence semantics，并导出 OTLP JSON | AgentLedger 做 producer，OTel collector/backend 做 sink |
+| Temporal | durable workflow runtime | retry、workflow state、activity execution、timer | Temporal 负责通用 workflow durability；AgentLedger 负责 agent-specific Tool Ledger、model/tool evidence、replay safety、approval/sandbox/cost/failure semantics | Temporal workflow -> AgentLedger-managed agent activity |
+| Ray | distributed compute/workers | distributed task、actor、scheduling | Ray 运行分布式 Python workload；AgentLedger 治理 agent step correctness 和 side effect | Ray worker 执行 AgentLedger runtime step |
+| Kubernetes | deployment/scheduling infra | job、pod、worker lifecycle、isolation primitive | Kubernetes 调度容器；AgentLedger 定义 agent run/step lease、evidence、policy 和 tool governance | K8s 部署运行 AgentLedger 的 worker/sandbox |
+| Braintrust / eval platforms | eval dataset、scorer、experiment | evidence regression、comparison、scoring | Eval platform 评估输出；AgentLedger 提供 deterministic evidence bundle 和 replay-safe artifact | Eval platform 消费 AgentLedger evidence bundle |
+| Vector DB / RAG stores | long-term retrieval / semantic memory | memory ref、retrieval artifact | Vector DB 负责知识检索；AgentLedger 负责 session state，并记录影响执行的 retrieval output | retrieval ref/result 存入 AgentLedger evidence/state |
+
+## 真实定位
+
+如果只是快速做 prompt chain 原型，LangChain 或 LangGraph 可能已经够了。如果只需要 trace dashboard，LangSmith 或 Langfuse 可能已经够了。如果只需要通用 durable workflow，Temporal 可能已经够了。
+
+AgentLedger 有价值的场景是执行可靠性问题：
+
+```text
+这个 side-effecting tool 到底执行了一次还是两次？
+这个 worker 的 lease 是否还有效，它还能不能 commit state？
+哪个 approval、policy、sandbox、cost、Tool Ledger record 证明这次动作合理？
+我能不能 replay 这次 run，而不再次调用真实 model 或外部 tool？
+另一种语言/runtime 能不能生成同样的 evidence semantics？
+```
+
+这就是项目边界：framework-neutral runtime safety and evidence，而不是替代周围所有框架。

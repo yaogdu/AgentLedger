@@ -1,0 +1,21 @@
+{
+  "name": "@agentledger/runtime-preview",
+  "version": "0.1.0-preview",
+  "private": true,
+  "description": "Dependency-free Node/TypeScript-compatible preview runtime for AgentLedger.",
+  "type": "module",
+  "main": "src/index.js",
+  "types": "src/index.d.ts",
+  "scripts": {
+    "test": "node --test",
+    "check": "node --check src/index.js && node --check test/runtime.test.js",
+    "conformance": "node src/cli.js conformance",
+    "contract:validate": "node src/cli.js contract validate"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "bin": {
+    "agentledger-ts": "src/cli.js"
+  }
+}

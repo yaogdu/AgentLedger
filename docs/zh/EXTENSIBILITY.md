@@ -48,6 +48,10 @@ Optional production adapter
 | Framework | `FrameworkAdapter`、`AgentContext`、`ToolGateway` boundary | plain Python 和 dependency-free facade | framework-native package 和 smoke fixture |
 | Media/Stream | durable ref、metadata、lineage、stream cursor | artifact contract 和 tool schema convention | codec、transcription、frame extraction、stream transport |
 
+## Execution Backend Adapters
+
+Temporal、Ray、Kubernetes 这类系统是 execution backends。它们可以负责 distributed scheduling、queue、timer、activity retry 和 worker fleet。AgentLedger 负责其上方的 agent runtime boundary：ToolGateway、Tool Ledger、evidence、replay safety、policy、sandbox、cost/failure attribution。详见 `EXECUTION_BACKENDS.md`。
+
 ## 扩展点
 
 | 层 | 接口 | 常见实现 |
@@ -61,6 +65,20 @@ Optional production adapter
 | Worker | `WorkerProtocol` | Python SDK, TS client, JSON-RPC, gRPC, HTTP |
 | Observability | `TraceExporter` | JSONL, OpenTelemetry, custom trace store |
 | Media/Stream | `MediaArtifact`, `EventStreamCheckpoint` | audio/video/frame refs, stream chunk refs |
+
+## 多语言支持
+
+Python 是当前 reference runtime，但项目目标不应停留在 Python-only 或 SDK-only。Go、TypeScript、Rust 应共享同一份 runtime contract、golden fixtures 和 runtime-ready gate。
+
+各语言可以从更小的角色开始，但 parity 需要 native runtime-core conformance：
+
+```text
+Go: native worker/runtime baseline、infra workers、Kubernetes/controller adapters
+TypeScript: protocol client 先行，然后实现 Node runtime-core 和 TS framework adapters
+Rust: high-performance runtime primitives、replay/sandbox/worker components
+```
+
+当前 contract artifact 位于 `contracts/agentledger.runtime.v1.json`。详细策略见 `../MULTI_LANGUAGE.md` 和 `LANGUAGE_PARITY_MATRIX.md`。
 
 ## Framework Adapter
 

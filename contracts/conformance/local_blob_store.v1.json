@@ -1,0 +1,33 @@
+{
+  "schema_version": "agentledger.conformance.local_blob_store.v1",
+  "contract_version": "1.0",
+  "purpose": "Shared cross-language fixture for dependency-free local content-addressed blob store semantics. Preview runtimes must support stable JSON-compatible put/get refs so evidence artifacts can be externalized from the state store.",
+  "required_scenarios": [
+    {
+      "name": "blob_roundtrip_json_value",
+      "description": "A JSON-compatible value written to the local blob store can be read back through its blob:// ref.",
+      "required_assertions": [
+        "digest_has_sha256_prefix",
+        "ref_has_blob_scheme",
+        "read_value_matches_written_value"
+      ]
+    },
+    {
+      "name": "blob_content_address_is_stable",
+      "description": "Writing the same JSON-compatible value twice returns the same digest and ref without duplicating logical content.",
+      "required_assertions": [
+        "same_value_same_digest",
+        "same_value_same_ref"
+      ]
+    },
+    {
+      "name": "blob_bad_ref_is_rejected",
+      "description": "Unsupported refs are rejected instead of being interpreted as local filesystem paths.",
+      "required_assertions": [
+        "unsupported_scheme_rejected",
+        "path_traversal_not_accepted"
+      ]
+    }
+  ],
+  "preview_status": "implemented by Go, TypeScript, and Rust preview runtimes as local blob store parity; production S3/MinIO adapter parity remains separate"
+}

@@ -42,6 +42,20 @@ contract export is valid JSON and contains a contract_version
 checked-in contract fixture matches the current export
 ```
 
+## Cross-language Runtime Gate
+
+If the release or PR touches the runtime contract, event/evidence schema, Tool Ledger, policy/approval/sandbox, cost/failure attribution, or any Go/TypeScript/Rust implementation, also run:
+
+```bash
+python3.11 scripts/check_language_parity.py
+python3.11 scripts/check_language_parity.py --json-report /tmp/agentledger-language-parity.json
+python3.11 scripts/audit_python_parity.py > /tmp/agentledger-python-parity-audit.json
+```
+
+For a 1.0.1-style runtime-core parity release, `audit_python_parity.py` should report `gap_count: 0`.
+
+This aggregate runner executes the Python reference tests, Go tests, TypeScript tests/check, Rust tests, each preview language conformance CLI, contract diff, Markdown local link check, and `git diff --check`. It loads the shared semantic manifest at `contracts/conformance/runtime_semantics.v1.json`; the JSON report includes `required_semantic_checks`, `semantic_manifest`, and `language_conformance` entries, so it is useful for release notes, CI artifacts, and adapter certification evidence.
+
 ## Example Smoke
 
 Run representative dependency-free examples:

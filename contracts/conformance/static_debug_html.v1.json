@@ -1,0 +1,21 @@
+{
+  "schema_version": "agentledger.conformance.static_debug_html.v1",
+  "contract_version": "1.0",
+  "purpose": "Shared smoke scenarios for dependency-free static HTML debug export equivalent to Python's local time-travel/debug report shape.",
+  "scenarios": [
+    {
+      "name": "static_debug_html_contains_run_events_and_state",
+      "requires": ["debug_summary", "debug_html"],
+      "expected": {
+        "doctype": "<!doctype html>",
+        "title": "AgentLedger Debug Report",
+        "required_sections": ["Run", "Events", "Final State"],
+        "required_event": "run_created"
+      }
+    }
+  ],
+  "non_goals": [
+    "The fixture does not require a long-running web UI.",
+    "The fixture validates a portable static artifact that can be archived with evidence bundles."
+  ]
+}

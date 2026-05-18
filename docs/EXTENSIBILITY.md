@@ -190,14 +190,14 @@ Adapter responsibilities:
 
 ## Multi-language Support
 
-Python is the current reference runtime, but SDK design must not be Python-only. Rust, TypeScript, and Go should share the same runtime contract and golden fixtures.
+Python is the current reference runtime, but the project should not stop at Python or SDK-only packages. Go, TypeScript, and Rust should share the same runtime contract, golden fixtures, and runtime-ready gate.
 
-Each language can start with a smaller role:
+Each language can start with a smaller role, but parity requires native runtime-core conformance:
 
 ```text
-TypeScript: worker/protocol client, Node tool adapters, TS framework adapters
+Go: native worker/runtime baseline, infra workers, Kubernetes/controller adapters
+TypeScript: protocol client first, then Node runtime-core and TS framework adapters
 Rust: high-performance runtime primitives, replay/sandbox/worker components
-Go: infra workers, Kubernetes/controller adapters, enterprise services
 ```
 
 The current contract artifact is exported with:

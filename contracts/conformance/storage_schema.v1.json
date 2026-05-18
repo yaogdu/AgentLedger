@@ -1,0 +1,21 @@
+{
+  "schema_version": "agentledger.conformance.storage_schema.v1",
+  "contract_version": "1.0",
+  "purpose": "Shared smoke scenarios for language-neutral storage schema helper parity with Python storage_schema.py.",
+  "scenarios": [
+    {
+      "name": "latest_schema_version_and_ddl_are_available",
+      "requires": ["latest_schema_version", "ddl_for", "migrations_for"],
+      "dialects": ["sqlite", "postgres"],
+      "expected": {
+        "latest_version": "0001",
+        "migration_name": "initial_runtime_metadata",
+        "ddl_tokens": ["schema_migrations", "CREATE TABLE IF NOT EXISTS runs", "CREATE TABLE IF NOT EXISTS events", "CREATE TABLE IF NOT EXISTS tool_ledger"]
+      }
+    }
+  ],
+  "non_goals": [
+    "This fixture validates schema metadata and DDL generation, not live database execution.",
+    "Backend-specific migration runners remain adapter scope for languages without a built-in SQL driver."
+  ]
+}

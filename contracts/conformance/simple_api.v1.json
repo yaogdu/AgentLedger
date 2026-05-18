@@ -1,0 +1,17 @@
+{
+  "schema_version": "agentledger.conformance.simple_api.v1",
+  "contract_version": "1.0",
+  "purpose": "Shared smoke scenarios for the minimal hello-world API equivalent to Python agentledger.run()/arun().",
+  "scenarios": [
+    {
+      "name": "simple_run_returns_output_and_state",
+      "requires": ["simple_run"],
+      "expected": {
+        "output_key": "output",
+        "event_type": "agent_result_returned",
+        "default_worker": "worker-simple",
+        "default_role": "Agent"
+      }
+    }
+  ]
+}

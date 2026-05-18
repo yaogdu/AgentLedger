@@ -6,12 +6,39 @@ This project follows semantic versioning for the stable runtime-core contract. O
 
 ## Unreleased
 
+No unreleased changes yet.
+
+## 1.0.2
+
+### Added
+
+- Official optional adapter conformance fixture `official_adapters.v1.json` for Postgres migration clients, S3/MinIO object clients, OTLP transport clients, and Docker sandbox manifests.
+- Go, TypeScript, and Rust injected-client adapter APIs for Postgres, S3/MinIO, OTLP transport, and Docker sandbox manifest generation.
+- `official_adapters_smoke` in the shared runtime semantic manifest and every preview language conformance CLI.
+
+### Clarified
+
+- Adapter layer development starts with SDK-neutral injected clients and dry-run manifests so runtime-core remains dependency-light while official adapters get real conformance coverage.
+
 ## 1.0.1
 
 ### Added
 
 - `agentledger --help` now prints the GitHub project URL, documentation URL, and recommended `pipx install agentledger-runtime` command.
 - README and usage docs now make the PyPI distribution name explicit and point users from installation to the GitHub documentation.
+- Go, Node/TypeScript, and Rust preview runtime-core parity baselines covering run/session/step state, lease recovery, cancellation fencing, ToolGateway, Tool Ledger idempotency, evidence export, replay summary, policy denial, approval pause/resume, sandbox fail-closed behavior, cost/budget accounting, failure attribution, and Rust local snapshot persistence.
+- Shared language-neutral conformance fixtures for runtime baseline, local persistence, local blob store, tool schema validation, worker service, policy/approval/sandbox, cost/failure attribution, media/stream artifact references, evidence consumers, static debug HTML, ops readiness, storage schema, MCP adapters, framework adapters, OTLP trace export, simple API, boundary lint, scheduler, adversarial review, evidence regression, failure injection, shadow reports, repro golden corpus, time travel timeline, and optional adapter boundaries.
+- Preview per-language conformance CLIs for Go, Node/TypeScript, and Rust with `conformance`, `contract validate`, and `contract export` commands; `conformance` now executes every semantic smoke listed in `contracts/conformance/runtime_semantics.v1.json`.
+- Cross-language parity runner `scripts/check_language_parity.py` with optional JSON report output that parses per-language conformance reports and enforces shared semantic checks, plus CI docs-hygiene checks for Markdown local links and diff whitespace.
+- Conservative Python module parity audit `scripts/audit_python_parity.py`, currently reporting `gap_count: 0` for the declared runtime-core scope.
+- Adapter roadmap docs defining official, recommended, experimental, and out-of-core adapter priorities across Python, Go, TypeScript, and Rust.
+- Multi-language strategy, parity matrix, execution-backend positioning docs, comparison docs, and relationship architecture SVGs for LangGraph/Temporal/Ray/Kubernetes positioning.
+
+### Clarified
+
+- Python reference runtime-core parity is now declared for Go, TypeScript, and Rust within the AgentLedger core scope.
+- Concrete production adapters such as Postgres, S3/MinIO, Docker, Kubernetes, MCP transport, LangGraph, Temporal, and OpenTelemetry remain optional packages unless explicitly shipped for a language.
+- AgentLedger remains a framework/library/runtime layer, not SaaS and not a general workflow, eval, RAG, or deployment platform.
 
 ## 1.0.0
 

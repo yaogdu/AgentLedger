@@ -1,0 +1,25 @@
+{
+  "schema_version": "agentledger.conformance.ops_readiness.v1",
+  "contract_version": "1.0",
+  "purpose": "Shared smoke scenarios for read-only retention planning and backup readiness helpers equivalent to Python retention.py and backup.py safety semantics.",
+  "scenarios": [
+    {
+      "name": "retention_plan_is_non_destructive_and_counts_evidence",
+      "requires": ["retention_plan"],
+      "expected": {
+        "destructive": false,
+        "required_actions": ["export evidence bundle before destructive retention", "snapshot final state and manifest"],
+        "count_fields": ["event_count", "artifact_count", "media_artifact_count", "stream_checkpoint_count", "ledger_count"]
+      }
+    },
+    {
+      "name": "backup_readiness_reports_required_checks",
+      "requires": ["backup_readiness"],
+      "expected_checks": ["run_metadata_exists", "payload_refs_resolvable", "evidence_exportable", "media_stream_evidence_shape"]
+    }
+  ],
+  "non_goals": [
+    "The fixture is read-only and must not delete run, event, ledger, approval, artifact, or blob data.",
+    "The fixture validates language-neutral readiness semantics; backend-specific backup tooling remains adapter scope."
+  ]
+}

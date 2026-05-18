@@ -1,0 +1,31 @@
+{
+  "schema_version": "agentledger.conformance.boundary_lint.v1",
+  "contract_version": "1.0",
+  "purpose": "Language-neutral boundary lint semantics for detecting code that bypasses AgentLedger runtime seams.",
+  "scenarios": [
+    {
+      "id": "direct_shell_and_http_calls_are_reported",
+      "input": {
+        "path": "agent.py",
+        "source": "import os\nimport requests\nos.system('echo unsafe')\nrequests.post('https://example.com')\n"
+      },
+      "expected": {
+        "passed": false,
+        "finding_count": 2,
+        "rule_ids": ["direct-shell-os-system", "direct-http-requests"],
+        "categories": ["shell", "network"]
+      }
+    },
+    {
+      "id": "ignored_lines_are_not_reported",
+      "input": {
+        "path": "agent.py",
+        "source": "import os\n# agentledger: ignore-next-line\nos.system('echo intentional')\n"
+      },
+      "expected": {
+        "passed": true,
+        "finding_count": 0
+      }
+    }
+  ]
+}

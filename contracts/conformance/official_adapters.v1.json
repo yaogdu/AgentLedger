@@ -1,0 +1,31 @@
+{
+  "schema_version": "agentledger.conformance.official_adapters.v1",
+  "contract_version": "1.0.2",
+  "purpose": "Shared smoke scenarios for official optional adapter packages. These checks use injected clients/manifests so runtime-core does not depend on cloud SDKs or local daemons.",
+  "scenarios": [
+    {
+      "name": "postgres_adapter_plans_and_applies_migrations_with_injected_client",
+      "requires": ["postgres_adapter", "injected_sql_client", "migrations_for"],
+      "expected": {"dialect": "postgres", "latest_version": "0001", "records_schema_migration": true}
+    },
+    {
+      "name": "s3_blob_adapter_round_trips_json_with_injected_client",
+      "requires": ["s3_blob_adapter", "injected_object_client", "content_address"],
+      "expected": {"ref_prefix": "s3://agentledger-test/agentledger/blobs/sha256/", "content_type": "application/json"}
+    },
+    {
+      "name": "otlp_transport_posts_json_with_injected_client",
+      "requires": ["otlp_transport_adapter", "trace_json"],
+      "expected": {"content_type": "application/json", "fail_closed_without_client": true}
+    },
+    {
+      "name": "docker_sandbox_adapter_builds_manifest_without_daemon",
+      "requires": ["docker_sandbox_adapter", "sandbox_policy"],
+      "expected": {"network_default": "none", "read_only_root": true, "requires_explicit_execution": true}
+    }
+  ],
+  "non_goals": [
+    "This fixture does not require live Postgres, S3, Docker, or OTLP collector services.",
+    "Production credentials, cloud accounts, and daemon execution remain optional service-backed gates outside runtime-core CI."
+  ]
+}
