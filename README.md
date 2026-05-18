@@ -91,6 +91,19 @@ For example, sandbox semantics are core, but sandbox infrastructure is not. Core
 - Storage choices: SQLite WAL + local blobs by default; optional Postgres StateStore and S3/MinIO BlobStore adapters
 - Media and stream contracts: durable refs, metadata, lineage, chunk refs, offsets, watermarks, and replay validation without codecs or stream transport in core
 
+## Examples
+
+The repository includes small quickstarts plus a richer multi-language Travel Assistant demo that shows the same runtime ideas across Python, Go, Rust, and TypeScript.
+
+| Language | Demo | Run |
+| --- | --- | --- |
+| Python | `examples/travel_assistant/demo.py` | `python3 examples/travel_assistant/demo.py` |
+| Go | `go/examples/travel_assistant/main.go` | `cd go && go run examples/travel_assistant/main.go` |
+| Rust | `rust/examples/travel_assistant.rs` | `cd rust && cargo run --example travel_assistant` |
+| TypeScript | `typescript/examples/travel_assistant/travel_assistant.js` | `node typescript/examples/travel_assistant/travel_assistant.js` |
+
+See [examples/README.md](examples/README.md) for the full example index and language-specific notes.
+
 ## Architecture
 
 ![AgentLedger runtime architecture](docs/assets/agentledger-runtime-architecture.svg)

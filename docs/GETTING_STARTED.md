@@ -101,6 +101,26 @@ See the example indexes:
 - `../typescript/examples/README.md`
 - `../rust/examples/README.md`
 
+## 3.1 Multi-language Travel Assistant Demo
+
+The travel assistant demo exists in all four language areas as a richer interactive example:
+
+```bash
+# Python
+python3 examples/travel_assistant/demo.py
+
+# Go
+cd go && go run examples/travel_assistant/main.go
+
+# Rust
+cd rust && cargo run --example travel_assistant
+
+# TypeScript
+node typescript/examples/travel_assistant/travel_assistant.js
+```
+
+These demos are useful for understanding behavior, but they are not the release-gate conformance suite.
+
 ## 4. Understand The Mental Model
 
 Read these in order:

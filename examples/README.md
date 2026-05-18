@@ -9,7 +9,7 @@ Run Python examples from the repository root with `PYTHONPATH=src` unless the ex
 | Smallest hello-world run | `hello_world/hello.py` | `PYTHONPATH=src python3 examples/hello_world/hello.py` |
 | Idempotent side effects | `side_effect_idempotency/README.md` | Demonstrates Tool Ledger retry behavior. |
 | Transient retry | `transient_retry/README.md` | Demonstrates retryable errors and recovery. |
-| Travel assistant demo | `travel_assistant/demo.py` | Rich local demo with policy/storage options. |
+| Travel assistant demo | `travel_assistant/demo.py` | Python rich local demo with policy/storage options. See multi-language commands below. |
 | LangGraph adapter | `langgraph/basic_graph.py` | Python-only ecosystem adapter. |
 | LangChain adapter | `langchain/basic_runnable.py` | Python-only ecosystem adapter. |
 | CrewAI adapter | `crewai/basic_crew.py` | Python-only ecosystem adapter. |
@@ -30,3 +30,15 @@ Other language examples:
 - Rust: `../rust/examples/README.md`
 
 Start from `../docs/GETTING_STARTED.md` if you want a guided path.
+
+
+## Multi-language Travel Assistant Demo
+
+The travel assistant is a larger interactive demo that shows runtime state, tool calls, policy/budget behavior, evidence, and replay-like summaries across languages. These demos are example apps, not release-gate conformance tests.
+
+| Language | Path | Command |
+|---|---|---|
+| Python | `travel_assistant/demo.py` | `python3 examples/travel_assistant/demo.py` |
+| Go | `../go/examples/travel_assistant/main.go` | `cd go && go run examples/travel_assistant/main.go` |
+| Rust | `../rust/examples/travel_assistant.rs` | `cd rust && cargo run --example travel_assistant` |
+| TypeScript | `../typescript/examples/travel_assistant/travel_assistant.js` | `node typescript/examples/travel_assistant/travel_assistant.js` |

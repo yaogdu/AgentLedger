@@ -37,3 +37,9 @@ Do not run `go install github.com/yaogdu/AgentLedger/go@v1.0.2`; that path is th
 ## Travel Assistant
 
 `travel_assistant/main.go` is a larger local demo. Treat it as an example app, not part of the release gate.
+
+Run from the repository root:
+
+```bash
+cd go && go run examples/travel_assistant/main.go
+```

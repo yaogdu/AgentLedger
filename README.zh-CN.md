@@ -92,6 +92,19 @@ Optional production adapter:
 - Storage choices：默认 SQLite WAL + local blobs；可选 Postgres StateStore 和 S3/MinIO BlobStore adapter
 - Media and stream contracts：durable refs、metadata、lineage、chunk refs、offsets、watermarks、replay validation；core 不内置 codec 或 stream transport
 
+## 示例
+
+仓库里既有最小 quickstart，也有一个更完整的多语言 Travel Assistant demo，用来展示 Python、Go、Rust、TypeScript 下相同的 runtime 思路。
+
+| 语言 | Demo | 运行方式 |
+| --- | --- | --- |
+| Python | `examples/travel_assistant/demo.py` | `python3 examples/travel_assistant/demo.py` |
+| Go | `go/examples/travel_assistant/main.go` | `cd go && go run examples/travel_assistant/main.go` |
+| Rust | `rust/examples/travel_assistant.rs` | `cd rust && cargo run --example travel_assistant` |
+| TypeScript | `typescript/examples/travel_assistant/travel_assistant.js` | `node typescript/examples/travel_assistant/travel_assistant.js` |
+
+完整示例索引和各语言说明见 [examples/README.md](examples/README.md)。
+
 ## 架构说明
 
 ![AgentLedger runtime architecture](docs/assets/agentledger-runtime-architecture.svg)

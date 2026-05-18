@@ -20,3 +20,13 @@ cargo run --quiet -- conformance
 ```
 
 Crate surface: `agentledger-runtime`. The library crate is imported as `agentledger`. See `../README.md` for package metadata and API examples.
+
+
+## Travel Assistant
+
+`travel_assistant.rs` is a larger interactive demo. Treat it as an example app, not part of the release gate. It is intentionally excluded from the crates.io package include list; use it from the repository.
+
+```bash
+cd rust
+cargo run --example travel_assistant
+```
