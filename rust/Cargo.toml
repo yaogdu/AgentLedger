@@ -1,9 +1,12 @@
 [package]
-name = "agentledger-runtime-preview"
-version = "0.1.0-preview"
+name = "agentledger-runtime"
+version = "1.0.2"
 edition = "2021"
-description = "Dependency-free Rust preview runtime for AgentLedger"
+description = "Dependency-free Rust runtime for AgentLedger"
 license = "Apache-2.0"
+repository = "https://github.com/yaogdu/AgentLedger"
+homepage = "https://github.com/yaogdu/AgentLedger"
+documentation = "https://github.com/yaogdu/AgentLedger/tree/main/rust"
 
 [lib]
 name = "agentledger"

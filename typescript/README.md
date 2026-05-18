@@ -2,7 +2,7 @@
 
 This directory contains the dependency-free Node/TypeScript-compatible runtime-core baseline for AgentLedger 1.0.2.
 
-It is still a preview package surface, but it runs a native local runtime loop and participates in the shared Python/Go/TypeScript/Rust conformance gate.
+It runs a native local runtime loop, participates in the shared Python/Go/TypeScript/Rust conformance gate, and should be treated as runtime-core aligned; concrete production adapters are shipped separately as they mature.
 
 ## Current Status
 

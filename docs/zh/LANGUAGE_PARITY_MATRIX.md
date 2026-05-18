@@ -1,6 +1,8 @@
 # 多语言能力对齐矩阵
 
-这份矩阵用于跟踪 AgentLedger 在不同语言实现之间的能力对齐状态。Python 是当前 v1.0 reference runtime。Go、TypeScript、Rust 是 preview native runtime implementations；SDK/client-only 阶段可以先出现，但不能算 runtime parity。
+这份矩阵用于跟踪 AgentLedger 在不同语言实现之间的能力对齐状态。Python 是当前 v1.0 reference runtime。Go、TypeScript、Rust 是 native runtime implementations；SDK/client-only 阶段可以先出现，但不能算 runtime parity。
+
+关于 runtime-core、可跨语言 adapter、provider 差异、Python-only 生态 adapter 和目录结构决策的完整四语言对比表，见 `zh/LANGUAGE_IMPLEMENTATION_COMPARISON.md`。
 
 ## 状态说明
 
@@ -59,7 +61,7 @@
 
 ## Go Preview Baseline
 
-`go/` module 现在已经实现 dependency-free preview baseline：in-memory/JSON local store、run/step state machine、lease recovery、cancellation fencing、ToolGateway、Tool Ledger idempotency、evidence export、replay summary、policy denial、approval pause/resume、sandbox fail-closed、cost/budget records、model-call accounting 和 failure attribution。`typescript/` module 为 Node.js 实现同样的 preview loop，并提供 `.d.ts` declarations。`rust/` module 也实现了 in-memory dependency-free preview baseline，并支持 local snapshot persistence，用于同一套 runtime-core 语义。三个非 Python baseline 现在都会在测试中覆盖 `runtime_baseline.v1.json`、`local_persistence.v1.json`、`local_blob_store.v1.json`、`tool_schema_validation.v1.json`、`worker_service.v1.json`、`policy_approval_sandbox.v1.json`、`cost_failure_attribution.v1.json` 、`media_stream_artifacts.v1.json` 、`evidence_consumers.v1.json`、`static_debug_html.v1.json`、`ops_readiness.v1.json`、`storage_schema.v1.json`、`mcp_adapters.v1.json`、`framework_adapters.v1.json`、`otlp_trace_export.v1.json` 、`simple_api.v1.json` 和 `boundary_lint.v1.json`, `scheduler.v1.json`, `adversarial_review.v1.json`, `evidence_regression.v1.json`, `failure_injection.v1.json`, `shadow.v1.json`, `repro.v1.json`, `time_travel.v1.json`, `optional_adapters.v1.json`。`scripts/check_language_parity.py` 已提供可输出 JSON report 的 aggregate runner；它们仍然是 preview package，因为 concrete production adapter packages、完整 media processing/stream transport adapters，以及稳定发布级语言 package 仍是可选后续工作；preview per-language CLI 已存在，并会执行对齐 fixture 的 semantic smokes：state/evidence/replay、local persistence/reopen、local blob store、tool schema validation、worker service、Tool Ledger retry、policy/approval/sandbox、cost/failure attribution 和 media/stream artifact refs, trace spans, evidence diff, divergence, debug summaries, static HTML debug export, ops readiness planning, storage schema helpers, MCP-style in-memory adapters, dependency-free framework adapters, OTLP JSON trace export, and the simple hello-world API。
+`go/` module 现在已经实现 dependency-free runtime-core package：in-memory/JSON local store、run/step state machine、lease recovery、cancellation fencing、ToolGateway、Tool Ledger idempotency、evidence export、replay summary、policy denial、approval pause/resume、sandbox fail-closed、cost/budget records、model-call accounting 和 failure attribution。`typescript/` module 为 Node.js 实现同样的 runtime-core loop，并提供 `.d.ts` declarations。`rust/` module 也实现了 in-memory dependency-free runtime-core package，并支持 local snapshot persistence，用于同一套 runtime-core 语义。三个非 Python baseline 现在都会在测试中覆盖 `runtime_baseline.v1.json`、`local_persistence.v1.json`、`local_blob_store.v1.json`、`tool_schema_validation.v1.json`、`worker_service.v1.json`、`policy_approval_sandbox.v1.json`、`cost_failure_attribution.v1.json` 、`media_stream_artifacts.v1.json` 、`evidence_consumers.v1.json`、`static_debug_html.v1.json`、`ops_readiness.v1.json`、`storage_schema.v1.json`、`mcp_adapters.v1.json`、`framework_adapters.v1.json`、`otlp_trace_export.v1.json` 、`simple_api.v1.json` 和 `boundary_lint.v1.json`, `scheduler.v1.json`, `adversarial_review.v1.json`, `evidence_regression.v1.json`, `failure_injection.v1.json`, `shadow.v1.json`, `repro.v1.json`, `time_travel.v1.json`, `optional_adapters.v1.json`。`scripts/check_language_parity.py` 已提供可输出 JSON report 的 aggregate runner；非 Python runtime-core 已对齐；concrete production adapter packages 和完整 media processing/stream transport adapters 仍是可选后续工作；preview per-language CLI 已存在，并会执行对齐 fixture 的 semantic smokes：state/evidence/replay、local persistence/reopen、local blob store、tool schema validation、worker service、Tool Ledger retry、policy/approval/sandbox、cost/failure attribution 和 media/stream artifact refs, trace spans, evidence diff, divergence, debug summaries, static HTML debug export, ops readiness planning, storage schema helpers, MCP-style in-memory adapters, dependency-free framework adapters, OTLP JSON trace export, and the simple hello-world API。
 
 
 本地可以用统一 runner 执行 Python reference、Go、TypeScript、Rust、contract diff、Markdown link 和 diff whitespace 检查：
@@ -98,7 +100,7 @@ media/stream artifact ref fixture checks pass
 
 ```text
 Python 使用 stable releases。
-Go、TypeScript、Rust 可以发布 0.x preview packages。
+Go、TypeScript、Rust 在 packaging metadata、examples 和 CLI parity 验证后，应发布 1.0.2-aligned runtime-core packages。
 SDK/client package 不能被描述成完整 runtime implementation。
 ```
 

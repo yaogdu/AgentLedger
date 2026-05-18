@@ -14,7 +14,7 @@ AgentLedger `1.0.2` is an agent execution safety, evidence, and reliability laye
 
 Most agent frameworks focus on planning, reasoning, and workflow logic. AgentLedger sits underneath or beside LangChain, LangGraph, CrewAI, AutoGen, OpenAI Agents SDK, LlamaIndex, Semantic Kernel, or custom agents to provide runtime guarantees around state, tools, evidence, replay, and recovery.
 
-Python is the current reference implementation. The long-term target is native runtime-core parity across Go, TypeScript, Rust, and Python, all aligned to the same language-neutral runtime contract.
+Python is the current reference implementation. The long-term target is native runtime-core parity across Go, TypeScript, Rust, and Python, all aligned to the same language-neutral runtime contract. See `docs/LANGUAGE_IMPLEMENTATION_COMPARISON.md` for the exact four-language implementation comparison and adapter boundary.
 
 ## At a glance
 
@@ -24,7 +24,7 @@ Python is the current reference implementation. The long-term target is native r
 | What is optional? | Postgres, S3/MinIO, framework-native packages, OTLP collector transport, sandbox infrastructure, distributed deployment recipes, and real-service hardening. |
 | What is preview? | Go/Node/TypeScript/Rust runtime-core baselines, media/stream artifact contracts, and some dependency-free adapter facades. |
 | What is not in core? | Planning engines, full eval systems, RAG/vector memory, trace stores, hosted application products, and hosted sandbox infrastructure. |
-| How should other languages work? | This repo is contract-first. Python is the reference runtime; Go, Node/TypeScript, and Rust now have preview native runtime baselines under `go/`, `typescript/`, and `rust/`. Runtime-ready requires `contracts/agentledger.runtime.v1.json`, the shared semantic manifest `contracts/conformance/runtime_semantics.v1.json`, shared conformance fixtures, and per-language conformance commands. |
+| How should other languages work? | This repo is contract-first. Python is the reference runtime; Go, Node/TypeScript, and Rust now have native runtime baselines under `go/`, `typescript/`, and `rust/`. Runtime-ready requires `contracts/agentledger.runtime.v1.json`, the shared semantic manifest `contracts/conformance/runtime_semantics.v1.json`, shared conformance fixtures, and per-language conformance commands. |
 
 ## Scope principle
 
@@ -107,7 +107,7 @@ If a term overlaps, read it this way: AgentLedger records trace/eval/cost/failur
 - Crash recovery: leases, fencing tokens, checkpoints, and cancellation semantics let a new worker resume while blocking stale workers.
 - Replay-safe evidence: event logs, payload refs, state versions, cost records, and artifacts allow debugging without repeating real model/tool calls.
 - Thin core: built-in local defaults work out of the box, while Postgres, S3/MinIO, OTLP, framework packages, and sandboxes stay adapter-driven.
-- Framework-neutral contract: Python is the stable reference runtime; Go, Node/TypeScript, and Rust preview baselines target the same runtime semantics.
+- Framework-neutral contract: Python is the stable reference runtime; Go, Node/TypeScript, and Rust runtime-core packages target the same runtime semantics and shared conformance gate.
 
 ## LangGraph relationship
 
@@ -254,9 +254,9 @@ examples/            dependency-free examples and adapter facades
 docs/                English documentation and runtime design docs
 docs/zh/             Chinese primary reader path
 contracts/           language-neutral runtime contract, semantic manifest, and conformance fixtures
-go/                  Go native runtime preview baseline
-typescript/          Node/TypeScript-compatible runtime preview baseline
-rust/                Rust runtime preview baseline
+go/                  Go native runtime-core package
+typescript/          Node/TypeScript-compatible runtime-core package
+rust/                Rust runtime-core package
 migrations/          SQLite/Postgres DDL and migration baselines
 ```
 

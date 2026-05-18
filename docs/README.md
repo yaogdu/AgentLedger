@@ -20,7 +20,7 @@ This directory is the canonical documentation set for AgentLedger. English docs 
 | Read design and implementation notes | `DESIGN_AND_IMPLEMENTATION.md` | `zh/DESIGN_AND_IMPLEMENTATION.md` |
 | Check current status | `IMPLEMENTATION_STATUS.md` | `zh/IMPLEMENTATION_STATUS.md` |
 | Prepare a release | `RELEASE_CHECKLIST.md` | `zh/RELEASE_CHECKLIST.md` |
-| Understand multi-language parity | `MULTI_LANGUAGE.md`, `LANGUAGE_PARITY_MATRIX.md` | `MULTI_LANGUAGE.md`, `zh/LANGUAGE_PARITY_MATRIX.md` |
+| Understand multi-language parity | `MULTI_LANGUAGE.md`, `LANGUAGE_PARITY_MATRIX.md`, `LANGUAGE_IMPLEMENTATION_COMPARISON.md` | `MULTI_LANGUAGE.md`, `zh/LANGUAGE_PARITY_MATRIX.md`, `zh/LANGUAGE_IMPLEMENTATION_COMPARISON.md` |
 | Understand execution backends | `EXECUTION_BACKENDS.md` | `zh/EXECUTION_BACKENDS.md` |
 
 ## Recommended Reader Paths
@@ -62,6 +62,7 @@ This directory is the canonical documentation set for AgentLedger. English docs 
 - `VERSIONING.md`: v1 compatibility, schema migration, and evidence-versioning policy.
 - `MULTI_LANGUAGE.md`: contract-first plan for Python, Go, TypeScript, and Rust native runtime parity.
 - `LANGUAGE_PARITY_MATRIX.md`: capability matrix and runtime-ready gates for each language.
+- `LANGUAGE_IMPLEMENTATION_COMPARISON.md`: side-by-side four-language implementation table, including core parity, portable adapters, provider differences, Python-only ecosystem adapters, and directory-layout decisions.
 
 ## Project Policy
 

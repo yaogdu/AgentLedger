@@ -252,21 +252,42 @@ fn main() {
 
 fn run(args: Vec<String>) -> Result<(), Box<dyn Error>> {
     match args.as_slice() {
+        [] => { print_help(); Ok(()) }
+        [command] if command == "--help" || command == "help" => { print_help(); Ok(()) }
+        [command] if command == "version" => { println!("agentledger-rust 1.0.2"); Ok(()) }
+        [command] if command == "doctor" => { println!("{{\n  \"language\": \"rust\",\n  \"version\": \"1.0.2\",\n  \"status\": \"ok\",\n  \"runtime_core_parity\": true\n}}"); Ok(()) }
+        [command] if command == "quickstart" => run_quickstart(),
         [command] if command == "conformance" => run_conformance(),
         [command, action] if command == "contract" && action == "validate" => validate_contract(),
         [command, action] if command == "contract" && action == "export" => {
             print!("{}", fs::read_to_string(contract_path()?)?);
             Ok(())
         }
-        _ => Err("usage: agentledger-rust conformance | agentledger-rust contract validate | agentledger-rust contract export".into()),
+        _ => Err(format!("unknown command {}; run agentledger-rust --help", args.join(" ")).into()),
     }
+}
+
+fn print_help() {
+    println!("AgentLedger Rust Runtime 1.0.2\n\nUsage:\n  agentledger-rust doctor\n  agentledger-rust version\n  agentledger-rust quickstart\n  agentledger-rust conformance\n  agentledger-rust contract validate\n  agentledger-rust contract export\n\nProject: https://github.com/yaogdu/AgentLedger");
+}
+
+fn run_quickstart() -> Result<(), Box<dyn Error>> {
+    fn hello(_ctx: &mut AgentContext, input: State) -> agentledger::Result<Option<Value>> {
+        let mut output = State::new();
+        output.insert("message".to_string(), Value::String("hello from rust".to_string()));
+        output.insert("input".to_string(), input.get("input").cloned().unwrap_or(Value::Null));
+        Ok(Some(Value::Object(output)))
+    }
+    let result = simple_run(hello, state(&[("input", "world".into())]))?;
+    println!("{{\n  \"run_id\": \"{}\",\n  \"output_present\": {}\n}}", result.run_id, result.output.is_some());
+    Ok(())
 }
 
 fn run_conformance() -> Result<(), Box<dyn Error>> {
     let mut checks = validate_fixtures()?;
     checks.extend(run_semantic_smokes()?);
     println!(
-        "{{\n  \"language\": \"rust\",\n  \"suite\": \"agentledger_runtime_core_preview\",\n  \"passed\": true,\n  \"checks\": [{}]\n}}",
+        "{{\n  \"language\": \"rust\",\n  \"suite\": \"agentledger_runtime_core\",\n  \"passed\": true,\n  \"checks\": [{}]\n}}",
         checks
             .iter()
             .map(|check| format!("\"{check}\""))

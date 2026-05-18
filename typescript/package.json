@@ -1,8 +1,8 @@
 {
-  "name": "@agentledger/runtime-preview",
-  "version": "0.1.0-preview",
-  "private": true,
-  "description": "Dependency-free Node/TypeScript-compatible preview runtime for AgentLedger.",
+  "name": "@agentledger/runtime",
+  "version": "1.0.2",
+  "private": false,
+  "description": "Dependency-free Node/TypeScript-compatible runtime for AgentLedger.",
   "type": "module",
   "main": "src/index.js",
   "types": "src/index.d.ts",

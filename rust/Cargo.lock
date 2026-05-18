@@ -3,5 +3,5 @@
 version = 4
 
 [[package]]
-name = "agentledger-runtime-preview"
-version = "0.1.0-preview"
+name = "agentledger-runtime"
+version = "1.0.2"

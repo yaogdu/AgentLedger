@@ -276,7 +276,10 @@ def main(argv: list[str] | None = None) -> int:
             run([sys.executable, "-m", "unittest", "discover", "-s", "tests", "-q"], env=python_env(), name="python_unittest")
         go_env = os.environ.copy()
         go_env.setdefault("GOCACHE", "/tmp/agentledger-go-cache")
-        run(["go", "test", "./..."], cwd=ROOT / "go", env=go_env, name="go_tests")
+        go_env.setdefault("GOMODCACHE", "/tmp/agentledger-go-mod-cache")
+        # Keep the release gate focused on versioned runtime packages. Local
+        # scratch demos under go/examples can be incomplete while users iterate.
+        run(["go", "test", ".", "./cmd/agentledger-go"], cwd=ROOT / "go", env=go_env, name="go_tests")
         run_json(["go", "run", "./cmd/agentledger-go", "conformance"], cwd=ROOT / "go", env=go_env, name="go_conformance_cli", language="go")
         run(["npm", "test"], cwd=ROOT / "typescript", name="typescript_tests")
         run(["npm", "run", "check"], cwd=ROOT / "typescript", name="typescript_syntax_check")

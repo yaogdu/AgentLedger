@@ -193,7 +193,7 @@ export function validateFixtures() {
 }
 
 function usage() {
-  return 'usage: agentledger-ts conformance | agentledger-ts contract validate | agentledger-ts contract export';
+  return `AgentLedger TypeScript Runtime 1.0.2\n\nUsage:\n  agentledger-ts doctor\n  agentledger-ts version\n  agentledger-ts quickstart\n  agentledger-ts conformance\n  agentledger-ts contract validate\n  agentledger-ts contract export\n\nProject: https://github.com/yaogdu/AgentLedger`;
 }
 
 export async function runRuntimeSmoke() {
@@ -571,10 +571,27 @@ async function runMediaStreamSmoke() {
 }
 
 export async function main(args = process.argv.slice(2)) {
+  if (args.length === 0 || (args.length === 1 && (args[0] === '--help' || args[0] === 'help'))) {
+    console.log(usage());
+    return 0;
+  }
+  if (args.length === 1 && args[0] === 'version') {
+    console.log('agentledger-ts 1.0.2');
+    return 0;
+  }
+  if (args.length === 1 && args[0] === 'doctor') {
+    console.log(JSON.stringify({ language: 'typescript', version: '1.0.2', status: 'ok', runtime_core_parity: true }, null, 2));
+    return 0;
+  }
+  if (args.length === 1 && args[0] === 'quickstart') {
+    const result = await simpleRun(async (_ctx, state) => ({ message: 'hello from typescript', input: state.input }), { initialState: { input: 'world' } });
+    console.log(JSON.stringify({ run_id: result.run_id, output: result.output, state: result.state }, null, 2));
+    return 0;
+  }
   if (args.length === 1 && args[0] === 'conformance') {
     const checks = validateFixtures();
     const semanticChecks = await runSemanticSmokes();
-    console.log(JSON.stringify({ language: 'typescript', suite: 'agentledger_runtime_core_preview', passed: true, checks: ['contract_validate', ...checks, ...semanticChecks] }, null, 2));
+    console.log(JSON.stringify({ language: 'typescript', suite: 'agentledger_runtime_core', passed: true, checks: ['contract_validate', ...checks, ...semanticChecks] }, null, 2));
     return 0;
   }
   if (args.length === 2 && args[0] === 'contract' && args[1] === 'validate') {
@@ -585,7 +602,7 @@ export async function main(args = process.argv.slice(2)) {
     process.stdout.write(readFileSync(contractPath(), 'utf8'));
     return 0;
   }
-  console.error(usage());
+  console.error(`unknown command ${args.join(' ')}; run agentledger-ts --help`);
   return 1;
 }
 

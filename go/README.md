@@ -2,7 +2,7 @@
 
 This directory contains the native Go runtime-core baseline for AgentLedger 1.0.2.
 
-The package is dependency-free and runs a real local runtime loop. It is still a preview package surface, but it participates in the shared Python/Go/TypeScript/Rust conformance gate.
+The package is dependency-free and runs a real local runtime loop. It participates in the shared Python/Go/TypeScript/Rust conformance gate and should be treated as runtime-core aligned; concrete production adapters are shipped separately as they mature.
 
 ## Current Status
 

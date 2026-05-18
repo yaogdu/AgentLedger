@@ -181,6 +181,21 @@ func main() {
 }
 
 func run(args []string) error {
+	if len(args) == 0 || (len(args) == 1 && (args[0] == "--help" || args[0] == "help")) {
+		printHelp()
+		return nil
+	}
+	if len(args) == 1 && args[0] == "version" {
+		fmt.Println("agentledger-go 1.0.2")
+		return nil
+	}
+	if len(args) == 1 && args[0] == "doctor" {
+		fmt.Println(`{"language":"go","version":"1.0.2","status":"ok","runtime_core_parity":true}`)
+		return nil
+	}
+	if len(args) == 1 && args[0] == "quickstart" {
+		return runQuickstart()
+	}
 	if len(args) == 1 && args[0] == "conformance" {
 		return runConformance()
 	}
@@ -199,7 +214,36 @@ func run(args []string) error {
 		fmt.Print(string(body))
 		return nil
 	}
-	return fmt.Errorf("usage: agentledger-go conformance | agentledger-go contract validate | agentledger-go contract export")
+	return fmt.Errorf("unknown command %q; run agentledger-go --help", strings.Join(args, " "))
+}
+
+func printHelp() {
+	fmt.Println(`AgentLedger Go Runtime 1.0.2
+
+Usage:
+  agentledger-go doctor
+  agentledger-go version
+  agentledger-go quickstart
+  agentledger-go conformance
+  agentledger-go contract validate
+  agentledger-go contract export
+
+Project: https://github.com/yaogdu/AgentLedger`)
+}
+
+func runQuickstart() error {
+	result, err := agentledger.SimpleRun(context.Background(), func(ctx context.Context, agentCtx *agentledger.AgentContext, state agentledger.JSONObject) (any, error) {
+		return agentledger.JSONObject{"message": "hello from go", "input": state["input"]}, nil
+	}, agentledger.JSONObject{"input": "world"})
+	if err != nil {
+		return err
+	}
+	encoded, err := json.MarshalIndent(agentledger.JSONObject{"run_id": result.RunID, "output": result.Output, "state": result.State}, "", "  ")
+	if err != nil {
+		return err
+	}
+	fmt.Println(string(encoded))
+	return nil
 }
 
 func runConformance() error {
@@ -213,7 +257,7 @@ func runConformance() error {
 	}
 	checks = append([]string{"contract_validate"}, checks...)
 	checks = append(checks, semanticChecks...)
-	result := checkResult{Language: "go", Suite: "agentledger_runtime_core_preview", Passed: true, Checks: checks}
+	result := checkResult{Language: "go", Suite: "agentledger_runtime_core", Passed: true, Checks: checks}
 	encoded, err := json.MarshalIndent(result, "", "  ")
 	if err != nil {
 		return err

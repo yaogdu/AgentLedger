@@ -4,7 +4,7 @@
 
 AgentLedger 1.0.2 has one Python reference runtime and native preview runtime-core baselines for Go, TypeScript, and Rust. The shared promise is semantic parity for runtime-core: durable runs, leases, Tool Ledger, evidence, replay, policy/approval/sandbox boundaries, cost/failure attribution, conformance, and official optional adapter contracts.
 
-The non-Python packages are still preview packages, but they are not thin clients: each runs a native local runtime loop and reports the shared conformance checks.
+The non-Python packages are native runtime packages, not thin clients: each runs a native local runtime loop and reports the shared conformance checks.
 
 ## Python
 
@@ -236,6 +236,6 @@ AgentLedger language parity checks passed
 
 ## What Not To Assume
 
-- Go/TypeScript/Rust are preview package surfaces, even though runtime-core semantics are conformance-aligned.
+- Go/TypeScript/Rust are package surfaces, even though runtime-core semantics are conformance-aligned.
 - Official adapters in 1.0.2 use injected clients and dry-run manifests; real cloud SDKs and live service hardening are optional follow-up gates.
 - AgentLedger does not replace LangGraph, LangChain, LangSmith, Langfuse, Temporal, Ray, Kubernetes, vector DBs, or eval platforms. It provides the runtime safety/evidence layer those systems can integrate with.

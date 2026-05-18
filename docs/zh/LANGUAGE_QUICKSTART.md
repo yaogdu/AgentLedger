@@ -4,7 +4,7 @@
 
 AgentLedger 1.0.2 包含 Python reference runtime，以及 Go、TypeScript、Rust 的 native preview runtime-core baseline。共享承诺是 runtime-core 语义对齐：durable run、lease、Tool Ledger、evidence、replay、policy/approval/sandbox boundary、cost/failure attribution、conformance 和 official optional adapter contract。
 
-非 Python package 仍是 preview package，但不是 thin client：它们都能运行本地 native runtime loop，并报告共享 conformance checks。
+非 Python package 是 native runtime package，不是 thin client：它们都能运行本地 native runtime loop，并报告共享 conformance checks。
 
 ## Python
 
@@ -179,6 +179,6 @@ AgentLedger language parity checks passed
 
 ## 不要误解
 
-- Go/TypeScript/Rust 仍是 preview package surface，但 runtime-core 语义已 conformance-aligned。
+- Go/TypeScript/Rust 仍是 package surface，但 runtime-core 语义已 conformance-aligned。
 - 1.0.2 的 official adapter 使用 injected client 和 dry-run manifest；真实云 SDK 和 live service hardening 是后续 optional gate。
 - AgentLedger 不替代 LangGraph、LangChain、LangSmith、Langfuse、Temporal、Ray、Kubernetes、vector DB 或 eval platform；它提供的是这些系统可以接入的 runtime safety/evidence layer。
