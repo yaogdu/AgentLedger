@@ -40,13 +40,31 @@ PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m agentledger contract export
 
 ## Go
 
-当前使用 repo 内本地 module：
+在 Go 项目中使用已发布 module：
+
+```bash
+go mod init your-module-name  # 如果项目还没有 go.mod 才需要
+go get github.com/yaogdu/AgentLedger/go@v1.0.2
+```
+
+安装可选 CLI 命令：
+
+```bash
+go install github.com/yaogdu/AgentLedger/go/cmd/agentledger-go@v1.0.2
+agentledger-go --help
+agentledger-go doctor
+agentledger-go quickstart
+```
+
+本地 repo 验证：
 
 ```bash
 cd go
-go test ./...
+go test . ./cmd/agentledger-go
 go run ./cmd/agentledger-go conformance
 ```
+
+注意：`go get` 必须在 Go module 内运行。`go install github.com/yaogdu/AgentLedger/go@v1.0.2` 会失败，因为 library package 不是 `package main`；安装 CLI 要使用 `/cmd/agentledger-go` 路径。
 
 最小 runtime：
 

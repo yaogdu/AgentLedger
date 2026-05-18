@@ -16,13 +16,24 @@ Most agent frameworks focus on planning, reasoning, and workflow logic. AgentLed
 
 Python is the current reference implementation. The long-term target is native runtime-core parity across Go, TypeScript, Rust, and Python, all aligned to the same language-neutral runtime contract. See `docs/LANGUAGE_IMPLEMENTATION_COMPARISON.md` for the exact four-language implementation comparison and adapter boundary.
 
+## Start Here
+
+| Need | Go to |
+| --- | --- |
+| Install and run the first example | [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md) |
+| Choose Python / Go / TypeScript / Rust | [docs/LANGUAGE_QUICKSTART.md](docs/LANGUAGE_QUICKSTART.md) |
+| Find runnable examples | [examples/README.md](examples/README.md), [go/examples/README.md](go/examples/README.md), [typescript/examples/README.md](typescript/examples/README.md), [rust/examples/README.md](rust/examples/README.md) |
+| Understand what is equal across languages | [docs/LANGUAGE_IMPLEMENTATION_COMPARISON.md](docs/LANGUAGE_IMPLEMENTATION_COMPARISON.md) |
+| Use Go correctly | [go/README.md](go/README.md#install) |
+| Read the full documentation map | [docs/README.md](docs/README.md) |
+
 ## At a glance
 
 | Question | Answer |
 | --- | --- |
 | What is stable? | Python v1.0 runtime-core: local durable execution, Tool Ledger, evidence/replay, policy/approval/sandbox boundaries, cost/failure reports, worker/conformance, and the runtime contract. |
 | What is optional? | Postgres, S3/MinIO, framework-native packages, OTLP collector transport, sandbox infrastructure, distributed deployment recipes, and real-service hardening. |
-| What is preview? | Go/Node/TypeScript/Rust runtime-core baselines, media/stream artifact contracts, and some dependency-free adapter facades. |
+| What is experimental? | Some concrete provider adapters, media/stream processing adapters, and real-service hardening paths. Go/TypeScript/Rust runtime-core baselines are native implementations covered by shared conformance. |
 | What is not in core? | Planning engines, full eval systems, RAG/vector memory, trace stores, hosted application products, and hosted sandbox infrastructure. |
 | How should other languages work? | This repo is contract-first. Python is the reference runtime; Go, Node/TypeScript, and Rust now have native runtime baselines under `go/`, `typescript/`, and `rust/`. Runtime-ready requires `contracts/agentledger.runtime.v1.json`, the shared semantic manifest `contracts/conformance/runtime_semantics.v1.json`, shared conformance fixtures, and per-language conformance commands. |
 
@@ -242,7 +253,7 @@ The runtime-core contract is stable; optional production adapters and external i
 | Extend storage, tools, and adapters | [docs/EXTENSIBILITY.md](docs/EXTENSIBILITY.md), [docs/STORAGE.md](docs/STORAGE.md), [docs/ADAPTER_ROADMAP.md](docs/ADAPTER_ROADMAP.md), [docs/ADAPTER_CERTIFICATION.md](docs/ADAPTER_CERTIFICATION.md) |
 | Configure Postgres or S3/MinIO | [docs/POSTGRES.md](docs/POSTGRES.md), [docs/S3_MINIO.md](docs/S3_MINIO.md) |
 | Prepare releases | [docs/RELEASE_CHECKLIST.md](docs/RELEASE_CHECKLIST.md), [docs/VERSIONING.md](docs/VERSIONING.md) |
-| Understand multi-language parity | [docs/LANGUAGE_QUICKSTART.md](docs/LANGUAGE_QUICKSTART.md), [docs/MULTI_LANGUAGE.md](docs/MULTI_LANGUAGE.md), [docs/LANGUAGE_PARITY_MATRIX.md](docs/LANGUAGE_PARITY_MATRIX.md) |
+| Understand multi-language parity and Go install/use | [docs/LANGUAGE_QUICKSTART.md](docs/LANGUAGE_QUICKSTART.md), [go/README.md](go/README.md), [docs/MULTI_LANGUAGE.md](docs/MULTI_LANGUAGE.md), [docs/LANGUAGE_PARITY_MATRIX.md](docs/LANGUAGE_PARITY_MATRIX.md) |
 | Read Chinese docs | [README.zh-CN.md](README.zh-CN.md), [docs/zh/README.md](docs/zh/README.md) |
 
 ## Repository layout

@@ -1,4 +1,4 @@
-# AgentLedger Go Runtime Preview
+# AgentLedger Go Runtime
 
 This directory contains the native Go runtime-core baseline for AgentLedger 1.0.2.
 
@@ -24,10 +24,36 @@ Implemented:
 
 Not claimed yet:
 
-- stable published Go module release
 - live Postgres/S3/Docker/OTLP service-backed hardening
 - framework-native packages for ecosystems that do not exist in Go
 - full media processing and stream transport adapters
+
+
+## Install
+
+Use AgentLedger as a Go library inside an existing Go module:
+
+```bash
+go mod init your-module-name  # only if your project does not have go.mod yet
+go get github.com/yaogdu/AgentLedger/go@v1.0.2
+```
+
+Import it with:
+
+```go
+import agentledger "github.com/yaogdu/AgentLedger/go"
+```
+
+Install the optional CLI command with the `cmd` package path:
+
+```bash
+go install github.com/yaogdu/AgentLedger/go/cmd/agentledger-go@v1.0.2
+agentledger-go --help
+agentledger-go doctor
+agentledger-go quickstart
+```
+
+`go get github.com/yaogdu/AgentLedger/go@v1.0.2` must run inside a Go module. `go install github.com/yaogdu/AgentLedger/go@v1.0.2` is not valid because the library package is not a `package main`; use `/cmd/agentledger-go` for the CLI.
 
 ## Quickstart
 
@@ -88,7 +114,7 @@ fmt.Println(manifest)
 
 ```bash
 cd go
-go test ./...
+go test . ./cmd/agentledger-go
 go run ./cmd/agentledger-go conformance
 go run ./cmd/agentledger-go contract validate
 ```

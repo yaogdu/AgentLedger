@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -299,7 +298,7 @@ func main() {
 		"travel.book_flight", "travel.book_hotel"} {
 		rt.Policy.AllowTool("TravelPlanner", t)
 	}
-	rt.SetBudget(agentledger.BudgetLimits{MaxToolCalls: ptr(25.0)})
+	rt.SetBudget(agentledger.BudgetLimits{MaxToolCalls: 25})
 
 	rt.RegisterTool(agentledger.ToolSpec{
 		Name: "travel.search_flights", Version: "v1", SideEffect: "none", RiskLevel: "low",

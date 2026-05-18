@@ -6,8 +6,10 @@
 
 | 目标 | 中文文档 | 英文文档 |
 |---|---|---|
+| 从零开始 | `GETTING_STARTED.md` | `../GETTING_STARTED.md` |
 | 快速了解项目 | `../../README.zh-CN.md` | `../../README.md` |
-| 学会使用 runtime | `USAGE.md` | `../USAGE.md` |
+| 学会使用 runtime | `USAGE.md`, `LANGUAGE_QUICKSTART.md` | `../USAGE.md`, `../LANGUAGE_QUICKSTART.md` |
+| 查找示例 | `../../examples/README.md`, `../../go/examples/README.md`, `../../typescript/examples/README.md`, `../../rust/examples/README.md` | same paths |
 | 理解整体架构 | `ARCHITECTURE.md` | `../ARCHITECTURE.md` |
 | 对比相邻工具 | `COMPARISONS.md` | `../COMPARISONS.md` |
 | 理解设计与实现 | `DESIGN_AND_IMPLEMENTATION.md` | `../DESIGN_AND_IMPLEMENTATION.md` |
@@ -17,14 +19,14 @@
 | 查看当前实现状态 | `IMPLEMENTATION_STATUS.md` | `../IMPLEMENTATION_STATUS.md` |
 | 查看路线图 | `ROADMAP.md` | `../ROADMAP.md` |
 | 查看发布检查 | `RELEASE_CHECKLIST.md` | `../RELEASE_CHECKLIST.md` |
-| 理解多语言 parity | `LANGUAGE_PARITY_MATRIX.md` | `../MULTI_LANGUAGE.md` |
+| 理解多语言 parity | `LANGUAGE_PARITY_MATRIX.md`, `LANGUAGE_IMPLEMENTATION_COMPARISON.md` | `../MULTI_LANGUAGE.md`, `../LANGUAGE_IMPLEMENTATION_COMPARISON.md` |
 | 理解 execution backends | `EXECUTION_BACKENDS.md` | `../EXECUTION_BACKENDS.md` |
 
 ## 推荐读者路径
 
 | 读者 | 路径 |
 |---|---|
-| 新用户 | `../../README.zh-CN.md` -> `USAGE.md` -> `../../examples/hello_world/hello.py` -> `../../examples/side_effect_idempotency/README.md` |
+| 新用户 | `GETTING_STARTED.md` -> `LANGUAGE_QUICKSTART.md` -> `../../examples/README.md` -> 对应语言 example README |
 | Runtime 实现者 | `ARCHITECTURE.md` -> `COMPARISONS.md` -> `DESIGN_AND_IMPLEMENTATION.md` -> `../RUNTIME_SPEC.md` -> `../../contracts/agentledger.runtime.v1.json` |
 | Adapter 作者 | `EXTENSIBILITY.md` -> `ADAPTER_CERTIFICATION.md` -> `../../examples/` 下的相关示例 -> conformance commands |
 | Production pilot reviewer | `IMPLEMENTATION_STATUS.md` -> `../MATURITY_MODEL.md` -> `SECURITY_ENTERPRISE.md` -> `STORAGE.md` -> `RELEASE_CHECKLIST.md` |
@@ -50,7 +52,7 @@ AgentLedger 负责 execution guarantees / evidence / replay / tool governance / 
 - reliability semantics 验证
 - 在明确 adapter 边界下做 production pilot 准备
 
-runtime-core contract 已稳定；optional production adapter、外部基础设施加固、非 Python stable runtime-readiness 和完整 eval 系统仍按独立阶段推进。Go、TypeScript、Rust 目前已有 preview native runtime-core baselines；多语言长期目标是 Python、Go、TypeScript、Rust 的 native runtime-core parity，而不是只提供薄 SDK。
+runtime-core contract 已稳定；optional production adapter、外部基础设施加固、非 Python stable runtime-readiness 和完整 eval 系统仍按独立阶段推进。Go、TypeScript、Rust 已有 native runtime-core baselines；多语言长期目标是 Python、Go、TypeScript、Rust 的 native runtime-core parity，而不是只提供薄 SDK。
 
 ## 仓库规范
 

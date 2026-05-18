@@ -16,13 +16,25 @@ AgentLedger `1.0.2` 是一个面向 AI Agent 的 agent execution safety、eviden
 
 Python 是当前 reference implementation。长期目标是 Go、TypeScript、Rust、Python 四种语言实现 native runtime-core parity，并共同对齐同一份 language-neutral runtime contract。 四语言实现对比和 adapter 边界见 `docs/zh/LANGUAGE_IMPLEMENTATION_COMPARISON.md`。
 
+## 从这里开始
+
+| 需求 | 入口 |
+| --- | --- |
+| 安装并跑通第一个示例 | [docs/zh/GETTING_STARTED.md](docs/zh/GETTING_STARTED.md) |
+| 选择 Python / Go / TypeScript / Rust | [docs/zh/LANGUAGE_QUICKSTART.md](docs/zh/LANGUAGE_QUICKSTART.md) |
+| 找可运行示例 | [examples/README.md](examples/README.md)、[go/examples/README.md](go/examples/README.md)、[typescript/examples/README.md](typescript/examples/README.md)、[rust/examples/README.md](rust/examples/README.md) |
+| 理解四语言哪些对齐、哪些不对齐 | [docs/zh/LANGUAGE_IMPLEMENTATION_COMPARISON.md](docs/zh/LANGUAGE_IMPLEMENTATION_COMPARISON.md) |
+| 正确使用 Go | [go/README.md](go/README.md#install) |
+| 查看完整文档地图 | [docs/zh/README.md](docs/zh/README.md) |
+
+
 ## 快速判断
 
 | 问题 | 回答 |
 | --- | --- |
 | 哪些是稳定的？ | Python v1.0 runtime-core：本地 durable execution、Tool Ledger、evidence/replay、policy/approval/sandbox boundary、cost/failure report、worker/conformance 和 runtime contract。 |
 | 哪些是可选的？ | Postgres、S3/MinIO、framework-native package、OTLP collector transport、sandbox infrastructure、distributed deployment recipe 和真实服务 hardening。 |
-| 哪些是 preview？ | Go/Node/TypeScript/Rust runtime-core baseline、media/stream artifact contracts，以及部分 dependency-free adapter facade。 |
+| 哪些是 experimental？ | 部分具体 provider adapter、media/stream processing adapter 和真实服务 hardening path。Go/TypeScript/Rust runtime-core baseline 是 native implementation，并由共享 conformance 覆盖。 |
 | 哪些不属于 core？ | Planning engine、完整 eval 系统、RAG/vector memory、trace store、托管应用产品和托管 sandbox infrastructure。 |
 | 其它语言怎么做？ | 这个 repo 是 contract-first。Python 是 reference runtime；Go、Node/TypeScript、Rust 已在 `go/`、`typescript/`、`rust/` 下有 native runtime baseline。runtime-ready 必须对齐 `contracts/agentledger.runtime.v1.json` 和共享语义清单 `contracts/conformance/runtime_semantics.v1.json`，通过共享 conformance fixtures，并提供各语言 conformance command。 |
 
@@ -243,7 +255,7 @@ runtime-core contract 已稳定；optional production adapter 和外部基础设
 | 配置 Postgres 或 S3/MinIO | [docs/POSTGRES.md](docs/POSTGRES.md)、[docs/S3_MINIO.md](docs/S3_MINIO.md) |
 | 准备发布 | [docs/zh/RELEASE_CHECKLIST.md](docs/zh/RELEASE_CHECKLIST.md)、[docs/VERSIONING.md](docs/VERSIONING.md) |
 | 阅读英文文档 | [README.md](README.md)、[docs/README.md](docs/README.md) |
-| 理解多语言 parity | [docs/MULTI_LANGUAGE.md](docs/MULTI_LANGUAGE.md)、[docs/zh/LANGUAGE_PARITY_MATRIX.md](docs/zh/LANGUAGE_PARITY_MATRIX.md) |
+| 理解多语言 parity 和 Go 安装/使用 | [docs/zh/LANGUAGE_QUICKSTART.md](docs/zh/LANGUAGE_QUICKSTART.md)、[go/README.md](go/README.md)、[docs/MULTI_LANGUAGE.md](docs/MULTI_LANGUAGE.md)、[docs/zh/LANGUAGE_PARITY_MATRIX.md](docs/zh/LANGUAGE_PARITY_MATRIX.md) |
 
 ## 仓库结构
 

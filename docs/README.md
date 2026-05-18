@@ -13,8 +13,10 @@ This directory is the canonical documentation set for AgentLedger. English docs 
 
 | Goal | English | 中文 |
 |---|---|---|
+| Start from zero | `GETTING_STARTED.md` | `zh/GETTING_STARTED.md` |
 | Understand the project | `../README.md` | `../README.zh-CN.md` |
-| Use the runtime | `USAGE.md` | `zh/USAGE.md` |
+| Use the runtime | `USAGE.md`, `LANGUAGE_QUICKSTART.md` | `zh/USAGE.md`, `zh/LANGUAGE_QUICKSTART.md` |
+| Find examples | `../examples/README.md`, `../go/examples/README.md`, `../typescript/examples/README.md`, `../rust/examples/README.md` | same paths plus `zh/GETTING_STARTED.md` |
 | Understand architecture | `ARCHITECTURE.md` | `zh/ARCHITECTURE.md` |
 | Compare with adjacent tools | `COMPARISONS.md` | `zh/COMPARISONS.md` |
 | Read design and implementation notes | `DESIGN_AND_IMPLEMENTATION.md` | `zh/DESIGN_AND_IMPLEMENTATION.md` |
@@ -27,7 +29,7 @@ This directory is the canonical documentation set for AgentLedger. English docs 
 
 | Reader | Path |
 |---|---|
-| New user | `../README.md` -> `USAGE.md` -> `../examples/hello_world/hello.py` -> `../examples/side_effect_idempotency/README.md` |
+| New user | `GETTING_STARTED.md` -> `LANGUAGE_QUICKSTART.md` -> `../examples/README.md` -> language example README |
 | Runtime implementer | `ARCHITECTURE.md` -> `COMPARISONS.md` -> `DESIGN_AND_IMPLEMENTATION.md` -> `RUNTIME_SPEC.md` -> `../contracts/agentledger.runtime.v1.json` |
 | Adapter author | `EXTENSIBILITY.md` -> `ADAPTER_CERTIFICATION.md` -> relevant example under `../examples/` -> conformance commands |
 | Production pilot reviewer | `IMPLEMENTATION_STATUS.md` -> `MATURITY_MODEL.md` -> `SECURITY_ENTERPRISE.md` -> `STORAGE.md` -> `RELEASE_CHECKLIST.md` |
@@ -61,6 +63,7 @@ This directory is the canonical documentation set for AgentLedger. English docs 
 - `IMPLEMENTATION_PLAN.md`: historical implementation plan and phase breakdown.
 - `VERSIONING.md`: v1 compatibility, schema migration, and evidence-versioning policy.
 - `MULTI_LANGUAGE.md`: contract-first plan for Python, Go, TypeScript, and Rust native runtime parity.
+- `GETTING_STARTED.md`: install commands, language choices, example map, and first validation commands.
 - `LANGUAGE_PARITY_MATRIX.md`: capability matrix and runtime-ready gates for each language.
 - `LANGUAGE_IMPLEMENTATION_COMPARISON.md`: side-by-side four-language implementation table, including core parity, portable adapters, provider differences, Python-only ecosystem adapters, and directory-layout decisions.
 

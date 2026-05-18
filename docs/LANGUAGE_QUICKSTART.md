@@ -62,13 +62,31 @@ PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m agentledger contract export
 
 ## Go
 
-Use the local module in this repository today:
+Use the released Go module from a Go project:
+
+```bash
+go mod init your-module-name  # only if your project does not have go.mod yet
+go get github.com/yaogdu/AgentLedger/go@v1.0.2
+```
+
+Install the optional CLI command:
+
+```bash
+go install github.com/yaogdu/AgentLedger/go/cmd/agentledger-go@v1.0.2
+agentledger-go --help
+agentledger-go doctor
+agentledger-go quickstart
+```
+
+Local repo verification:
 
 ```bash
 cd go
-go test ./...
+go test . ./cmd/agentledger-go
 go run ./cmd/agentledger-go conformance
 ```
+
+Note: `go get` must run inside a Go module. `go install github.com/yaogdu/AgentLedger/go@v1.0.2` fails because the library package is not a `package main`; use `/cmd/agentledger-go` for the CLI.
 
 Minimal runtime:
 
