@@ -27,6 +27,44 @@ Execution backend 定位见 `EXECUTION_BACKENDS.md`：Temporal、Ray、Kubernete
 
 Adapter 优先级见 `ADAPTER_ROADMAP.md`：生态成熟且边界能保持 AgentLedger invariant 时进入官方 adapter；否则保持 experimental 或 community-owned。
 
+## v1.0.5 - Policy Engine Contract Upgrade
+
+状态：已在 Python reference runtime-core 中作为向后兼容的 policy contract upgrade 实现。
+
+目标：
+
+```text
+把裸 allow/deny policy check 升级成 normalized decision contract
+当前仍以 ToolGateway 作为主要 enforcement point
+保留简单 YAML/JSON role-capability policy
+为未来 model、memory、output、media、sub-agent、multi-agent gate 预留结构
+避免 runtime-core 变成 OPA、Cedar、DLP、eval 或治理后台
+```
+
+已实现：
+
+```text
+PolicyRequest: subject / action / resource / context / signals / runtime_state
+PolicyDecision: effect / action_tier / risk_level / controls / reasons / findings / policy_version / delegation fields
+PolicyFinding 和 PolicyControl
+dependency-free 的 role capability、action boundary、runtime state evaluators
+ToolGateway 接入，并在 tool_permission_decided 中记录完整 decision contract
+PolicyEngine.check_tool(...) 保持兼容
+为 child-agent/delegation context 预留 contract，但不实现 sub-agent execution
+兼容 media/stream resource contract，但不实现 media processing adapters
+Policy Engine 文档和 SVG 图
+```
+
+本版本明确不做：
+
+```text
+真实 OPA/Cedar adapters
+prompt injection、PII、DLP 或 LLM safety providers
+policy management UI 或多租户治理服务
+sub-agent/multi-agent spawn/join runtime semantics
+完整 media processing adapters
+```
+
 ## v1.0 Stable Runtime-Core Baseline
 
 当前 Python reference runtime-core 已实现并通过 release gates。

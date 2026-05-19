@@ -1,0 +1,128 @@
+# Policy Engine
+
+[English](POLICY_ENGINE.md) | [中文](zh/POLICY_ENGINE.md)
+
+AgentLedger `1.0.5` treats policy as a runtime control loop, not just a boolean permission helper. The runtime gate intercepts an action before execution, sends a normalized `PolicyRequest` to the Policy Engine, receives a `PolicyDecision`, and enforces the returned controls at the same gate.
+
+## Control Loop
+
+![Agent Policy Engine control loop](assets/agent-policy-engine-relationship-map.svg)
+
+The important split is PEP/PDP:
+
+| Piece | Responsibility | In AgentLedger |
+|---|---|---|
+| Gate / PEP | Intercept and enforce at the execution point | `ToolGateway` today; future model, memory, output, and child-run gates can use the same contract |
+| Policy Engine / PDP | Normalize facts, run evaluators, compose a decision | `PolicyEngine.evaluate(...)` |
+| Decision Contract | Tell the gate what to do | `PolicyDecision` with effect, tier, risk, controls, reasons, and findings |
+| Audit evidence | Preserve why the decision happened | `tool_permission_decided` payload includes the full decision contract |
+
+## Evaluate Layer
+
+![Policy Engine evaluate detail](assets/agent-policy-engine-evaluate-detail.svg)
+
+`PolicyEngine.evaluate(...)` is intentionally dependency-free in runtime-core. It has built-in deterministic evaluators and a stable adapter seam for richer policy systems.
+
+| Evaluator lane | Current core support | Adapter boundary |
+|---|---|---|
+| Deterministic boundaries | role/tool/risk policy, explicit deny, high-risk default, tool metadata | richer RBAC/ABAC rules |
+| Runtime state | approval status, shadow-mode side-effect boundary, delegation context, media refs | external workflow state or review systems |
+| Semantic/model signals | contract fields only | prompt injection, PII/DLP, intent classifiers, safety providers |
+| Policy rules / DSL | YAML/JSON role-capability subset | OPA, Cedar, internal policy services |
+
+## Data Contract
+
+| Object | Fields | Purpose |
+|---|---|---|
+| `PolicyRequest` | `stage`, `subject`, `action`, `resource`, `context`, `signals`, `runtime_state`, `policy_version` | Normalize events from any runtime gate. |
+| `PolicyFinding` | `id`, `severity`, `source`, `message`, `evidence` | Store evaluator evidence without executing controls. |
+| `PolicyControl` | `kind`, `reason`, `metadata` | Tell the original gate what to enforce. |
+| `PolicyDecision` | `effect`, `action_tier`, `risk_level`, `controls`, `reasons`, `findings`, `policy_version`, `subject_scope`, `delegation_allowed` | Gate-enforceable decision contract. |
+
+Effects:
+
+```text
+allow
+deny
+require_approval
+```
+
+Controls:
+
+```text
+audit
+approval
+sandbox
+redact
+budget
+deny
+```
+
+Action tiers:
+
+```text
+L0 Answer / model-only
+L1 Retrieval / RAG
+L2 Read-only tool
+L3 Local write / artifact
+L4 External side effect
+L5 Code / browser / sandboxed execution
+```
+
+`ActionTier` is about capability boundary. `RiskLevel` is about contextual risk. A read-only action can still become high risk if it touches sensitive resources.
+
+## Current Enforcement Path
+
+Current runtime enforcement is tool-level:
+
+```text
+ctx.call_tool(...)
+  -> ToolGateway validates schema
+  -> ToolGateway builds PolicyRequest
+  -> PolicyEngine.evaluate(request)
+  -> ToolGateway records tool_permission_decided with PolicyDecision
+  -> ToolGateway enforces deny / approval / sandbox / audit
+  -> Tool Ledger and evidence continue as before
+```
+
+The old compatibility API remains:
+
+```python
+allowed, reason = policy.check_tool("ExecutorAgent", "github.create_issue", "medium")
+```
+
+Internally, that helper is now backed by the normalized policy contract.
+
+## Sub-agent, Multi-agent, And Media Boundaries
+
+`1.0.5` does not implement sub-agent or multi-agent execution. It only reserves policy fields so a future child-run runtime can reuse the same decision contract:
+
+```text
+subject.kind = agent | sub_agent | worker | service
+context.parent_run_id
+context.parent_step_id
+context.delegated_by
+context.delegation_allowed
+```
+
+Media and stream support already exists as preview runtime contracts. Policy requests can govern media refs without turning runtime-core into a media engine:
+
+```text
+resource.kind = media_artifact | stream_checkpoint
+resource.media_kind = image | audio | video | frame | transcript | embedding
+```
+
+The core stores refs, metadata, lineage, evidence, and replay information. Image/audio/video processing remains adapter-driven.
+
+## What Core Does Not Own
+
+Runtime-core does not become:
+
+- a full OPA or Cedar replacement
+- a DLP product
+- a prompt-injection product
+- a policy management UI
+- a multi-tenant governance backend
+- a full eval platform
+
+Core owns the request/decision contract, deterministic local evaluator, gate enforcement, and audit evidence. Heavy or organization-specific intelligence should be provided by adapters.

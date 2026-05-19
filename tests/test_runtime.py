@@ -30,7 +30,7 @@ from agentledger.failure_injection import FailureInjectionSuite
 from agentledger.lint import RuntimeBoundaryLinter, load_boundary_rules
 from agentledger.media import ArtifactLineage, EventStreamCheckpoint, MediaArtifact, MediaMetadata, StreamChunkRef
 from agentledger.media_tools import media_tool_specs, register_media_tool_conventions
-from agentledger.policy import PolicyEngine
+from agentledger.policy import PolicyEngine, PolicyRequest
 from agentledger.protocol import BlobStoreProtocol, StateStoreProtocol
 from agentledger.repro import GoldenCorpus
 from agentledger.eval import EvidenceRegressionRunner
@@ -206,7 +206,7 @@ class RuntimeTests(unittest.TestCase):
         self.assertIn("s3", project["optional-dependencies"])
         self.assertIn("Programming Language :: Python :: 3.11", project["classifiers"])
         self.assertIn("Programming Language :: Python :: 3.12", project["classifiers"])
-        self.assertEqual(project["version"], "1.0.2")
+        self.assertEqual(project["version"], "1.0.5")
 
     def test_cli_help_points_to_github_docs(self) -> None:
         stdout = io.StringIO()
@@ -560,6 +560,46 @@ roles:
             self.assertFalse(policy.check_tool("ExecutorAgent", "shell.exec", "high")[0])
             self.assertTrue(policy.check_tool("ReaderAgent", "docs.read", "low")[0])
             self.assertFalse(policy.check_tool("ReaderAgent", "secrets.read", "sensitive")[0])
+
+    def test_policy_engine_evaluates_normalized_decision_contract(self) -> None:
+        policy = PolicyEngine()
+        policy.allow_tool("TravelPlanner", "video.extract_frames")
+        request = PolicyRequest.for_tool(
+            role="TravelPlanner",
+            tool_name="video.extract_frames",
+            risk_level="medium",
+            side_effect="external_read",
+            sandbox_required=True,
+            subject={"kind": "sub_agent", "id": "agent_child_1"},
+            resource={"kind": "media_artifact", "media_kind": "video", "ref": "blob://video-1"},
+            context={"run_id": "run_1", "step_id": "step_1", "parent_run_id": "run_parent", "delegated_by": "PlannerAgent"},
+        )
+        decision = policy.evaluate(request)
+
+        self.assertTrue(decision.allowed)
+        self.assertEqual(decision.action_tier, "L5")
+        self.assertEqual(decision.subject_scope, "TravelPlanner")
+        self.assertIn("sandbox", {control.kind for control in decision.controls})
+        self.assertIn("media_resource_boundary", {finding.id for finding in decision.findings})
+        self.assertIn("delegation_context_present", {finding.id for finding in decision.findings})
+
+    def test_tool_gateway_records_policy_decision_contract(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            rt = Runtime.local(Path(tmp) / ".agentledger")
+            rt.registry.register(ToolSpec(name="docs.read", func=lambda args: {"ok": True}, side_effect="none", risk_level="low"))
+            run_id, _ = rt.create_run(initial_state={})
+
+            async def agent_fn(ctx: Any, state: dict[str, Any]) -> None:
+                ctx.write_state_patch("read", await ctx.call_tool("docs.read", {"path": "README.md"}))
+
+            self.assertTrue(asyncio.run(rt.run_once(agent_fn, run_id=run_id, agent_role="ReaderAgent")))
+            permission_events = [json.loads(row["payload_ref"]) for row in rt.store.events(run_id) if row["type"] == "tool_permission_decided"]
+            self.assertEqual(len(permission_events), 1)
+            decision = permission_events[0]["decision"]
+            self.assertEqual(decision["effect"], "allow")
+            self.assertEqual(decision["action_tier"], "L2")
+            self.assertEqual(decision["risk_level"], "low")
+            self.assertIn("audit", {control["kind"] for control in decision["controls"]})
 
     def test_mcp_tool_adapter_registers_runtime_managed_tool(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -2046,6 +2086,10 @@ roles:
             "typescript/src/cli.js",
             "rust/src/main.rs",
             "docs/assets/langgraph-agentledger-relationship.svg",
+            "docs/POLICY_ENGINE.md",
+            "docs/zh/POLICY_ENGINE.md",
+            "docs/assets/agent-policy-engine-relationship-map.svg",
+            "docs/assets/agent-policy-engine-evaluate-detail.svg",
         ]
         for path in required_paths:
             self.assertTrue(Path(path).exists(), path)
@@ -2056,7 +2100,7 @@ roles:
         ci = Path(".github/workflows/ci.yml").read_text(encoding="utf-8")
         parity_script = Path("scripts/check_language_parity.py").read_text(encoding="utf-8")
         self.assertIn("[English](README.md) | [中文](README.zh-CN.md)", readme)
-        self.assertIn("![Version 1.0.2 stable]", readme)
+        self.assertIn("![Version 1.0.5 stable]", readme)
         self.assertIn("python3 -m pip install agentledger-runtime", readme)
         self.assertIn("https://github.com/yaogdu/AgentLedger", readme)
         self.assertIn("docs/assets/agentledger-runtime-architecture.svg", readme)

@@ -18,6 +18,7 @@ This directory is the canonical documentation set for AgentLedger. English docs 
 | Use the runtime | `USAGE.md`, `LANGUAGE_QUICKSTART.md` | `zh/USAGE.md`, `zh/LANGUAGE_QUICKSTART.md` |
 | Find examples | `../examples/README.md`, `../go/examples/README.md`, `../typescript/examples/README.md`, `../rust/examples/README.md` | same paths plus `zh/GETTING_STARTED.md` |
 | Understand architecture | `ARCHITECTURE.md` | `zh/ARCHITECTURE.md` |
+| Understand the policy control loop | `POLICY_ENGINE.md` | `zh/POLICY_ENGINE.md` |
 | Compare with adjacent tools | `COMPARISONS.md` | `zh/COMPARISONS.md` |
 | Read design and implementation notes | `DESIGN_AND_IMPLEMENTATION.md` | `zh/DESIGN_AND_IMPLEMENTATION.md` |
 | Check current status | `IMPLEMENTATION_STATUS.md` | `zh/IMPLEMENTATION_STATUS.md` |
@@ -40,6 +41,7 @@ This directory is the canonical documentation set for AgentLedger. English docs 
 - `ARCHITECTURE.md`: runtime layers, SVG architecture diagram, module map, invariants, adapter boundaries.
 - `COMPARISONS.md`: overlap and boundary guide for agent frameworks, workflow backends, observability/eval tools, RAG, and sandbox infrastructure.
 - `DESIGN_AND_IMPLEMENTATION.md`: state machine, tool governance, replay, evidence, worker, sandbox, storage, media/stream implementation notes.
+- `POLICY_ENGINE.md`: policy request/decision contract, PEP/PDP split, evaluator registry, controls, and adapter boundary.
 - `RUNTIME_SPEC.md`: runtime concepts, state model, event schema, Tool Ledger semantics, evidence regression/replay/debug interfaces.
 - `EXTENSIBILITY.md`: adapter model for storage, tools, frameworks, protocols, observability, media, and sandbox.
 - `STORAGE.md`: runtime metadata schema, migrations, StateStore and BlobStore extension contract.

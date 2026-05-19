@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "agentledger-runtime"
-version = "1.0.2"
+version = "1.0.5"
 description = "Durable execution and reliability runtime for production-grade AI agents"
 readme = "README.md"
 requires-python = ">=3.11"

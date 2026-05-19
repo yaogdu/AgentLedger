@@ -30,7 +30,7 @@ Agent / Framework Layer
   Python functions, LangGraph, CrewAI, AutoGen, custom agents, future TS/Rust/Go workers
 
 Runtime Boundary
-  AgentContext, Runtime, ToolGateway, PolicyEngine, BudgetController
+  AgentContext, Runtime, ToolGateway, PolicyEngine, PolicyDecision, BudgetController
 
 Execution Control
   Scheduler, lease, fencing token, retry policy, cancellation, worker loop
@@ -74,6 +74,7 @@ replay/evidence
 | `context.py` | Agent-facing context，提供 state、tool、artifact、heartbeat 能力。 |
 | `store.py` | SQLite StateStore reference implementation。 |
 | `tools.py` | Tool registry、ToolGateway、policy、approval、ledger、sandbox boundary。 |
+| `policy.py` | PolicyRequest、PolicyDecision、evaluator registry、role/risk policy、decision composition。 |
 | `replay.py` | 不产生外部副作用的 replay summary。 |
 | `evidence.py` | Evidence bundle export。 |
 | `scheduler.py` | lease recovery、cancellation、status。 |

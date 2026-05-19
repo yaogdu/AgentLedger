@@ -1,6 +1,6 @@
 # AgentLedger Rust Runtime
 
-This directory contains the dependency-free Rust runtime-core package for AgentLedger 1.0.2.
+This directory contains the dependency-free Rust runtime-core package for AgentLedger 1.0.5.
 
 It runs a native local runtime loop and participates in the shared Python/Go/TypeScript/Rust conformance gate.
 

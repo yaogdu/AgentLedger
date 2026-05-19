@@ -8,6 +8,20 @@ This project follows semantic versioning for the stable runtime-core contract. O
 
 No unreleased changes yet.
 
+## 1.0.5
+
+### Added
+
+- Normalized Policy Engine contract with `PolicyRequest`, `PolicyDecision`, `PolicyFinding`, and `PolicyControl`.
+- Dependency-free evaluator registry for role capability, action boundary, and runtime-state findings.
+- ToolGateway integration that records the full policy decision contract inside `tool_permission_decided` evidence while keeping `PolicyEngine.check_tool(...)` compatible.
+- Policy contract fields for future sub-agent/multi-agent delegation and existing media/stream refs without implementing sub-agent execution or media processing adapters.
+- Policy Engine documentation and SVG diagrams for the PEP/PDP control loop and evaluate layer.
+
+### Clarified
+
+- `1.0.5` focuses on runtime policy contracts and gate enforcement, not OPA/Cedar adapters, DLP, prompt-injection products, governance UIs, multi-agent orchestration, or media processing infrastructure.
+
 ## 1.0.2
 
 ### Added

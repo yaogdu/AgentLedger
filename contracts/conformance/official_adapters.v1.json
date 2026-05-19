@@ -1,6 +1,6 @@
 {
   "schema_version": "agentledger.conformance.official_adapters.v1",
-  "contract_version": "1.0.2",
+  "contract_version": "1.0",
   "purpose": "Shared smoke scenarios for official optional adapter packages. These checks use injected clients/manifests so runtime-core does not depend on cloud SDKs or local daemons.",
   "scenarios": [
     {

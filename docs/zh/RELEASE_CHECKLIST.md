@@ -51,7 +51,7 @@ python3.11 scripts/check_language_parity.py --json-report /tmp/agentledger-langu
 python3.11 scripts/audit_python_parity.py > /tmp/agentledger-python-parity-audit.json
 ```
 
-对于 1.0.1 这类 runtime-core parity release，`audit_python_parity.py` 应报告 `gap_count: 0`。
+对于 1.0.x 这类 runtime-core parity release，`audit_python_parity.py` 应报告 `gap_count: 0`。
 
 该 runner 会一次执行 Python reference tests、Go tests、TypeScript tests/check、Rust tests、各 preview 语言 conformance CLI、contract diff、Markdown local link check 和 `git diff --check`。它会读取 `contracts/conformance/runtime_semantics.v1.json` 共享语义清单；JSON report 会包含 `required_semantic_checks`、`semantic_manifest` 与 `language_conformance`，可作为 release notes、CI artifact 和 adapter certification evidence。
 

@@ -80,6 +80,10 @@
     "EventStreamCheckpoint",
     "CostRecord",
     "ApprovalRequest",
+    "PolicyRequest",
+    "PolicyDecision",
+    "PolicyFinding",
+    "PolicyControl",
     "EvidenceBundle",
     "MigrationStatus"
   ],
@@ -145,6 +149,77 @@
       "status": "preview"
     }
   ],
+  "policy_contract": {
+    "action_tiers": [
+      "L0",
+      "L1",
+      "L2",
+      "L3",
+      "L4",
+      "L5"
+    ],
+    "adapter_evaluators": [
+      "OPA",
+      "Cedar",
+      "PII",
+      "prompt_injection",
+      "DLP",
+      "enterprise_policy_service"
+    ],
+    "built_in_evaluators": [
+      "role_capability",
+      "action_boundary",
+      "runtime_state"
+    ],
+    "control_fields": [
+      "kind",
+      "reason",
+      "metadata"
+    ],
+    "control_kinds": [
+      "audit",
+      "approval",
+      "sandbox",
+      "redact",
+      "budget",
+      "deny"
+    ],
+    "decision_fields": [
+      "effect",
+      "action_tier",
+      "risk_level",
+      "controls",
+      "reasons",
+      "findings",
+      "policy_version",
+      "subject_scope",
+      "delegation_allowed"
+    ],
+    "effects": [
+      "allow",
+      "deny",
+      "require_approval"
+    ],
+    "finding_fields": [
+      "id",
+      "severity",
+      "source",
+      "message",
+      "evidence"
+    ],
+    "gate_semantics": "gates intercept actions before execution, ask the PolicyEngine for a decision, then enforce controls locally",
+    "request_fields": [
+      "stage",
+      "subject",
+      "action",
+      "resource",
+      "context",
+      "signals",
+      "runtime_state",
+      "policy_version"
+    ],
+    "status": "stable-runtime-core-contract"
+  },
   "project": "agentledger",
   "reference_implementation": {
     "language": "python",

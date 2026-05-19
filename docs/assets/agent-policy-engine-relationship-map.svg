@@ -1,0 +1,195 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1700" viewBox="0 0 2400 1700">
+  <defs>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="128%">
+      <feDropShadow dx="0" dy="16" stdDeviation="20" flood-color="#101828" flood-opacity="0.11"/>
+    </filter>
+    <filter id="soft" x="-10%" y="-10%" width="120%" height="125%">
+      <feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="#101828" flood-opacity="0.07"/>
+    </filter>
+    <marker id="arrowOrange" markerWidth="16" markerHeight="16" refX="12" refY="5" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,10 L13,5 z" fill="#d76138"/>
+    </marker>
+    <marker id="arrowBlue" markerWidth="16" markerHeight="16" refX="12" refY="5" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,10 L13,5 z" fill="#18324a"/>
+    </marker>
+    <marker id="arrowGray" markerWidth="14" markerHeight="14" refX="10" refY="4.5" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,9 L11,4.5 z" fill="#667085"/>
+    </marker>
+    <style>
+      .bg{fill:#f6efe6}.panel{fill:#fffefa;stroke:#dbe3d8;stroke-width:1.2;filter:url(#shadow)}.card{fill:#fffefa;stroke:#dbe3d8;stroke-width:1.1;filter:url(#soft)}
+      .engine{fill:#fff0d8;stroke:#18324a;stroke-width:2.6;filter:url(#shadow)}.gate{fill:#f8fcfc;stroke:#18324a;stroke-width:2.3;filter:url(#shadow)}.dark{fill:#18324a}
+      .blue{fill:#e8eefc;stroke:#ccd7f3}.green{fill:#e4f3e8;stroke:#c7e3d0}.mint{fill:#e7f3f2;stroke:#c8e1df}.peach{fill:#f9e3d5;stroke:#e6b496}.salmon{fill:#f6d3ce;stroke:#e5a29a}.purple{fill:#eee8fb;stroke:#d8cbf3}.yellow{fill:#fff1bd;stroke:#ead783}.red{fill:#f6c9c4;stroke:#df938b}
+      .lineO{stroke:#d76138;stroke-width:5;fill:none;stroke-linecap:round;stroke-linejoin:round;marker-end:url(#arrowOrange)}.lineB{stroke:#18324a;stroke-width:4.2;fill:none;stroke-linecap:round;stroke-linejoin:round;marker-end:url(#arrowBlue)}.lineG{stroke:#667085;stroke-width:3;fill:none;stroke-dasharray:9 8;stroke-linecap:round;stroke-linejoin:round;marker-end:url(#arrowGray)}.thin{stroke:#d8ded4;stroke-width:1.1}.divider{stroke:#bdd0cf;stroke-width:1.4;stroke-dasharray:6 6}
+      .title{font-family:Arial,sans-serif;font-weight:800;font-size:54px;fill:#142033}.subtitle{font-family:Arial,sans-serif;font-weight:500;font-size:22px;fill:#4f5f73}.h{font-family:Arial,sans-serif;font-weight:800;font-size:27px;fill:#172033}.h2{font-family:Arial,sans-serif;font-weight:800;font-size:21px;fill:#172033}.label{font-family:Arial,sans-serif;font-weight:760;font-size:15px;fill:#172033}.small{font-family:Arial,sans-serif;font-weight:500;font-size:13px;fill:#657286}.tiny{font-family:Arial,sans-serif;font-weight:600;font-size:11px;fill:#7f8a99}.cn{font-family:Arial,sans-serif;font-weight:400;font-size:12px;fill:#7f8a99}.mono{font-family:Menlo,Consolas,monospace;font-weight:800;font-size:13px;fill:#344054}.white{font-family:Arial,sans-serif;font-weight:800;font-size:12px;fill:#fffefa}.num{font-family:Arial,sans-serif;font-weight:900;font-size:18px;fill:#fffefa}
+    </style>
+  </defs>
+
+  <rect width="2400" height="1700" fill="#f6efe6"/>
+
+  <text x="92" y="82" class="title">Agent Policy Engine Control Loop</text>
+  <text x="94" y="122" class="subtitle">Same Gate intercepts the action, asks Policy Engine, then enforces the returned decision.</text>
+  <text x="94" y="151" class="cn">中文：同一个 Gate/PEP 先拦截 action，发起策略判断；拿到 decision contract 后，再在原执行点落地 enforcement。</text>
+  <line x1="94" y1="176" x2="720" y2="176" stroke="#d8ded4" stroke-width="1.2"/>
+
+  <!-- Core loop background -->
+  <rect x="70" y="190" width="2260" height="830" rx="38" class="panel"/>
+  <rect x="112" y="218" width="104" height="28" rx="14" fill="#18324a"/><text x="164" y="237" class="white" text-anchor="middle">CONTROL LOOP</text>
+  <text x="112" y="278" class="h">Core Relationship / 核心关系</text>
+  <text x="112" y="306" class="small">This is not a one-way pipeline. It is a control loop around each runtime stage.</text>
+  <text x="112" y="329" class="cn">不是单向流水线，而是围绕每个 Stage 的控制闭环。</text>
+
+  <!-- Stage list -->
+  <rect x="110" y="360" width="410" height="575" rx="28" class="card"/>
+  <circle cx="152" cy="408" r="18" class="dark"/><text x="152" y="415" class="num" text-anchor="middle">1</text>
+  <text x="188" y="416" class="h">Runtime Stage</text>
+  <text x="188" y="444" class="small">any stage produces an action</text>
+  <text x="188" y="466" class="cn">任意阶段都可能产生一个需要治理的动作。</text>
+  <g transform="translate(148 506)">
+    <rect width="320" height="40" rx="14" class="blue"/><text x="18" y="26" class="label">Input</text><text x="194" y="26" class="mono">Input Filter</text>
+    <rect y="52" width="320" height="40" rx="14" class="green"/><text x="18" y="78" class="label">Context</text><text x="194" y="78" class="mono">Context Filter</text>
+    <rect y="104" width="320" height="40" rx="14" class="mint"/><text x="18" y="130" class="label">Plan</text><text x="194" y="130" class="mono">Plan Gate</text>
+    <rect y="156" width="320" height="40" rx="14" class="peach"/><text x="18" y="182" class="label">Tool</text><text x="194" y="182" class="mono">Tool Gate</text>
+    <rect y="208" width="320" height="40" rx="14" class="purple"/><text x="18" y="234" class="label">Sandbox</text><text x="194" y="234" class="mono">Sandbox Mgr</text>
+    <rect y="260" width="320" height="40" rx="14" class="yellow"/><text x="18" y="286" class="label">Memory</text><text x="194" y="286" class="mono">Memory Gate</text>
+    <rect y="312" width="320" height="40" rx="14" class="salmon"/><text x="18" y="338" class="label">Output</text><text x="194" y="338" class="mono">Output Filter</text>
+    <rect y="364" width="320" height="40" rx="14" class="card"/><text x="18" y="390" class="label">Release</text><text x="194" y="390" class="mono">Eval Gate</text>
+  </g>
+
+  <!-- Same Gate / PEP -->
+  <rect x="610" y="360" width="390" height="575" rx="30" class="gate"/>
+  <circle cx="652" cy="408" r="18" class="dark"/><text x="652" y="415" class="num" text-anchor="middle">2</text>
+  <text x="688" y="416" class="h">Same Gate / PEP</text>
+  <text x="688" y="444" class="small">Policy Enforcement Point</text>
+  <text x="688" y="466" class="cn">同一个执行控制点，既负责拦截，也负责落地。</text>
+  <line x1="650" y1="510" x2="960" y2="510" class="divider"/>
+  <rect x="650" y="550" width="310" height="108" rx="22" class="mint"/>
+  <text x="680" y="585" class="h2">Intercept</text>
+  <text x="680" y="611" class="small">pause action before execution</text>
+  <text x="680" y="636" class="cn">执行前拦住动作，构造策略请求。</text>
+  <rect x="650" y="705" width="310" height="146" rx="22" class="peach"/>
+  <text x="680" y="740" class="h2">Enforcement</text>
+  <text x="680" y="766" class="small">apply decision locally</text>
+  <text x="680" y="791" class="cn">拿到决策后，在原 Gate 真正执行控制。</text>
+  <text x="680" y="825" class="mono">allow / deny / approval</text>
+  <text x="680" y="848" class="mono">sandbox / redact / audit</text>
+
+  <!-- Policy Engine -->
+  <rect x="1120" y="330" width="700" height="635" rx="34" class="engine"/>
+  <circle cx="1164" cy="380" r="18" class="dark"/><text x="1164" y="387" class="num" text-anchor="middle">3</text>
+  <text x="1200" y="388" class="h">Policy Engine / PDP</text>
+  <rect x="1698" y="358" width="74" height="27" rx="13.5" class="dark"/><text x="1735" y="377" class="white" text-anchor="middle">PDP</text>
+  <text x="1200" y="416" class="small">decision point: normalize, evaluate, compose decision</text>
+  <text x="1200" y="439" class="cn">决策点：统一请求、判断风险、组合决策。</text>
+
+  <g transform="translate(1170 485)">
+    <rect width="600" height="98" rx="22" class="card"/>
+    <text x="28" y="34" class="h2">Normalize Request</text>
+    <text x="28" y="60" class="small">subject + action + resource + context + signals</text>
+    <text x="28" y="82" class="cn">把不同 Stage 事件变成统一 Policy Request。</text>
+    <rect x="388" y="28" width="76" height="30" rx="15" class="blue"/><text x="426" y="49" class="label" text-anchor="middle">action</text>
+    <rect x="474" y="28" width="88" height="30" rx="15" class="salmon"/><text x="518" y="49" class="label" text-anchor="middle">signals</text>
+
+    <rect y="122" width="600" height="126" rx="22" class="card"/>
+    <text x="28" y="156" class="h2">Evaluate</text>
+    <text x="28" y="182" class="small">rules + authZ + semantic risk + runtime state</text>
+    <text x="28" y="204" class="cn">规则判断 + 权限 + 语义风险 + 运行态。</text>
+    <rect x="316" y="149" width="68" height="30" rx="15" class="blue"/><text x="350" y="170" class="label" text-anchor="middle">RBAC</text>
+    <rect x="394" y="149" width="68" height="30" rx="15" class="green"/><text x="428" y="170" class="label" text-anchor="middle">ABAC</text>
+    <rect x="472" y="149" width="84" height="30" rx="15" class="red"/><text x="514" y="170" class="label" text-anchor="middle">Injection</text>
+    <rect x="316" y="190" width="72" height="30" rx="15" class="yellow"/><text x="352" y="211" class="label" text-anchor="middle">PII</text>
+    <rect x="398" y="190" width="86" height="30" rx="15" class="mint"/><text x="441" y="211" class="label" text-anchor="middle">Budget</text>
+    <rect x="494" y="190" width="70" height="30" rx="15" class="purple"/><text x="529" y="211" class="label" text-anchor="middle">Trace</text>
+
+    <rect y="272" width="600" height="118" rx="22" class="card"/>
+    <text x="28" y="306" class="h2">Decision</text>
+    <text x="28" y="332" class="small">action tier + risk level + effect + controls + reasons</text>
+    <text x="28" y="354" class="cn">输出能力分级、风险等级、处理动作和原因。</text>
+    <rect x="326" y="308" width="104" height="30" rx="15" class="yellow"/><text x="378" y="329" class="label" text-anchor="middle">ActionTier</text>
+    <rect x="440" y="308" width="70" height="30" rx="15" class="salmon"/><text x="475" y="329" class="label" text-anchor="middle">Risk</text>
+    <rect x="520" y="308" width="60" height="30" rx="15" class="purple"/><text x="550" y="329" class="label" text-anchor="middle">Ctrl</text>
+  </g>
+
+  <!-- Decision Contract -->
+  <rect x="1940" y="360" width="330" height="575" rx="30" class="card"/>
+  <circle cx="1982" cy="408" r="18" class="dark"/><text x="1982" y="415" class="num" text-anchor="middle">4</text>
+  <text x="2018" y="416" class="h">Decision Contract</text>
+  <text x="2018" y="444" class="small">what the Gate receives</text>
+  <text x="2018" y="466" class="cn">返回给原 Gate 的标准结果。</text>
+  <g transform="translate(1980 530)">
+    <rect width="132" height="32" rx="16" class="yellow"/><text x="66" y="21" class="label" text-anchor="middle">action_tier</text><text x="154" y="21" class="small">L0-L5</text>
+    <rect y="56" width="132" height="32" rx="16" class="salmon"/><text x="66" y="77" class="label" text-anchor="middle">risk_level</text><text x="154" y="77" class="small">low-high</text>
+    <rect y="112" width="132" height="32" rx="16" class="peach"/><text x="66" y="133" class="label" text-anchor="middle">effect</text><text x="154" y="133" class="small">allow / deny</text>
+    <rect y="168" width="132" height="32" rx="16" class="purple"/><text x="66" y="189" class="label" text-anchor="middle">controls</text><text x="154" y="189" class="small">audit / sandbox</text>
+    <rect y="224" width="132" height="32" rx="16" class="blue"/><text x="66" y="245" class="label" text-anchor="middle">reasons</text><text x="154" y="245" class="small">evidence</text>
+  </g>
+  <line x1="1980" y1="800" x2="2230" y2="800" class="thin"/>
+  <text x="1980" y="862" class="cn">Action Tier 是这次 action 的能力边界；</text>
+  <text x="1980" y="885" class="cn">Risk Level 是结合数据/上下文/意图后的风险。</text>
+
+  <!-- Flow arrows: explicit shapes for readability -->
+  <g id="control-loop-arrows">
+    <line x1="520" y1="650" x2="595" y2="650" stroke="#18324a" stroke-width="5" stroke-linecap="round"/>
+    <polygon points="595,638 620,650 595,662" fill="#18324a"/>
+    <rect x="530" y="603" width="70" height="28" rx="14" fill="#fffefa" stroke="#d8ded4"/><text x="565" y="622" class="mono" text-anchor="middle">action</text>
+
+    <line x1="1000" y1="615" x2="1102" y2="615" stroke="#d76138" stroke-width="6" stroke-linecap="round"/>
+    <polygon points="1102,602 1128,615 1102,628" fill="#d76138"/>
+    <rect x="995" y="565" width="130" height="28" rx="14" fill="#fffefa" stroke="#e5c4a9"/><text x="1060" y="584" class="mono" text-anchor="middle">policy request</text>
+
+    <line x1="1820" y1="650" x2="1922" y2="650" stroke="#d76138" stroke-width="6" stroke-linecap="round"/>
+    <polygon points="1922,637 1948,650 1922,663" fill="#d76138"/>
+    <rect x="1800" y="603" width="160" height="28" rx="14" fill="#fffefa" stroke="#e5c4a9"/><text x="1880" y="622" class="mono" text-anchor="middle">decision contract</text>
+
+    <polyline points="2105,935 2105,990 805,990 805,868" stroke="#667085" stroke-width="4" fill="none" stroke-dasharray="10 8" stroke-linecap="round" stroke-linejoin="round"/>
+    <polygon points="794,868 816,868 805,846" fill="#667085"/>
+    <rect x="1260" y="970" width="270" height="34" rx="17" fill="#fffefa" stroke="#d8ded4"/>
+    <text x="1395" y="993" class="mono" text-anchor="middle">back to same Gate / PEP</text>
+
+    <line x1="805" y1="851" x2="805" y2="960" stroke="#18324a" stroke-width="4.5" stroke-linecap="round"/>
+    <polygon points="794,960 816,960 805,980" fill="#18324a"/>
+    <text x="830" y="920" class="mono">enforce</text>
+    <rect x="660" y="960" width="290" height="36" rx="18" fill="#fffefa" stroke="#d8ded4"/>
+    <text x="805" y="984" class="mono" text-anchor="middle">execute / block / approval</text>
+  </g>
+
+  <!-- Action tiers -->
+  <rect x="70" y="1035" width="2260" height="285" rx="38" class="panel"/>
+  <text x="112" y="1088" class="h">Action Tier / Capability Tier</text>
+  <text x="112" y="1116" class="small">Per action, not per stage. Read-only can still be high risk if the data is sensitive.</text>
+  <text x="112" y="1139" class="cn">按每次 action 动态判定，不是 stage 固定等级；只读也可能因为敏感数据变成高风险。</text>
+  <g transform="translate(112 1185)">
+    <rect width="338" height="82" rx="23" class="blue"/><text x="30" y="35" class="h2">L0 Answer</text><text x="30" y="60" class="cn">纯回答 / 不调用工具</text>
+    <rect x="370" width="338" height="82" rx="23" class="green"/><text x="400" y="35" class="h2">L1 RAG</text><text x="400" y="60" class="cn">检索回答 / 知识库</text>
+    <rect x="740" width="338" height="82" rx="23" class="mint"/><text x="770" y="35" class="h2">L2 Read-only Tool</text><text x="770" y="60" class="cn">只读工具 / GET / 查询</text>
+    <rect x="1110" width="338" height="82" rx="23" class="peach"/><text x="1140" y="35" class="h2">L3 Local Write</text><text x="1140" y="60" class="cn">本地写 / 文件 / artifact</text>
+    <rect x="1480" width="338" height="82" rx="23" class="salmon"/><text x="1510" y="35" class="h2">L4 External Action</text><text x="1510" y="60" class="cn">外部动作 / 业务写接口</text>
+    <rect x="1850" width="338" height="82" rx="23" class="purple"/><text x="1880" y="35" class="h2">L5 Code / Browser</text><text x="1880" y="60" class="cn">代码执行 / 浏览器自动化</text>
+  </g>
+  <text x="112" y="1292" class="mono">examples: L2 + PII -> redact + audit · L4 + customer data -> approval + audit · L5 -> sandbox + timeout</text>
+
+  <!-- Industry mapping and controls -->
+  <rect x="70" y="1360" width="1080" height="300" rx="34" class="panel"/>
+  <text x="112" y="1412" class="h">Industry Mapping / 业界对标</text>
+  <text x="112" y="1440" class="small">Existing products usually cover only part of the control loop.</text>
+  <g transform="translate(112 1478)">
+    <rect width="300" height="44" rx="16" class="blue"/><text x="20" y="28" class="label">OPA / Cedar</text><text x="345" y="28" class="small">AuthZ / policy rules</text>
+    <rect y="56" width="300" height="44" rx="16" class="green"/><text x="20" y="84" class="label">Bedrock Guardrails</text><text x="345" y="84" class="small">prompt / content guardrails</text>
+    <rect y="112" width="300" height="44" rx="16" class="mint"/><text x="20" y="140" class="label">Azure Prompt Shields</text><text x="345" y="140" class="small">prompt injection defense</text>
+    <rect x="640" width="300" height="44" rx="16" class="peach"/><text x="660" y="28" class="label">Lakera</text><text x="790" y="28" class="small">LLM firewall / injection signals</text>
+    <rect x="640" y="56" width="300" height="44" rx="16" class="purple"/><text x="660" y="84" class="label">LangSmith / Langfuse</text><text x="830" y="84" class="small">trace / eval / regression</text>
+    <rect x="640" y="112" width="300" height="44" rx="16" class="yellow"/><text x="660" y="140" class="label">K8s / Sandbox</text><text x="810" y="140" class="small">execution isolation</text>
+  </g>
+
+  <rect x="1210" y="1360" width="1120" height="300" rx="34" class="panel"/>
+  <text x="1252" y="1412" class="h">Enforcement Controls / 执行处置</text>
+  <text x="1252" y="1440" class="small">Controls are executed by the original Gate, not by the model.</text>
+  <text x="1252" y="1463" class="cn">控制动作由原来的 Gate/PEP 落地，不是模型自己决定或执行。</text>
+  <g transform="translate(1252 1505)">
+    <rect width="145" height="48" rx="18" class="green"/><text x="72" y="30" class="label" text-anchor="middle">Allow</text>
+    <rect x="165" width="145" height="48" rx="18" class="red"/><text x="237" y="30" class="label" text-anchor="middle">Deny</text>
+    <rect x="330" width="145" height="48" rx="18" class="blue"/><text x="402" y="30" class="label" text-anchor="middle">Approval</text>
+    <rect x="495" width="145" height="48" rx="18" class="purple"/><text x="567" y="30" class="label" text-anchor="middle">Sandbox</text>
+    <rect x="660" width="145" height="48" rx="18" class="peach"/><text x="732" y="30" class="label" text-anchor="middle">Redact</text>
+    <rect x="825" width="145" height="48" rx="18" class="yellow"/><text x="897" y="30" class="label" text-anchor="middle">Audit</text>
+  </g>
+</svg>

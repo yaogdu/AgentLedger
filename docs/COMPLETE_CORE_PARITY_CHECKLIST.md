@@ -55,8 +55,8 @@ Excluded or not applicable:
 | CLI baseline | `--help`, `doctor`, `version`, `quickstart`, `conformance`, `contract validate`, `contract export` | `agentledger` CLI | `agentledger-go` | `agentledger-ts` | `agentledger-rust` | `scripts/check_complete_core_parity.py` | done |
 | Quickstart docs | Language quickstart and adapter quickstart | README + docs | `go/README.md` | `typescript/README.md` | `rust/README.md` | docs link check | done |
 | Examples | Runnable examples for core runtime and adapter API | Python examples | `go/examples/quickstart/main.go` | `typescript/examples/quickstart/quickstart.js` | `rust/examples/quickstart.rs` | `scripts/check_complete_core_parity.py` | done |
-| Package metadata | Installable package metadata in the current release train | PyPI metadata `1.0.2` | `go.mod` tag `go/v1.0.2` | npm package `1.0.4` for CLI packaging fix | `Cargo.toml` `1.0.2` | `scripts/check_complete_core_parity.py` version check | done |
-| Package install smoke | Install/import/run from published or built package | PyPI `agentledger-runtime==1.0.2` published and metadata checked | `go/v1.0.2` tag pushed and clean `go get` smoke passed | npm `agentledger-runtime@1.0.4` published and clean install/import/CLI smoke passed | crates.io `agentledger-runtime==1.0.2` published and clean `cargo add` smoke passed | publish logs + `scripts/check_complete_core_parity.py` dry-run gates | done |
+| Package metadata | Installable package metadata in the current release train | PyPI metadata `1.0.5` | `go.mod` tag `go/v1.0.5` | npm package `1.0.5` | `Cargo.toml` `1.0.5` | `scripts/check_complete_core_parity.py` version check | done |
+| Package install smoke | Install/import/run from published or built package | PyPI `agentledger-runtime==1.0.5` release smoke after publish | `go/v1.0.5` clean external `go get` smoke after tag | npm `agentledger-runtime@1.0.5` release smoke after publish | crates.io `agentledger-runtime==1.0.5` release smoke after publish | publish logs + `scripts/check_complete_core_parity.py` dry-run gates | release-gated |
 | Release docs | Changelog, release checklist, status docs reflect exact parity boundary | docs | docs | docs | docs | docs link check | done |
 | Comparison docs | Honest overlap with LangChain/LangGraph/LangSmith/Langfuse/etc. | docs | docs | docs | docs | docs link check | done |
 
@@ -66,9 +66,9 @@ The strict core parity gate now covers the previously weak areas:
 
 1. CLI baseline is automatically checked for all four language CLIs.
 2. Go, TypeScript, and Rust have runnable quickstart example files.
-3. TypeScript and Rust package surfaces have package dry-run checks (`npm pack --dry-run`, `cargo package --allow-dirty --no-verify`) and published install smokes.
-4. Package versions are checked across Python, TypeScript, and Rust. TypeScript is `1.0.4` because npm `1.0.2` was followed by a CLI-bin packaging fix; runtime-core semantics remain aligned.
-5. Go external module consumption is tag/release dependent and was verified for `go/v1.0.2`; future releases should repeat the clean external `go get` smoke.
+3. TypeScript and Rust package surfaces have package dry-run checks (`npm pack --dry-run`, `cargo package --allow-dirty --no-verify`) and post-publish install smokes are required for release.
+4. Package versions are checked across Python, TypeScript, and Rust; the current release train is aligned at `1.0.5`.
+5. Go external module consumption is tag/release dependent; each release should repeat the clean external `go get` smoke after pushing the `go/vX.Y.Z` tag.
 6. Real service-backed hardening remains out of scope for core parity and stays documented as optional follow-up work.
 
 ## Required Completion Gate

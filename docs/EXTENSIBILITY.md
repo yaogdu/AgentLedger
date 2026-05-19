@@ -38,7 +38,7 @@ Examples:
 | Storage | `StateStoreProtocol`, migrations, lease/fencing invariants | SQLite WAL + local blob store | Postgres, S3/MinIO, custom store |
 | Sandbox | `SandboxPolicy`, `SandboxExecutor`, fail-closed routing, audit/evidence | fail-closed `none`, local executor, dry-run manifests | Docker, E2B, bubblewrap, Kubernetes/gVisor, Firecracker |
 | Observability | structured events, evidence links, trace span shape | JSONL and OTLP/JSON export | OpenTelemetry SDK, collector recipes, trace stores |
-| Policy | capability checks, approvals, pre/postcondition hooks | YAML/JSON role-capability policy | OPA, Cedar, internal policy service |
+| Policy | `PolicyRequest` / `PolicyDecision`, capability checks, approvals, pre/postcondition hooks | YAML/JSON role-capability policy and built-in evaluators | OPA, Cedar, internal policy service, PII/injection/DLP evaluators |
 | Frameworks | `FrameworkAdapter`, `AgentContext`, `ToolGateway` boundary | plain Python and dependency-free facades | framework-native packages and smoke fixtures |
 | Media/Stream | durable refs, metadata, lineage, stream cursors | artifact contracts and tool schema conventions | codecs, transcription, frame extraction, stream transport |
 
@@ -50,7 +50,7 @@ Examples:
 | Events | `EventStore` | DB table, Kafka/Redpanda optional |
 | Blob | `BlobStore` | local fs, S3, MinIO |
 | Tools | `ToolExecutor` | local function, HTTP, MCP, sandbox executor |
-| Policy | `PolicyEngine` | YAML, custom RBAC, OPA/Cedar adapter later |
+| Policy | `PolicyEngine`, `PolicyEvaluator`, `PolicyDecision` | YAML, custom RBAC, OPA/Cedar adapter later, semantic-risk evaluator adapters |
 | Sandbox | `SandboxExecutor` / `SandboxConfig` | none, local, bubblewrap, Docker, E2B, Kubernetes/gVisor, Firecracker, custom |
 | Model | `ModelProvider` | OpenAI, Anthropic, local model, replay provider |
 | Framework | `FrameworkAdapter` | LangChain, LangGraph, CrewAI, AutoGen, OpenAI Agents SDK, LlamaIndex, Semantic Kernel, custom |

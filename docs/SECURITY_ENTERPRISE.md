@@ -171,7 +171,7 @@ Recommended license: Apache-2.0 for enterprise-friendly adoption.
 
 ## Dependency-free Policy YAML
 
-The local runtime supports a dependency-free YAML/JSON policy subset for early enterprise governance testing.
+The local runtime supports a dependency-free YAML/JSON policy subset for early enterprise governance testing. In `1.0.5`, these simple policies are evaluated through the normalized `PolicyRequest` -> `PolicyDecision` contract, so the gate records effect, action tier, risk level, controls, reasons, and findings instead of only a boolean.
 
 Example:
 
@@ -203,7 +203,7 @@ Runtime use:
 PYTHONPATH=src python3 -m agentledger --policy examples/policy/local.policy.yaml run examples/side_effect_idempotency
 ```
 
-This is intentionally not a full OPA/Cedar replacement. It is a stable local policy shape that later adapters can compile into richer enterprise policy engines.
+This is intentionally not a full OPA/Cedar replacement. It is a stable local policy shape that later adapters can compile into richer enterprise policy engines. See `POLICY_ENGINE.md`.
 
 
 ## Cancellation and Lease Fencing

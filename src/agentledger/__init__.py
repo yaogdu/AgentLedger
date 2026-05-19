@@ -1,6 +1,6 @@
 """AgentLedger agent runtime v1.0 stable core."""
 
-__version__ = "1.0.1"
+__version__ = "1.0.5"
 
 from .adapters import FrameworkAdapter, PythonFunctionAdapter, python_agent
 from .adapters_frameworks import AutoGenAdapter, CrewAIAdapter, LangChainRunnableAdapter, LlamaIndexAdapter, MethodFrameworkAdapter, OpenAIAgentsSDKAdapter, SemanticKernelAdapter
@@ -22,7 +22,7 @@ from .failure_injection import FailureInjectionCheck, FailureInjectionReport, Fa
 from .lint import BoundaryLintFinding, BoundaryLintReport, BoundaryLintRule, RuntimeBoundaryLinter, load_boundary_rules
 from .media import ArtifactLineage, EventStreamCheckpoint, MediaArtifact, MediaMetadata, StreamChunkRef
 from .media_tools import media_tool_specs, register_media_tool_conventions
-from .policy import PolicyEngine, RolePolicy
+from .policy import DecisionComposer, PolicyControl, PolicyDecision, PolicyEngine, PolicyEvaluator, PolicyFinding, PolicyRequest, RolePolicy
 from .protocol import BlobStoreProtocol, ModelProviderProtocol, StateStoreProtocol, ToolExecutorProtocol
 from .repro import GoldenCase, GoldenCorpus
 from .replay import ReplayEngine
@@ -139,7 +139,13 @@ __all__ = [
     "MigrationStatus",
     "ModelProviderProtocol",
     "NonRetryableAgentError",
+    "PolicyControl",
+    "PolicyDecision",
     "PolicyEngine",
+    "PolicyEvaluator",
+    "PolicyFinding",
+    "PolicyRequest",
+    "DecisionComposer",
     "OpenAIAgentsSDKAdapter",
     "PythonFunctionAdapter",
     "RecoverySummary",

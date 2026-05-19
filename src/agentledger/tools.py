@@ -6,11 +6,11 @@ import re
 from dataclasses import dataclass, field
 from typing import Any, Callable
 
-from .approval import APPROVAL_APPROVED, APPROVAL_DENIED, ApprovalRequired
+from .approval import ApprovalRequired
 from .blobstore import LocalBlobStore
 from .cost import BudgetController
 from .ids import CausalToken, new_id
-from .policy import PolicyEngine
+from .policy import PolicyDecision, PolicyEngine, PolicyRequest
 from .sandbox import SandboxExecutor, SandboxPolicy, create_sandbox_executor
 from .store import SQLiteStore
 
@@ -170,17 +170,21 @@ class ToolGateway:
             payload_ref=request_ref,
         )
 
-        allowed, reason = self.policy.check_tool(ctx.agent_role, tool_name, spec.risk_level)
         approved_row = self.store.approval_for_key(approval_key)
         approved_status = approved_row["status"] if approved_row is not None else None
-        if approved_status == APPROVAL_DENIED:
-            reason = f"approval denied for tool {tool_name}"
-            self._record_permission(ctx, tool_name, False, reason, token_json)
-            raise PermissionDenied(reason)
-        if approved_status == APPROVAL_APPROVED:
-            allowed = True
-            reason = f"approved by {approved_row['approved_by'] or 'operator'}"
-        elif spec.approval_required:
+        decision = self.policy.evaluate(
+            self._policy_request(
+                ctx,
+                spec,
+                tool_name,
+                approval_status=approved_status,
+                managed_side_effect=managed_side_effect,
+            )
+        )
+        if decision.effect == "deny":
+            self._record_permission(ctx, tool_name, decision, token_json)
+            raise PermissionDenied(decision.primary_reason())
+        if decision.effect == "require_approval":
             approval = self.store.request_approval(
                 approval_key=approval_key,
                 run_id=ctx.run_id,
@@ -188,28 +192,26 @@ class ToolGateway:
                 step_id=ctx.step_id,
                 tool_name=tool_name,
                 risk_level=spec.risk_level,
-                reason="tool requires approval",
+                reason=decision.primary_reason(),
                 request_hash=request_hash,
                 request_ref=request_ref,
                 requested_by=ctx.agent_role,
             )
             approval_id = approval["approval_id"]
-            self._record_permission(ctx, tool_name, False, "approval required", token_json)
+            self._record_permission(ctx, tool_name, decision, token_json)
             self.store.append_event(
                 run_id=ctx.run_id,
                 session_id=ctx.session_id,
                 step_id=ctx.step_id,
                 event_type="tool_approval_required",
-                payload={"tool": tool_name, "approval_id": approval_id, "approval_key": approval_key, "risk_level": spec.risk_level},
+                payload={"tool": tool_name, "approval_id": approval_id, "approval_key": approval_key, "risk_level": spec.risk_level, "decision": decision.to_dict()},
                 agent_role=ctx.agent_role,
                 state_version=ctx.state_version,
                 causal_token=token_json,
             )
             raise ApprovalRequired(approval_id, f"approval required for tool {tool_name}", metadata={"tool": tool_name, "approval_key": approval_key})
 
-        self._record_permission(ctx, tool_name, allowed, reason, token_json)
-        if not allowed:
-            raise PermissionDenied(reason)
+        self._record_permission(ctx, tool_name, decision, token_json)
         self.budget.before_tool_call(self.store, ctx.run_id)
 
         if ctx.execution_mode == "shadow" and managed_side_effect:
@@ -266,13 +268,58 @@ class ToolGateway:
             self.store.append_event(run_id=ctx.run_id, session_id=ctx.session_id, step_id=ctx.step_id, event_type="tool_call_failed", payload={"tool": tool_name, "error": repr(exc)}, agent_role=ctx.agent_role, state_version=ctx.state_version, causal_token=token_json)
             raise
 
-    def _record_permission(self, ctx: Any, tool_name: str, allowed: bool, reason: str, causal_token: str) -> None:
+    def _policy_request(self, ctx: Any, spec: ToolSpec, tool_name: str, *, approval_status: str | None, managed_side_effect: bool) -> PolicyRequest:
+        context: dict[str, Any] = {
+            "run_id": ctx.run_id,
+            "session_id": ctx.session_id,
+            "step_id": ctx.step_id,
+            "attempt": ctx.attempt,
+            "state_version": ctx.state_version,
+        }
+        for attr in ("parent_run_id", "parent_step_id", "delegated_by"):
+            value = getattr(ctx, attr, None)
+            if value is not None:
+                context[attr] = value
+        return PolicyRequest.for_tool(
+            role=ctx.agent_role,
+            tool_name=tool_name,
+            risk_level=spec.risk_level,
+            side_effect=spec.side_effect,
+            approval_required=spec.approval_required,
+            sandbox_required=spec.sandbox_required,
+            idempotency_required=spec.idempotency_required,
+            subject={
+                "kind": getattr(ctx, "subject_kind", "agent"),
+                "role": ctx.agent_role,
+                "worker_id": getattr(ctx, "worker_id", None),
+            },
+            resource={
+                "kind": "tool",
+                "name": tool_name,
+                "version": spec.version,
+            },
+            context=context,
+            signals={
+                "managed_side_effect": managed_side_effect,
+                "approval_required": spec.approval_required,
+                "sandbox_required": spec.sandbox_required,
+                "idempotency_required": spec.idempotency_required,
+            },
+            runtime_state={
+                "approval_status": approval_status,
+                "execution_mode": ctx.execution_mode,
+                "source_run_id": ctx.source_run_id,
+            },
+            policy_version=self.policy.policy_version,
+        )
+
+    def _record_permission(self, ctx: Any, tool_name: str, decision: PolicyDecision, causal_token: str) -> None:
         self.store.append_event(
             run_id=ctx.run_id,
             session_id=ctx.session_id,
             step_id=ctx.step_id,
             event_type="tool_permission_decided",
-            payload={"tool": tool_name, "allowed": allowed, "reason": reason},
+            payload={"tool": tool_name, "allowed": decision.allowed, "reason": decision.primary_reason(), "decision": decision.to_dict()},
             agent_role=ctx.agent_role,
             state_version=ctx.state_version,
             causal_token=causal_token,

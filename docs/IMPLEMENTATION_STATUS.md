@@ -6,7 +6,7 @@ This document tracks what is implemented in the Python reference runtime, what r
 
 ## Current Baseline
 
-AgentLedger 1.0.1 is a stable runtime-core release with Python as the reference implementation and Go/TypeScript/Rust covered by shared runtime-core parity gates. It still has selected preview/experimental concrete adapter paths. It is suitable for:
+AgentLedger 1.0.x is a stable runtime-core line with Python as the reference implementation and Go/TypeScript/Rust covered by shared runtime-core parity gates. The 1.0.5 development line adds the normalized Policy Engine decision contract while keeping selected preview/experimental concrete adapter paths explicit. It is suitable for:
 
 - local use
 - runtime design review
@@ -21,12 +21,12 @@ Scope rule: runtime-core should stay thin but indispensable. It should own only 
 
 ## Current Python Completion Boundary
 
-For the current 1.0.1 goal, "stable runtime-core" means the Python reference runtime is usable, documented, tested, release-gated, contract-frozen, and covered by Go/TypeScript/Rust runtime-core parity gates. It does not mean every optional production adapter or external eval integration is shipped in every language.
+For the current 1.0.x goal, "stable runtime-core" means the Python reference runtime is usable, documented, tested, release-gated, contract-frozen, and covered by Go/TypeScript/Rust runtime-core parity gates. It does not mean every optional production adapter or external eval integration is shipped in every language.
 
 Included in this boundary:
 
 - dependency-free local runtime and SDK
-- durable state, event log, Tool Ledger, replay, evidence, policy, approval, sandbox boundary, cost/failure attribution, worker loop, and conformance
+- durable state, event log, Tool Ledger, replay, evidence, normalized policy decision contract, approval, sandbox boundary, cost/failure attribution, worker loop, and conformance
 - built-in minimal implementations for local storage, local blobs, simple policy, local/fail-closed sandbox modes, JSONL/OTLP JSON traces, and static debug exports
 - adapter contracts and dependency-free facades for framework, storage, blob, MCP, sandbox, observability, media/stream, and worker seams
 - bilingual primary documentation, architecture SVG, usage guide, release checklist, and runtime contract export
@@ -49,7 +49,7 @@ Excluded from this boundary:
 | Evidence regression primitives | side-effect-free evidence checks, `evidence-regression` media/stream gates, adversarial review, evidence regression checklist with media/stream evidence checks, divergence report with media/stream dimensions, golden corpus seed/add/list/check with baseline, Tool Ledger, and media/stream built-ins |
 | Shadow mode | side-effect-safe candidate runs using archived Tool Ledger responses |
 | Cost and budget | store-backed cost records, budget enforcement hooks, and read-only cost attribution report by run/agent/step/category/tool/model |
-| Approval and policy | approval request/approve/deny flow, YAML/JSON policy checks |
+| Approval and policy | approval request/approve/deny flow, YAML/JSON policy checks, `PolicyRequest`, `PolicyDecision`, `PolicyFinding`, `PolicyControl`, built-in evaluator registry, decision evidence in `tool_permission_decided` |
 | Scheduling semantics | leases, fencing, heartbeat, cancellation, retry policy, failure taxonomy |
 | Worker loop | local worker loop, process-shaped `WorkerService`, worker conformance runner |
 | Storage contracts | `StateStoreProtocol`, `BlobStoreProtocol`, SQLite migrations, DDL export |

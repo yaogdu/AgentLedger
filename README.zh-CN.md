@@ -3,14 +3,14 @@
 [English](README.md) | [中文](README.zh-CN.md)
 
 ![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)
-![Version 1.0.2 stable](https://img.shields.io/badge/Version-1.0.2--stable-111827)
+![Version 1.0.5 stable](https://img.shields.io/badge/Version-1.0.5--stable-111827)
 ![License Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-0f766e)
 ![Runtime Durable](https://img.shields.io/badge/Runtime-durable%20execution-1f6feb)
 ![Storage SQLite/Postgres](https://img.shields.io/badge/Storage-SQLite%20%7C%20Postgres-b45309)
 ![Replay Evidence](https://img.shields.io/badge/Replay-evidence%20driven-7c3aed)
 ![Tool Ledger](https://img.shields.io/badge/Tools-ledger%20guarded-d97706)
 
-AgentLedger `1.0.2` 是一个面向 AI Agent 的 agent execution safety、evidence 与 reliability layer。它不负责让 Agent 更会“思考”，而是让 Agent run 在 worker 崩溃、工具失败、prompt 变更和长任务恢复时，仍然具备持久化、可审计、可重放、可治理和可恢复能力。
+AgentLedger `1.0.5` 是一个面向 AI Agent 的 agent execution safety、evidence 与 reliability layer。它不负责让 Agent 更会“思考”，而是让 Agent run 在 worker 崩溃、工具失败、prompt 变更和长任务恢复时，仍然具备持久化、可审计、可重放、可治理和可恢复能力。
 
 大多数 Agent 框架关注 planning、reasoning 和 workflow logic。AgentLedger 放在 LangChain、LangGraph、CrewAI、AutoGen、OpenAI Agents SDK、LlamaIndex、Semantic Kernel 或自定义 Agent 的下方或旁边，提供 state、tool、evidence、replay、recovery 相关的 runtime guarantees。
 
@@ -146,6 +146,7 @@ Temporal + LangGraph + AgentLedger 是合理的生产组合：Temporal 跑外层
 
 - 文档总览：[docs/zh/README.md](docs/zh/README.md)
 - 架构说明：[docs/zh/ARCHITECTURE.md](docs/zh/ARCHITECTURE.md)
+- Policy Engine：[docs/zh/POLICY_ENGINE.md](docs/zh/POLICY_ENGINE.md)
 - 对比与重合边界：[docs/zh/COMPARISONS.md](docs/zh/COMPARISONS.md)
 - 设计与实现：[docs/zh/DESIGN_AND_IMPLEMENTATION.md](docs/zh/DESIGN_AND_IMPLEMENTATION.md)
 - Runtime contract：[docs/zh/RUNTIME_SPEC.md](docs/zh/RUNTIME_SPEC.md)
@@ -251,7 +252,7 @@ AgentLedger 也不是新的 LLM SDK，不是 workflow engine，不是通用 obse
 
 ## 当前成熟度
 
-AgentLedger 1.0.2 现在是 stable runtime-core release，并已建立 Go、TypeScript、Rust 对 Python reference 的 runtime-core parity gate，适合本地使用、framework adapter integration、reliability semantics 验证，以及在明确 adapter 边界下做 production pilot 准备。
+AgentLedger 1.0.5 现在是 stable runtime-core release，并已建立 Go、TypeScript、Rust 对 Python reference 的 runtime-core parity gate，适合本地使用、framework adapter integration、reliability semantics 验证，以及在明确 adapter 边界下做 production pilot 准备。
 
 runtime-core contract 已稳定；optional production adapter 和外部基础设施加固仍按独立阶段推进。详见 [docs/MATURITY_MODEL.md](docs/MATURITY_MODEL.md)、[docs/zh/IMPLEMENTATION_STATUS.md](docs/zh/IMPLEMENTATION_STATUS.md) 和 [docs/zh/ROADMAP.md](docs/zh/ROADMAP.md)。
 

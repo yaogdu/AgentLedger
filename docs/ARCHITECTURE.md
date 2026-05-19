@@ -21,7 +21,7 @@ Agent / Framework Layer
   plain Python functions, LangGraph, CrewAI, AutoGen, custom agents, future TS/Rust/Go workers
 
 Runtime Boundary
-  AgentContext, Runtime, ToolGateway, PolicyEngine, BudgetController
+  AgentContext, Runtime, ToolGateway, PolicyEngine, PolicyDecision, BudgetController
 
 Execution Control
   Scheduler, leases, fencing tokens, retry policy, cancellation, worker loop
@@ -66,6 +66,7 @@ replay/evidence
 | `src/agentledger/store.py` | SQLite StateStore reference implementation. |
 | `src/agentledger/storage_schema.py` | Storage DDL catalog and SQLite migration runner. |
 | `src/agentledger/tools.py` | Tool registry, gateway, policy checks, approval, ledger, sandbox boundary. |
+| `src/agentledger/policy.py` | PolicyRequest, PolicyDecision, evaluator registry, role/risk policy, decision composition. |
 | `src/agentledger/replay.py` | Replay summary without external side effects. |
 | `src/agentledger/evidence.py` | Evidence bundle export. |
 | `src/agentledger/media.py` | Media artifact, lineage, stream chunk, and checkpoint contracts. |

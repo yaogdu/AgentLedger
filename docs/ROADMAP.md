@@ -27,6 +27,40 @@ Adapter prioritization is documented in `ADAPTER_ROADMAP.md`: official adapters 
 
 This scope map is part of the release gate: a new feature should either fit runtime-core as a production execution reliability contract, land as an optional adapter, become a separate evidence consumer, or be documented as out of scope. The default choice is adapter or external consumer unless runtime-core is the only layer that can enforce the invariant.
 
+## v1.0.5 - Policy Engine Contract Upgrade
+
+Status: implemented in the Python reference runtime-core as a backwards-compatible policy contract upgrade.
+
+Goals:
+
+```text
+replace bare allow/deny policy checks with a normalized decision contract
+keep ToolGateway as the current enforcement point
+preserve simple YAML/JSON role-capability policies
+prepare future model, memory, output, media, sub-agent, and multi-agent gates
+avoid turning runtime-core into OPA, Cedar, DLP, eval, or governance UI
+```
+
+Implemented:
+
+- `PolicyRequest` with `subject`, `action`, `resource`, `context`, `signals`, and `runtime_state`
+- `PolicyDecision` with `effect`, `action_tier`, `risk_level`, `controls`, `reasons`, `findings`, `policy_version`, and delegation fields
+- `PolicyFinding` and `PolicyControl` evidence/control objects
+- built-in dependency-free evaluators for role capability, action boundary, and runtime state
+- `ToolGateway` integration that records the full decision contract in `tool_permission_decided`
+- compatibility for `PolicyEngine.check_tool(...)`
+- contract fields for child-agent/delegation context without implementing sub-agent execution
+- media/stream resource compatibility without implementing media processing adapters
+- policy engine documentation and SVG diagrams
+
+Explicitly not in this version:
+
+- real OPA/Cedar adapters
+- prompt injection, PII, DLP, or LLM safety providers
+- policy management UI or multi-tenant governance service
+- sub-agent/multi-agent spawn/join runtime semantics
+- full media processing adapters
+
 ## v1.0 Stable Runtime-Core Baseline
 
 Status: implemented and release-gated in the current Python reference runtime-core.
