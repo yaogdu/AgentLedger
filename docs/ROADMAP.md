@@ -27,9 +27,9 @@ Adapter prioritization is documented in `ADAPTER_ROADMAP.md`: official adapters 
 
 This scope map is part of the release gate: a new feature should either fit runtime-core as a production execution reliability contract, land as an optional adapter, become a separate evidence consumer, or be documented as out of scope. The default choice is adapter or external consumer unless runtime-core is the only layer that can enforce the invariant.
 
-## v1.0.5 - Policy Engine Contract Upgrade
+## v1.1.0 - Adapter Certification And Reliability Gate Upgrade
 
-Status: implemented in the Python reference runtime-core as a backwards-compatible policy contract upgrade.
+Status: implemented in the Python reference runtime-core as a backwards-compatible policy, adapter certification, and evidence regression upgrade.
 
 Goals:
 
@@ -38,6 +38,8 @@ replace bare allow/deny policy checks with a normalized decision contract
 keep ToolGateway as the current enforcement point
 preserve simple YAML/JSON role-capability policies
 prepare future model, memory, output, media, sub-agent, and multi-agent gates
+turn official adapter expectations into machine-readable certification bundles
+make evidence regression output easier for CI and release gates to consume
 avoid turning runtime-core into OPA, Cedar, DLP, eval, or governance UI
 ```
 
@@ -52,6 +54,10 @@ Implemented:
 - contract fields for child-agent/delegation context without implementing sub-agent execution
 - media/stream resource compatibility without implementing media processing adapters
 - policy engine documentation and SVG diagrams
+- `agentledger adapter certify` for official adapter certification bundles
+- built-in certification profiles for Postgres, S3, MCP, Docker, OTEL, LangGraph, and Temporal
+- explicit `production_validation.status=external-required` for adapter paths that require real infrastructure
+- `evidence-regression` metadata summary with failed checks, changed dimensions, changed counts, bundle-hash status, and cost deltas
 
 Explicitly not in this version:
 
@@ -60,6 +66,7 @@ Explicitly not in this version:
 - policy management UI or multi-tenant governance service
 - sub-agent/multi-agent spawn/join runtime semantics
 - full media processing adapters
+- P2-style production claims for Postgres/S3/sandbox/worker/OTLP without real service credentials, concurrency/load checks, and restore or rollback drills
 
 ## v1.0 Stable Runtime-Core Baseline
 
@@ -108,6 +115,7 @@ Implemented in the current v1.0 core/adapters path:
 - LangGraph-compatible dependency-free checkpointer facade
 - dependency-free LangChain, CrewAI, AutoGen, OpenAI Agents SDK, LlamaIndex, and Semantic Kernel facades
 - adapter conformance fixtures for dependency-free framework wrappers
+- adapter certification bundles for official adapter profiles
 - improved CLI debug timeline, state diff view, and optional static HTML debug export
 - examples for plain Python, LangGraph, MCP tool/context, and command-style sandbox tools
 - lint/check command for common direct tool calls and model SDK bypasses that bypass `ctx.call_tool` or the runtime model boundary, with JSON rule-pack extension
@@ -176,6 +184,10 @@ Goals:
 make prompt/workflow/runtime changes testable
 turn evidence into regression inputs for external and local checks
 ```
+
+Implemented in the current v1.1.0 local reliability path:
+
+- `evidence-regression` machine-readable summary for failed checks, changed dimensions, changed counts, bundle-hash status, and cost deltas
 
 Planned:
 

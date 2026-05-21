@@ -112,12 +112,48 @@ class EvidenceRegressionRunner:
             right_total = float(current.get("summary", {}).get("cost_summary", {}).get("total_usd", 0.0))
             delta = right_total - left_total
             checks.append(EvidenceCheck("max_total_usd_delta", delta <= max_total_usd_delta, f"total_usd_delta={delta}, limit={max_total_usd_delta}"))
-        return EvidenceCheckReport(passed=all(check.passed for check in checks), checks=checks, metadata={"diff": diff})
+        return EvidenceCheckReport(
+            passed=all(check.passed for check in checks),
+            checks=checks,
+            metadata={
+                "diff": diff,
+                "regression_summary": self._regression_summary(golden, current, diff, checks),
+            },
+        )
 
     def _has_completion_event(self, evidence: dict[str, Any], step_id: str | None) -> bool:
         if step_id is None:
             return False
         return any(event.get("type") == "step_completed" and event.get("step_id") == step_id for event in evidence.get("events", []))
+
+    def _regression_summary(
+        self,
+        golden: dict[str, Any],
+        current: dict[str, Any],
+        diff: dict[str, Any],
+        checks: list[EvidenceCheck],
+    ) -> dict[str, Any]:
+        changes = diff.get("changes", {})
+        changed_counts = {
+            name: value.get("changed_count", 0)
+            for name, value in changes.items()
+            if isinstance(value, dict) and "changed_count" in value
+        }
+        changed_dimensions = [name for name, count in changed_counts.items() if count]
+        if changes.get("bundle_hash_changed") and not changed_dimensions:
+            changed_dimensions.append("bundle_hash")
+        left_total = float(golden.get("summary", {}).get("cost_summary", {}).get("total_usd", 0.0))
+        right_total = float(current.get("summary", {}).get("cost_summary", {}).get("total_usd", 0.0))
+        failed_checks = [check.name for check in checks if not check.passed]
+        return {
+            "failed_checks": failed_checks,
+            "changed_dimensions": changed_dimensions,
+            "changed_counts": changed_counts,
+            "bundle_hash_changed": bool(changes.get("bundle_hash_changed", False)),
+            "cost_delta_usd": right_total - left_total,
+            "left_total_usd": left_total,
+            "right_total_usd": right_total,
+        }
 
 
 # Deprecated compatibility aliases. These names are intentionally not used in

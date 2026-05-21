@@ -2,7 +2,7 @@
 
 [English](POLICY_ENGINE.md) | [中文](zh/POLICY_ENGINE.md)
 
-AgentLedger `1.0.5` treats policy as a runtime control loop, not just a boolean permission helper. The runtime gate intercepts an action before execution, sends a normalized `PolicyRequest` to the Policy Engine, receives a `PolicyDecision`, and enforces the returned controls at the same gate.
+AgentLedger `1.1.0` treats policy as a runtime control loop, not just a boolean permission helper. The runtime gate intercepts an action before execution, sends a normalized `PolicyRequest` to the Policy Engine, receives a `PolicyDecision`, and enforces the returned controls at the same gate.
 
 ## Control Loop
 
@@ -95,7 +95,7 @@ Internally, that helper is now backed by the normalized policy contract.
 
 ## Sub-agent, Multi-agent, And Media Boundaries
 
-`1.0.5` does not implement sub-agent or multi-agent execution. It only reserves policy fields so a future child-run runtime can reuse the same decision contract:
+`1.1.0` does not implement sub-agent or multi-agent execution. It only reserves policy fields so a future child-run runtime can reuse the same decision contract:
 
 ```text
 subject.kind = agent | sub_agent | worker | service

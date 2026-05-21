@@ -194,7 +194,7 @@ export function validateFixtures() {
 }
 
 function usage() {
-  return `AgentLedger TypeScript Runtime 1.0.5\n\nUsage:\n  agentledger-ts doctor\n  agentledger-ts version\n  agentledger-ts quickstart\n  agentledger-ts conformance\n  agentledger-ts contract validate\n  agentledger-ts contract export\n\nProject: https://github.com/yaogdu/AgentLedger`;
+  return `AgentLedger TypeScript Runtime 1.1.0\n\nUsage:\n  agentledger-ts doctor\n  agentledger-ts version\n  agentledger-ts quickstart\n  agentledger-ts conformance\n  agentledger-ts contract validate\n  agentledger-ts contract export\n\nProject: https://github.com/yaogdu/AgentLedger`;
 }
 
 export async function runRuntimeSmoke() {
@@ -577,11 +577,11 @@ export async function main(args = process.argv.slice(2)) {
     return 0;
   }
   if (args.length === 1 && args[0] === 'version') {
-    console.log('agentledger-ts 1.0.5');
+    console.log('agentledger-ts 1.1.0');
     return 0;
   }
   if (args.length === 1 && args[0] === 'doctor') {
-    console.log(JSON.stringify({ language: 'typescript', version: '1.0.5', status: 'ok', runtime_core_parity: true }, null, 2));
+    console.log(JSON.stringify({ language: 'typescript', version: '1.1.0', status: 'ok', runtime_core_parity: true }, null, 2));
     return 0;
   }
   if (args.length === 1 && args[0] === 'quickstart') {

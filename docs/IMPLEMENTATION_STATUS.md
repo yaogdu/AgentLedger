@@ -6,7 +6,7 @@ This document tracks what is implemented in the Python reference runtime, what r
 
 ## Current Baseline
 
-AgentLedger 1.0.x is a stable runtime-core line with Python as the reference implementation and Go/TypeScript/Rust covered by shared runtime-core parity gates. The 1.0.5 development line adds the normalized Policy Engine decision contract while keeping selected preview/experimental concrete adapter paths explicit. It is suitable for:
+AgentLedger 1.1.x is a stable runtime-core line with Python as the reference implementation and Go/TypeScript/Rust covered by shared runtime-core parity gates. The 1.1.0 line adds the normalized Policy Engine decision contract, adapter certification bundles, and richer evidence regression summaries while keeping selected preview/experimental concrete adapter paths explicit. It is suitable for:
 
 - local use
 - runtime design review
@@ -15,13 +15,15 @@ AgentLedger 1.0.x is a stable runtime-core line with Python as the reference imp
 - reliability semantics validation
 - production pilot preparation with explicit adapter boundaries
 
+Release-scope note: 1.1.0 completes the local, dependency-free P1/P3 gate slice: official adapter certification manifests and machine-readable evidence regression summaries. It does not complete exact optional adapter packages, framework-native smoke fixtures, production adapter hardening, or the full richer reliability harness roadmap.
+
 The runtime-core contract is stable. Optional production adapters, external infrastructure hardening, and full eval systems remain outside the stable core boundary; non-Python runtime-core baselines are verified by the shared parity gates.
 
 Scope rule: runtime-core should stay thin but indispensable. It should own only guarantees that cannot be enforced outside the runtime boundary; mature planning, workflow, eval, observability, RAG, sandbox infrastructure, and deployment systems should integrate through adapters or consume evidence/replay outputs.
 
 ## Current Python Completion Boundary
 
-For the current 1.0.x goal, "stable runtime-core" means the Python reference runtime is usable, documented, tested, release-gated, contract-frozen, and covered by Go/TypeScript/Rust runtime-core parity gates. It does not mean every optional production adapter or external eval integration is shipped in every language.
+For the current 1.1.x goal, "stable runtime-core" means the Python reference runtime is usable, documented, tested, release-gated, contract-frozen, and covered by Go/TypeScript/Rust runtime-core parity gates. It does not mean every optional production adapter or external eval integration is shipped in every language.
 
 Included in this boundary:
 
@@ -46,7 +48,7 @@ Excluded from this boundary:
 | Local durable runtime | SQLite WAL store, local blob store, event log, Tool Ledger, AgentContext, Runtime, ToolGateway |
 | Simple adoption API | `agent`, `run`, `arun`, `RunResult`, hello-world example |
 | Replay and evidence | event-level replay, evidence export, evidence directory layout, static HTML evidence report, evidence diff |
-| Evidence regression primitives | side-effect-free evidence checks, `evidence-regression` media/stream gates, adversarial review, evidence regression checklist with media/stream evidence checks, divergence report with media/stream dimensions, golden corpus seed/add/list/check with baseline, Tool Ledger, and media/stream built-ins |
+| Evidence regression primitives | side-effect-free evidence checks, `evidence-regression` media/stream gates, machine-readable regression summaries, adversarial review, evidence regression checklist with media/stream evidence checks, divergence report with media/stream dimensions, golden corpus seed/add/list/check with baseline, Tool Ledger, and media/stream built-ins |
 | Shadow mode | side-effect-safe candidate runs using archived Tool Ledger responses |
 | Cost and budget | store-backed cost records, budget enforcement hooks, and read-only cost attribution report by run/agent/step/category/tool/model |
 | Approval and policy | approval request/approve/deny flow, YAML/JSON policy checks, `PolicyRequest`, `PolicyDecision`, `PolicyFinding`, `PolicyControl`, built-in evaluator registry, decision evidence in `tool_permission_decided` |
@@ -68,7 +70,7 @@ Excluded from this boundary:
 | S3/MinIO BlobStore | optional boto3 adapter, env/CLI config, injected conformance, CLI smoke, opt-in real-service test, CI MinIO service conformance job | IAM/KMS/lifecycle review, large object guidance, operational hardening |
 | OpenTelemetry | dependency-free OTLP JSON file export and optional OTLP/JSON collector POST | deployment recipe and hardened adapter package |
 | Distributed workers | local worker loop, `WorkerService`, worker conformance, Postgres `FOR UPDATE SKIP LOCKED` path, deployment guide | hardened deployment recipe, supervision examples, real-service load/concurrency validation |
-| Framework support | LangGraph facade, method facades for LangChain/CrewAI/AutoGen/OpenAI Agents SDK/LlamaIndex/Semantic Kernel, generic adapter base, dependency-free examples, adapter conformance fixtures | exact optional packages for each framework and framework-native smoke fixtures |
+| Framework support | LangGraph facade, method facades for LangChain/CrewAI/AutoGen/OpenAI Agents SDK/LlamaIndex/Semantic Kernel, generic adapter base, dependency-free examples, adapter conformance fixtures, adapter certification bundles | exact optional packages for each framework and framework-native smoke fixtures |
 | Tool schema/catalog DX | dependency-free schema subset validation with portable composition/constraint keywords, output validation, AgentLedger manifest export, OpenAI function-tool export | framework-specific tool package adapters and optional full JSON Schema integrations |
 | MCP support | descriptor-to-ToolSpec mapping, dependency-free tool/context server fixtures, context read tool adapter, examples | exact MCP SDK client/server integration |
 | Sandbox | contract, local/fail-closed modes, command-style Docker/bubblewrap, Kubernetes dry-run/gated execution, E2B/Firecracker slots | hardened isolation packages, secret injection policy, network policy recipes, resource limit validation |
@@ -87,7 +89,7 @@ These are either outside the stable Python runtime-core, implemented only as pre
 - Larger real-world benchmark corpus beyond the current baseline, Tool Ledger, and media/stream built-in fixtures.
 - Full media processing adapters for image, audio, video, frame extraction, transcription, embedding generation, and stream transport.
 - Production stream backpressure/cancellation adapters beyond the current durable checkpoint artifact contract.
-- Optional adapter production hardening beyond the stable v1.0 core contract.
+- Optional adapter production hardening beyond the stable v1.0 core contract. Production-ready claims for Postgres/S3/sandbox/worker/OTLP still require real services, load/concurrency checks, and restore or rollback drills; local certification manifests intentionally mark those paths as external-required.
 
 ## Non-goals For Runtime Core
 
@@ -108,6 +110,6 @@ Large capabilities such as Eval, Observability, Guardrails, Tool Gateway/Sandbox
 
 1. Keep v1.0 runtime-core compatibility protected by release gates, contract snapshots, and conformance suites.
 2. Improve adoption without bloating core: exact optional framework packages, additional framework-native smoke fixtures, and project-specific runtime-boundary lint, scheduler facade, adversarial review, evidence regression examples.
-3. Harden production-pilot adapter paths: Postgres, S3/MinIO, worker deployment, OTLP transport, and non-destructive retention/backup checks.
+3. Harden production-pilot adapter paths: Postgres, S3/MinIO, worker deployment, OTLP transport, and non-destructive retention/backup checks. These P2 claims require real services, load/concurrency checks, and restore or rollback drills; local certification manifests intentionally mark them as external-required.
 4. Build richer external evidence consumers and eval adapters outside runtime-core.
 5. Extend media/stream preview contracts into optional adapters only after the core reliability harness remains stable.

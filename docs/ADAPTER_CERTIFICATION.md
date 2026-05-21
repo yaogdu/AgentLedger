@@ -208,3 +208,27 @@ backup/restore notes if stateful
 ```
 
 This does not make an adapter production-ready by itself. It gives users a concrete compatibility baseline and makes gaps explicit before pilots.
+
+AgentLedger can generate a machine-readable starting bundle for official adapter profiles:
+
+```bash
+PYTHONPATH=src python3 -m agentledger adapter certify --kind postgres --adapter-version 1.1.0
+PYTHONPATH=src python3 -m agentledger adapter certify --kind s3 --adapter-version 1.1.0 --out ./s3-certification.json
+PYTHONPATH=src python3 -m agentledger adapter certify --kind langgraph --adapter-version 1.1.0 --package-name agentledger-langgraph
+```
+
+Supported built-in profiles:
+
+```text
+postgres
+s3
+mcp
+docker
+otel
+langgraph
+temporal
+```
+
+The generated bundle includes package metadata, contract version, conformance commands, smoke commands, required external services, security assumptions, known limitations, and a `production_validation` block.
+
+For adapters that depend on real infrastructure, `production_validation.status` is intentionally `external-required`. That is not a failure. It means the local runtime has produced the certification contract, but a production claim still needs real credentials, service behavior, concurrency/load checks, and restore or rollback drills. P2-style production hardening must be backed by those external artifacts, not by local mocks alone.

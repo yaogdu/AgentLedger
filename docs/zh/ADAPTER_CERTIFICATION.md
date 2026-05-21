@@ -142,3 +142,27 @@ required external services
 security assumptions
 backup/restore notes if stateful
 ```
+
+AgentLedger 可以为官方 adapter profile 生成机器可读的起始认证 bundle：
+
+```bash
+PYTHONPATH=src python3 -m agentledger adapter certify --kind postgres --adapter-version 1.1.0
+PYTHONPATH=src python3 -m agentledger adapter certify --kind s3 --adapter-version 1.1.0 --out ./s3-certification.json
+PYTHONPATH=src python3 -m agentledger adapter certify --kind langgraph --adapter-version 1.1.0 --package-name agentledger-langgraph
+```
+
+内置 profile：
+
+```text
+postgres
+s3
+mcp
+docker
+otel
+langgraph
+temporal
+```
+
+生成结果会包含 package metadata、contract version、conformance command、smoke command、required external services、security assumptions、known limitations 和 `production_validation`。
+
+依赖真实基础设施的 adapter 会明确标记 `production_validation.status=external-required`。这不是失败，而是说明本地 runtime 只能生成认证 contract；真正的生产级声明仍然需要真实凭证、真实服务行为、并发/负载检查，以及 restore 或 rollback drill。P2 类 production hardening 必须有这些外部证据，不能只靠本地 mock 宣称完成。

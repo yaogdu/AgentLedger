@@ -186,11 +186,11 @@ func run(args []string) error {
 		return nil
 	}
 	if len(args) == 1 && args[0] == "version" {
-		fmt.Println("agentledger-go 1.0.5")
+		fmt.Println("agentledger-go 1.1.0")
 		return nil
 	}
 	if len(args) == 1 && args[0] == "doctor" {
-		fmt.Println(`{"language":"go","version":"1.0.5","status":"ok","runtime_core_parity":true}`)
+		fmt.Println(`{"language":"go","version":"1.1.0","status":"ok","runtime_core_parity":true}`)
 		return nil
 	}
 	if len(args) == 1 && args[0] == "quickstart" {
@@ -218,7 +218,7 @@ func run(args []string) error {
 }
 
 func printHelp() {
-	fmt.Println(`AgentLedger Go Runtime 1.0.5
+	fmt.Println(`AgentLedger Go Runtime 1.1.0
 
 Usage:
   agentledger-go doctor

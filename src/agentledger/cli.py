@@ -5,6 +5,7 @@ import asyncio
 import json
 from pathlib import Path
 
+from .adapter_certification import build_adapter_certification_bundle, supported_adapter_certification_profiles
 from .adapters import PythonFunctionAdapter
 from .adapters_frameworks import AutoGenAdapter, CrewAIAdapter, LangChainRunnableAdapter, LlamaIndexAdapter, OpenAIAgentsSDKAdapter, SemanticKernelAdapter
 from .adapters_langgraph import LangGraphNodeAdapter
@@ -388,6 +389,20 @@ def cmd_adapter_conformance(args: argparse.Namespace) -> None:
     print(json.dumps({"kind": args.kind, "passed": report.passed, "report": report.to_dict()}, indent=2, ensure_ascii=False))
     if not report.passed:
         raise SystemExit(1)
+
+
+def cmd_adapter_certify(args: argparse.Namespace) -> None:
+    bundle = build_adapter_certification_bundle(
+        args.kind,
+        adapter_version=args.adapter_version,
+        package_name=args.package_name,
+    ).to_dict()
+    if args.out:
+        path = Path(args.out)
+        path.write_text(json.dumps(bundle, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+        print(json.dumps({"kind": args.kind, "certification_bundle": str(path)}, indent=2, ensure_ascii=False))
+        return
+    print(json.dumps(bundle, indent=2, ensure_ascii=False))
 
 
 def cmd_worker_run(args: argparse.Namespace) -> None:
@@ -826,6 +841,12 @@ def build_parser() -> argparse.ArgumentParser:
         default="python-function",
     )
     adapter_conf.set_defaults(func=cmd_adapter_conformance)
+    adapter_cert = adapter_sub.add_parser("certify")
+    adapter_cert.add_argument("--kind", choices=supported_adapter_certification_profiles(), required=True)
+    adapter_cert.add_argument("--adapter-version", default="0.0.0-local")
+    adapter_cert.add_argument("--package-name", help="override the package name recorded in the certification bundle")
+    adapter_cert.add_argument("--out", help="write the certification bundle to a JSON file")
+    adapter_cert.set_defaults(func=cmd_adapter_certify)
 
     state = sub.add_parser("state")
     state_sub = state.add_subparsers(dest="state_cmd", required=True)

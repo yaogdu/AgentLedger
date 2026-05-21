@@ -27,9 +27,9 @@ Execution backend 定位见 `EXECUTION_BACKENDS.md`：Temporal、Ray、Kubernete
 
 Adapter 优先级见 `ADAPTER_ROADMAP.md`：生态成熟且边界能保持 AgentLedger invariant 时进入官方 adapter；否则保持 experimental 或 community-owned。
 
-## v1.0.5 - Policy Engine Contract Upgrade
+## v1.1.0 - Adapter Certification And Reliability Gate Upgrade
 
-状态：已在 Python reference runtime-core 中作为向后兼容的 policy contract upgrade 实现。
+状态：已在 Python reference runtime-core 中作为向后兼容的 policy、adapter certification 和 evidence regression upgrade 实现。
 
 目标：
 
@@ -38,6 +38,8 @@ Adapter 优先级见 `ADAPTER_ROADMAP.md`：生态成熟且边界能保持 Agent
 当前仍以 ToolGateway 作为主要 enforcement point
 保留简单 YAML/JSON role-capability policy
 为未来 model、memory、output、media、sub-agent、multi-agent gate 预留结构
+把官方 adapter 的期望沉淀为机器可读 certification bundle
+让 evidence regression 输出更适合 CI 和 release gate 消费
 避免 runtime-core 变成 OPA、Cedar、DLP、eval 或治理后台
 ```
 
@@ -53,6 +55,10 @@ PolicyEngine.check_tool(...) 保持兼容
 为 child-agent/delegation context 预留 contract，但不实现 sub-agent execution
 兼容 media/stream resource contract，但不实现 media processing adapters
 Policy Engine 文档和 SVG 图
+agentledger adapter certify 官方 adapter certification bundle
+Postgres / S3 / MCP / Docker / OTEL / LangGraph / Temporal 内置 certification profile
+依赖真实基础设施的 adapter path 明确标记 production_validation.status=external-required
+evidence-regression metadata summary：failed checks、changed dimensions、changed counts、bundle-hash status、cost delta
 ```
 
 本版本明确不做：
@@ -63,6 +69,7 @@ prompt injection、PII、DLP 或 LLM safety providers
 policy management UI 或多租户治理服务
 sub-agent/multi-agent spawn/join runtime semantics
 完整 media processing adapters
+没有真实服务凭证、并发/负载检查、restore 或 rollback drill 时，不声明 P2 类 production hardening 完成
 ```
 
 ## v1.0 Stable Runtime-Core Baseline
@@ -87,6 +94,7 @@ sub-agent/multi-agent spawn/join runtime semantics
 LangGraph dependency-free facade
 LangChain / CrewAI / AutoGen / OpenAI Agents SDK / LlamaIndex / Semantic Kernel method facades
 adapter conformance fixtures
+official adapter profile certification bundles
 debug timeline / state diff / static HTML export
 plain Python / LangGraph / MCP / sandbox examples
 runtime-boundary lint and JSON rule packs
@@ -137,6 +145,12 @@ actual compaction/snapshot job that preserves replay guarantees
 ```text
 让 prompt / workflow / runtime 变更可测试
 把 evidence 变成外部和本地检查的 regression input
+```
+
+当前 v1.1.0 local reliability path 已实现：
+
+```text
+evidence-regression machine-readable summary：failed checks、changed dimensions、changed counts、bundle-hash status、cost deltas
 ```
 
 方向：

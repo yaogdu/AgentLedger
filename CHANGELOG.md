@@ -8,6 +8,18 @@ This project follows semantic versioning for the stable runtime-core contract. O
 
 No unreleased changes yet.
 
+## 1.1.0
+
+### Added
+
+- Adapter certification bundles through `agentledger adapter certify`, covering package metadata, conformance commands, smoke commands, external service requirements, security assumptions, known limitations, and explicit production validation status.
+- Evidence regression summaries with failed checks, changed dimensions, changed counts, bundle-hash status, and cost deltas for CI/release-gate consumers.
+
+### Clarified
+
+- P2-style production hardening still requires real Postgres/S3/sandbox/worker/OTLP environments, load/concurrency checks, and restore or rollback drills; local certification bundles mark those checks as `external-required` instead of pretending they are complete.
+- This release completes the local, dependency-free P1/P3 gate slice. Exact optional adapter packages, framework-native smoke fixtures, production adapter hardening, and richer reliability harness workflows remain tracked in the roadmap.
+
 ## 1.0.5
 
 ### Added

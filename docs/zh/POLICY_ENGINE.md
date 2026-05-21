@@ -2,7 +2,7 @@
 
 [English](../POLICY_ENGINE.md) | [中文](POLICY_ENGINE.md)
 
-AgentLedger `1.0.5` 把 policy 设计成 runtime control loop，而不是简单的 boolean 权限判断。Runtime Gate 在动作执行前拦截 action，把统一的 `PolicyRequest` 交给 Policy Engine，拿到 `PolicyDecision` 后，再在原 Gate 落地执行控制。
+AgentLedger `1.1.0` 把 policy 设计成 runtime control loop，而不是简单的 boolean 权限判断。Runtime Gate 在动作执行前拦截 action，把统一的 `PolicyRequest` 交给 Policy Engine，拿到 `PolicyDecision` 后，再在原 Gate 落地执行控制。
 
 ## 控制闭环
 
@@ -95,7 +95,7 @@ allowed, reason = policy.check_tool("ExecutorAgent", "github.create_issue", "med
 
 ## Sub-agent、Multi-agent 与 Media 边界
 
-`1.0.5` 不实现 sub-agent / multi-agent execution，只为后续 child-run runtime 预留 policy 字段：
+`1.1.0` 不实现 sub-agent / multi-agent execution，只为后续 child-run runtime 预留 policy 字段：
 
 ```text
 subject.kind = agent | sub_agent | worker | service

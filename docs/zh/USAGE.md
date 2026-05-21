@@ -236,7 +236,10 @@ PYTHONPATH=src python3 -m agentledger state conformance --backend sqlite
 PYTHONPATH=src python3 -m agentledger blob conformance --backend local
 PYTHONPATH=src python3 -m agentledger worker conformance --backend sqlite --concurrent
 PYTHONPATH=src python3 -m agentledger adapter conformance --kind langchain
+PYTHONPATH=src python3 -m agentledger adapter certify --kind postgres --adapter-version 1.1.0 --out ./postgres-certification.json
 ```
+
+`adapter certify` 会生成机器可读的 adapter certification bundle，包含 package metadata、conformance command、smoke command、required external services、security assumptions、known limitations，以及 production validation 是否仍然依赖真实基础设施。例如 Postgres/S3/Docker/Temporal 会标记为 `external-required`，直到在真实服务凭证、并发/负载、restore 或 rollback drill 下完成验证。
 
 ## 下一步读什么
 

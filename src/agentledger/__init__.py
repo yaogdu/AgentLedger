@@ -1,8 +1,9 @@
-"""AgentLedger agent runtime v1.0 stable core."""
+"""AgentLedger stable agent runtime core."""
 
-__version__ = "1.0.5"
+__version__ = "1.1.0"
 
 from .adapters import FrameworkAdapter, PythonFunctionAdapter, python_agent
+from .adapter_certification import AdapterCertificationBundle, build_adapter_certification_bundle, supported_adapter_certification_profiles
 from .adapters_frameworks import AutoGenAdapter, CrewAIAdapter, LangChainRunnableAdapter, LlamaIndexAdapter, MethodFrameworkAdapter, OpenAIAgentsSDKAdapter, SemanticKernelAdapter
 from .approval import ApprovalDecision, ApprovalRequired
 from .adapters_langgraph import LangGraphCheckpointerAdapter, LangGraphNodeAdapter
@@ -45,6 +46,7 @@ __all__ = [
     "ApprovalRequired",
     "AdversarialReviewReport",
     "AdversarialReviewRunner",
+    "AdapterCertificationBundle",
     "ArtifactLineage",
     "BackupCheck",
     "BackupReadinessChecker",
@@ -177,12 +179,14 @@ __all__ = [
     "WorkerService",
     "WorkerServiceSummary",
     "build_worker_deployment_plan",
+    "build_adapter_certification_bundle",
     "contract_json",
     "ddl_for",
     "latest_schema_version",
     "migrations_for",
     "python_agent",
     "runtime_contract",
+    "supported_adapter_certification_profiles",
     "register_media_tool_conventions",
     "tool",
     "validate_tool_schema",

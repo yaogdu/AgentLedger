@@ -171,7 +171,7 @@ Recommended license: Apache-2.0 for enterprise-friendly adoption.
 
 ## Dependency-free Policy YAML
 
-The local runtime supports a dependency-free YAML/JSON policy subset for early enterprise governance testing. In `1.0.5`, these simple policies are evaluated through the normalized `PolicyRequest` -> `PolicyDecision` contract, so the gate records effect, action tier, risk level, controls, reasons, and findings instead of only a boolean.
+The local runtime supports a dependency-free YAML/JSON policy subset for early enterprise governance testing. In `1.1.0`, these simple policies are evaluated through the normalized `PolicyRequest` -> `PolicyDecision` contract, so the gate records effect, action tier, risk level, controls, reasons, and findings instead of only a boolean.
 
 Example:
 

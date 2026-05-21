@@ -47,7 +47,7 @@ execution
 audit/evidence recording
 ```
 
-`1.0.5` 起，简单 YAML/JSON policy 也会通过 normalized decision contract 记录 effect、action_tier、risk_level、controls、reasons 和 findings。详见 `POLICY_ENGINE.md`。
+`1.1.0` 起，简单 YAML/JSON policy 也会通过 normalized decision contract 记录 effect、action_tier、risk_level、controls、reasons 和 findings。详见 `POLICY_ENGINE.md`。
 
 高风险工具应配置：
 

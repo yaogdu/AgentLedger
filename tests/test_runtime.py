@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any
 
 from agentledger.adapters import PythonFunctionAdapter, python_agent
+from agentledger.adapter_certification import build_adapter_certification_bundle
 from agentledger.adapters_frameworks import AutoGenAdapter, CrewAIAdapter, LangChainRunnableAdapter, LlamaIndexAdapter, OpenAIAgentsSDKAdapter, SemanticKernelAdapter
 from agentledger.adapters_langgraph import LangGraphCheckpointerAdapter, LangGraphNodeAdapter
 from agentledger.adapters_mcp import InMemoryMCPContextServer, InMemoryMCPToolServer, MCPContextAdapter, MCPToolAdapter
@@ -23,7 +24,7 @@ from agentledger.blobstore_s3 import S3BlobStore, S3BlobStoreConfig
 from agentledger.conformance import BlobStoreConformanceRunner, FrameworkAdapterConformanceRunner, MediaRuntimeConformanceRunner, StateStoreConformanceRunner, WorkerConformanceRunner
 from agentledger.contract import contract_json, runtime_contract
 from agentledger.approval import ApprovalRequired
-from agentledger.cli import build_parser, cmd_adapter_conformance, cmd_backup_check, cmd_blob_conformance, cmd_conformance, cmd_corpus_add, cmd_corpus_eval, cmd_corpus_list, cmd_corpus_seed, cmd_cost_report, cmd_debug, cmd_divergence, cmd_evidence, cmd_evidence_regression, cmd_failure_inject, cmd_failure_report, cmd_lint_boundary, cmd_migrate_status, cmd_migrate_up, cmd_review_checklist, cmd_state_conformance, cmd_timetravel, cmd_tools_manifest, cmd_worker_conformance, cmd_worker_plan, cmd_worker_serve, create_blob_store, create_state_store
+from agentledger.cli import build_parser, cmd_adapter_certify, cmd_adapter_conformance, cmd_backup_check, cmd_blob_conformance, cmd_conformance, cmd_corpus_add, cmd_corpus_eval, cmd_corpus_list, cmd_corpus_seed, cmd_cost_report, cmd_debug, cmd_divergence, cmd_evidence, cmd_evidence_regression, cmd_failure_inject, cmd_failure_report, cmd_lint_boundary, cmd_migrate_status, cmd_migrate_up, cmd_review_checklist, cmd_state_conformance, cmd_timetravel, cmd_tools_manifest, cmd_worker_conformance, cmd_worker_plan, cmd_worker_serve, create_blob_store, create_state_store
 from agentledger.cost import BudgetController, BudgetExceeded, BudgetLimits, CostAttributionReporter
 from agentledger.failure import FailureAttributionReporter, RetryableAgentError
 from agentledger.failure_injection import FailureInjectionSuite
@@ -173,6 +174,7 @@ class RuntimeTests(unittest.TestCase):
             ["failure", "report", "run-1"],
             ["conformance"],
             ["adapter", "conformance", "--kind", "langchain"],
+            ["adapter", "certify", "--kind", "postgres", "--adapter-version", "1.1.0"],
             ["state", "conformance", "--backend", "sqlite"],
             ["blob", "conformance", "--backend", "local"],
             ["worker", "conformance", "--backend", "sqlite", "--concurrent"],
@@ -206,7 +208,7 @@ class RuntimeTests(unittest.TestCase):
         self.assertIn("s3", project["optional-dependencies"])
         self.assertIn("Programming Language :: Python :: 3.11", project["classifiers"])
         self.assertIn("Programming Language :: Python :: 3.12", project["classifiers"])
-        self.assertEqual(project["version"], "1.0.5")
+        self.assertEqual(project["version"], "1.1.0")
 
     def test_cli_help_points_to_github_docs(self) -> None:
         stdout = io.StringIO()
@@ -532,6 +534,34 @@ class RuntimeTests(unittest.TestCase):
         self.assertTrue(payload["passed"], payload)
         self.assertEqual(payload["kind"], "semantic-kernel")
         self.assertEqual(payload["report"]["name"], "semantic-kernel-adapter")
+
+    def test_adapter_certification_bundle_marks_external_validation(self) -> None:
+        bundle = build_adapter_certification_bundle("postgres", adapter_version="1.1.0").to_dict()
+        self.assertEqual(bundle["schema"], "agentledger.adapter_certification.v1")
+        self.assertEqual(bundle["adapter"], "postgres")
+        self.assertEqual(bundle["package_name"], "agentledger-postgres")
+        self.assertEqual(bundle["agentledger_contract_version"], "1.0")
+        self.assertIn("postgres", bundle["required_external_services"])
+        self.assertTrue(bundle["production_validation"]["required"])
+        self.assertEqual(bundle["production_validation"]["status"], "external-required")
+
+        langgraph = build_adapter_certification_bundle("langgraph", adapter_version="1.1.0", package_name="custom-langgraph").to_dict()
+        self.assertEqual(langgraph["package_name"], "custom-langgraph")
+        self.assertFalse(langgraph["production_validation"]["required"])
+        self.assertEqual(langgraph["production_validation"]["status"], "local-contract-verified")
+
+    def test_cli_adapter_certify_writes_manifest(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp) / "postgres-certification.json"
+            args = type("Args", (), {"kind": "postgres", "adapter_version": "1.1.0", "package_name": None, "out": str(out)})()
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                cmd_adapter_certify(args)
+            payload = json.loads(stdout.getvalue())
+            self.assertEqual(payload["certification_bundle"], str(out))
+            bundle = json.loads(out.read_text(encoding="utf-8"))
+            self.assertEqual(bundle["adapter_version"], "1.1.0")
+            self.assertEqual(bundle["production_validation"]["status"], "external-required")
 
     def test_policy_yaml_allows_and_denies_tools(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -1411,8 +1441,14 @@ roles:
             report = EvidenceRegressionRunner().evaluate_regression(left, right, require_same_event_types=False)
             self.assertFalse(report.passed)
             self.assertFalse(next(check for check in report.checks if check.name == "final_state_regression").passed)
+            summary = report.metadata["regression_summary"]
+            self.assertEqual(summary["failed_checks"], ["final_state_regression"])
+            self.assertIn("final_state", summary["changed_dimensions"])
+            self.assertEqual(summary["changed_counts"]["final_state"], 1)
+            self.assertEqual(summary["cost_delta_usd"], 0.0)
             allowed = EvidenceRegressionRunner().evaluate_regression(left, right, require_same_final_state=False, require_same_event_types=False)
             self.assertTrue(allowed.passed)
+            self.assertEqual(allowed.metadata["regression_summary"]["failed_checks"], [])
 
     def test_cli_evidence_regression_supports_evidence_paths(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -1438,6 +1474,8 @@ roles:
             payload = json.loads(stdout.getvalue())
             self.assertTrue(payload["passed"], payload)
             self.assertIn("diff", payload["metadata"])
+            self.assertIn("regression_summary", payload["metadata"])
+            self.assertEqual(payload["metadata"]["regression_summary"]["failed_checks"], [])
 
     def test_adversarial_review_checklist_can_gate_runs(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -2100,7 +2138,7 @@ roles:
         ci = Path(".github/workflows/ci.yml").read_text(encoding="utf-8")
         parity_script = Path("scripts/check_language_parity.py").read_text(encoding="utf-8")
         self.assertIn("[English](README.md) | [中文](README.zh-CN.md)", readme)
-        self.assertIn("![Version 1.0.5 stable]", readme)
+        self.assertIn("![Version 1.1.0 stable]", readme)
         self.assertIn("python3 -m pip install agentledger-runtime", readme)
         self.assertIn("https://github.com/yaogdu/AgentLedger", readme)
         self.assertIn("docs/assets/agentledger-runtime-architecture.svg", readme)
