@@ -2,7 +2,7 @@
 
 更新日期：2026-05-18
 
-本文是 `../IMPLEMENTATION_STATUS.md` 的中文主路径版本，用来说明 Python reference runtime 已实现什么、哪些属于可选 adapter 或后续阶段、哪些不应该进入 runtime-core。
+本文是 `../IMPLEMENTATION_STATUS.md` 的中文主路径版本，用来说明 runtime-core 已实现什么、哪些属于可选 adapter 或后续阶段、哪些不应该进入 runtime-core。
 
 ## 当前基线
 
@@ -15,15 +15,15 @@ AgentLedger 1.2.0 是 stable runtime-core line，Python 是 reference implementa
 - reliability semantics 验证
 - 在明确 adapter 边界下做 production pilot 准备
 
-版本范围说明：1.2.0 完成的是 adapter packaging boundary，不是 production adapter hardening。它增加 Python adapter packages、TypeScript subpath exports 和 npm package skeleton、Go adapter subpackages、Rust adapter features/crate skeleton、中英文 adapter packaging 文档和 adapter package checks。真实服务生产级声明仍需要外部验证。
+版本范围说明：1.2.0 完成的是 adapter packaging boundary，不是 production adapter hardening。它增加 Python adapter packages、TypeScript subpath exports 和 npm adapter packages、Go adapter subpackages、Rust adapter features/crate packages、中英文 adapter packaging 文档和 adapter package checks。真实服务生产级声明仍需要外部验证。
 
 runtime-core contract 已稳定。optional production adapter、外部基础设施加固和完整 eval 系统都不属于 stable core 边界；非 Python runtime-core baseline 由共享 parity gate 验证。
 
 范围原则：runtime-core 要保持“薄但不可替代”。core 只负责那些不在 runtime boundary 内就无法可靠保证的能力；成熟的 planning、workflow、eval、observability、RAG、sandbox infrastructure 和 deployment 系统应通过 adapter 接入，或消费 evidence/replay 输出。
 
-## 当前 Python 完成边界
+## 当前完成边界
 
-对当前 1.2.x 目标来说，“stable runtime-core”指 Python reference runtime 已经可用、已文档化、已测试、可按 release gate 检查、contract 已冻结，并且 Go/TypeScript/Rust 已有 runtime-core parity gate。它也表示一方 adapter boundary 已在适合的语言生态中完成 package/import 边界。它不代表所有 optional production adapter 或外部 eval integration 都已在每种语言生产加固。
+对当前 1.2.x 目标来说，“stable runtime-core”指 Python reference runtime 已经可用、已文档化、已测试、可按 release gate 检查、contract 已冻结，并且 Go/TypeScript/Rust 已由 runtime-core parity gate 覆盖。它也表示一方 adapter boundary 已在适合的语言生态中完成 package/import 边界。它不代表所有 optional production adapter 或外部 eval integration 都已在每种语言生产加固。
 
 包含在当前完成边界内：
 

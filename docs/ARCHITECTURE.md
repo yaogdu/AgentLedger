@@ -132,9 +132,9 @@ Application tables such as users, orders, documents, or tasks remain owned by th
 
 ## Multi-language Boundary
 
-Python is the current reference implementation. It is not the protocol boundary.
+Python is the reference implementation. It is not the protocol boundary.
 
-The long-term target is native runtime-core parity across Python, Go, TypeScript, and Rust. SDK/client-only packages can help adoption, but they are not the protocol boundary and do not count as runtime-ready by themselves.
+AgentLedger targets native runtime-core parity across Python, Go, TypeScript, and Rust. SDK/client-only packages can help adoption, but they are not the protocol boundary and do not count as runtime-ready by themselves.
 
 Go, TypeScript, and Rust implementations should target:
 

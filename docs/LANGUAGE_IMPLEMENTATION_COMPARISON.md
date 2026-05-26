@@ -10,7 +10,7 @@ This document makes the cross-language boundary explicit. AgentLedger's complete
 |---|---|
 | Yes | Implemented in that language. |
 | Contract | Portable contract, facade, manifest, or injected-client adapter exists; provider-specific hardening may be external. |
-| Python-only | Implemented only for Python because the upstream framework or ecosystem is Python-first. |
+| Python-only | Implemented only for Python because the upstream framework, SDK, or current native adapter path is Python-first. |
 | N/A | Not applicable to that language or intentionally outside runtime core. |
 | Roadmap | Planned or possible later, not part of the current parity claim. |
 
@@ -83,14 +83,14 @@ These are intentionally not required to be identical across languages. They are 
 | Real-service Postgres hardening | Optional | Optional | Optional | Optional | Release/pilot validation, not current core parity. |
 | Real-service S3/MinIO hardening | Optional | Optional | Optional | Optional | Release/pilot validation, not current core parity. |
 
-## Python-Only Ecosystem Adapters
+## Ecosystem-Specific Framework Adapters
 
-These exist because the upstream agent framework is Python-first. They should not be copied into Go, TypeScript, or Rust just to make a table look symmetrical.
+These adapters follow the ecosystem where the upstream framework actually exists. They should not be copied into every language just to make a table look symmetrical.
 
 | Adapter | Python | Go | TypeScript | Rust | Why |
 |---|---:|---:|---:|---:|---|
-| LangGraphCheckpointerAdapter | Yes | N/A | N/A | N/A | LangGraph is Python ecosystem. |
-| LangGraphNodeAdapter | Yes | N/A | N/A | N/A | LangGraph is Python ecosystem. |
+| LangGraphCheckpointerAdapter | Yes | N/A | Yes | N/A | Python and TypeScript/Node have LangGraph package paths; Go/Rust use the generic framework boundary. |
+| LangGraphNodeAdapter | Yes | N/A | Yes | N/A | Python and TypeScript/Node expose facade/package boundaries; Go/Rust use generic function/method adapters. |
 | LangChainRunnableAdapter | Yes | N/A | N/A | N/A | Current built-in target is Python LangChain. |
 | CrewAIAdapter | Yes | N/A | N/A | N/A | CrewAI is Python ecosystem. |
 | AutoGenAdapter | Yes | N/A | N/A | N/A | Current built-in target is Python AutoGen. |
@@ -109,7 +109,7 @@ portable runtime-core behavior + contract + conformance + CLI/DX + examples + pa
 Complete parity does not mean:
 
 ```text
-identical provider implementations, identical cloud SDKs, or Python-only ecosystem adapters in every language
+identical provider implementations, identical cloud SDKs, or ecosystem-specific framework adapters in every language
 ```
 
 ## Directory Layout Decision

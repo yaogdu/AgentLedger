@@ -2,7 +2,7 @@
 
 This document defines the core runtime contract. Implementations may vary, but these concepts and invariants should remain stable.
 
-Python is the current v1.0 reference implementation. Rust, TypeScript, and Go implementations should target the language-neutral contract exported by `agentledger contract export` and the golden fixture at `contracts/agentledger.runtime.v1.json`.
+Python is the v1.x reference implementation. Rust, TypeScript, and Go implementations target the language-neutral contract exported by `agentledger contract export` and the golden fixture at `contracts/agentledger.runtime.v1.json`.
 
 
 ## Progressive Disclosure API

@@ -10,7 +10,7 @@
 |---|---|---|---|---|
 | Python | `pipx install agentledger-runtime` 或 `pip install agentledger-runtime` | `agentledger quickstart` | `../../examples/README.md` | PyPI package `agentledger-runtime`，CLI `agentledger` |
 | Go | 在 Go module 内执行 `go get github.com/yaogdu/AgentLedger/go@v1.2.0` | 在 repo 内执行 `cd go && go run ./examples/quickstart` | `../../go/examples/README.md` | Go module `github.com/yaogdu/AgentLedger/go`，CLI package `.../go/cmd/agentledger-go` |
-| TypeScript | npm package: `agentledger-runtime` | `node typescript/examples/quickstart/quickstart.js` | `../../typescript/examples/README.md` | npm package `agentledger-runtime`，CLI `agentledger-ts` |
+| TypeScript | `npm install agentledger-runtime` | `node typescript/examples/quickstart/quickstart.js` | `../../typescript/examples/README.md` | npm package `agentledger-runtime`，CLI `agentledger-ts` |
 | Rust | crates.io package: `agentledger-runtime` | `cargo add agentledger-runtime` 或 `cd rust && cargo run --example quickstart` | `../../rust/examples/README.md` | crate `agentledger-runtime`，binary `agentledger-rust` |
 
 ## 2. 安装或本地运行
@@ -58,7 +58,13 @@ node src/cli.js quickstart
 node examples/quickstart/quickstart.js
 ```
 
-package 发布后，使用 `typescript/README.md` 中记录的 npm package 名。
+使用已发布 npm package：
+
+```bash
+npm install agentledger-runtime
+```
+
+optional adapter packages 见 `../ADAPTER_PACKAGING.md` 和 `../../typescript/README.md`。
 
 ### Rust
 

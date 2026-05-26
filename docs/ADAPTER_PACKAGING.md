@@ -27,9 +27,9 @@ Adapter packaging is language-specific. The goal is the same across languages, b
 | Language | Mechanism in `1.2.0` | Reason |
 | --- | --- | --- |
 | Python | separate PyPI packages under `packages/` plus `agentledger-runtime[...]` extras | Python extras are the cleanest way to keep optional SDK dependencies out of core |
-| TypeScript/Node | `agentledger-runtime` subpath exports plus separate npm package skeletons under `typescript/packages/` | subpath exports are ergonomic for local use; adapter packages preserve future independent npm releases |
+| TypeScript/Node | `agentledger-runtime` subpath exports plus separate npm adapter packages under `typescript/packages/` | subpath exports are ergonomic for local use; adapter packages preserve future independent npm releases |
 | Go | importable adapter subpackages under `go/adapters/...` | Go users consume subpackages from the same module instead of extras |
-| Rust | crate features plus adapter crate skeletons under `rust/crates/` | Rust users can choose feature-gated boundaries or independent crates |
+| Rust | crate features plus adapter crate packages under `rust/crates/` | Rust users can choose feature-gated boundaries or independent crates |
 
 The portable rule is: if an adapter is unused, the core runtime API still works without importing that adapter boundary.
 
@@ -85,7 +85,7 @@ agentledger-runtime/
     agentledger-sandbox-docker/
   typescript/
     src/adapters/                        # runtime subpath exports
-    packages/                            # npm adapter package skeletons
+    packages/                            # npm adapter packages
       agentledger-postgres/
       agentledger-s3/
       agentledger-langgraph/
@@ -120,14 +120,14 @@ Each adapter package should provide:
 
 ## First Adapter Packages
 
-| Package | Owns | Expected dependency |
+| Package | Owns in `1.2.0` | Dependency status |
 | --- | --- | --- |
-| `agentledger-postgres` | `PostgresStore`, `PostgresStoreConfig`, migration/conformance helpers | `psycopg[binary]` |
-| `agentledger-s3` | `S3BlobStore`, `S3BlobStoreConfig` | `boto3` |
-| `agentledger-langgraph` | LangGraph checkpointer/node wrappers around the dependency-free facade | `langgraph` |
-| `agentledger-mcp` | real MCP client/server transport adapters around `ToolSpec` and context reads | MCP SDK |
-| `agentledger-otel` | OpenTelemetry SDK/exporter integration around AgentLedger spans | OpenTelemetry packages |
-| `agentledger-sandbox-docker` | Docker sandbox executor package and local/team recipes | Docker SDK or Docker CLI |
+| `agentledger-postgres` | `PostgresStore`, `PostgresStoreConfig`, migration/conformance helpers | Requires `psycopg[binary]`; production rollout still needs real-service drills. |
+| `agentledger-s3` | `S3BlobStore`, `S3BlobStoreConfig` | Requires `boto3`; production rollout still needs IAM/KMS/lifecycle and restore drills. |
+| `agentledger-langgraph` | LangGraph checkpointer/node wrappers around the dependency-free facade | Core facade is dependency-free; optional native SDK use belongs behind package extras or follow-up smoke matrices. |
+| `agentledger-mcp` | MCP-style tool/context mapping package boundary | Current package is dependency-light; exact MCP SDK client/server transport is a follow-up adapter hardening item. |
+| `agentledger-otel` | OTLP JSON/export package boundary around AgentLedger spans | Current package is dependency-light; hardened OpenTelemetry SDK wiring is follow-up work. |
+| `agentledger-sandbox-docker` | Docker sandbox executor package and local/team recipes | Current boundary can use Docker CLI/manifest semantics; daemon hardening, network policy, and resource validation are external. |
 
 Language fit matters. `agentledger-langgraph` is first-class for Python and TypeScript/Node because those ecosystems have LangGraph packages. Go and Rust expose a generic `framework` adapter boundary instead of pretending a native LangGraph ecosystem exists there.
 
@@ -178,7 +178,7 @@ During local monorepo development, tests may install packages from `packages/*` 
 
 ## Release Gates
 
-The `1.2.0` packaging release should pass:
+The `1.2.0` packaging release is expected to pass:
 
 ```bash
 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m unittest discover -s tests -q

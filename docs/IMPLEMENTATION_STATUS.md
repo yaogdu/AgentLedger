@@ -2,7 +2,7 @@
 
 Updated: 2026-05-18
 
-This document tracks what is implemented in the Python reference runtime, what remains planned, and what should stay outside runtime-core.
+This document tracks what is implemented in runtime-core, what remains planned for optional adapters, and what should stay outside runtime-core.
 
 ## Current Baseline
 
@@ -15,15 +15,15 @@ AgentLedger 1.2.0 is a stable runtime-core line with Python as the reference imp
 - reliability semantics validation
 - production pilot preparation with explicit adapter boundaries
 
-Release-scope note: 1.2.0 completes adapter packaging boundaries, not production adapter hardening. It adds Python adapter packages, TypeScript subpath exports and npm package skeletons, Go adapter subpackages, Rust adapter features/crate skeletons, bilingual adapter packaging docs, and adapter package checks. Real-service production claims still require external validation.
+Release-scope note: 1.2.0 completes adapter packaging boundaries, not production adapter hardening. It adds Python adapter packages, TypeScript subpath exports and npm adapter packages, Go adapter subpackages, Rust adapter features/crate packages, bilingual adapter packaging docs, and adapter package checks. Real-service production claims still require external validation.
 
 The runtime-core contract is stable. Optional production adapters, external infrastructure hardening, and full eval systems remain outside the stable core boundary; non-Python runtime-core baselines are verified by the shared parity gates.
 
 Scope rule: runtime-core should stay thin but indispensable. It should own only guarantees that cannot be enforced outside the runtime boundary; mature planning, workflow, eval, observability, RAG, sandbox infrastructure, and deployment systems should integrate through adapters or consume evidence/replay outputs.
 
-## Current Python Completion Boundary
+## Current Completion Boundary
 
-For the current 1.2.x goal, "stable runtime-core" means the Python reference runtime is usable, documented, tested, release-gated, contract-frozen, and covered by Go/TypeScript/Rust runtime-core parity gates. It also means first-party adapter boundaries are packaged or importable in each ecosystem where they fit. It does not mean every optional production adapter or external eval integration is production-hardened in every language.
+For the current 1.2.x goal, "stable runtime-core" means the Python reference runtime is usable, documented, tested, release-gated, and contract-frozen, with Go/TypeScript/Rust covered by runtime-core parity gates. It also means first-party adapter boundaries are packaged or importable in each ecosystem where they fit. It does not mean every optional production adapter or external eval integration is production-hardened in every language.
 
 Included in this boundary:
 

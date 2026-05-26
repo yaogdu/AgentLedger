@@ -10,7 +10,7 @@
 |---|---|
 | Yes | 该语言已实现。 |
 | Contract | 有跨语言 contract、facade、manifest 或 injected-client adapter；真实 provider hardening 可在外部完成。 |
-| Python-only | 只在 Python 实现，因为上游框架或生态主要是 Python。 |
+| Python-only | 只在 Python 实现，因为上游框架、SDK 或当前 native adapter path 主要是 Python。 |
 | N/A | 对该语言不适用，或有意不放入 runtime core。 |
 | Roadmap | 后续可做，但不属于当前 parity claim。 |
 
@@ -83,14 +83,14 @@
 | Real-service Postgres hardening | Optional | Optional | Optional | Optional | release/pilot 验证，不属于当前 core parity。 |
 | Real-service S3/MinIO hardening | Optional | Optional | Optional | Optional | release/pilot 验证，不属于当前 core parity。 |
 
-## Python-only 生态 Adapter
+## 生态特定 Framework Adapter
 
-这些 adapter 存在是因为上游 agent framework 主要是 Python 生态。不应该为了表格对称而强行复制到 Go、TypeScript 或 Rust。
+这些 adapter 跟随上游框架真实存在的语言生态。不应该为了表格对称而强行复制到所有语言。
 
 | Adapter | Python | Go | TypeScript | Rust | 原因 |
 |---|---:|---:|---:|---:|---|
-| LangGraphCheckpointerAdapter | Yes | N/A | N/A | N/A | LangGraph 是 Python 生态。 |
-| LangGraphNodeAdapter | Yes | N/A | N/A | N/A | LangGraph 是 Python 生态。 |
+| LangGraphCheckpointerAdapter | Yes | N/A | Yes | N/A | Python 和 TypeScript/Node 有 LangGraph package path；Go/Rust 使用通用 framework boundary。 |
+| LangGraphNodeAdapter | Yes | N/A | Yes | N/A | Python 和 TypeScript/Node 暴露 facade/package boundary；Go/Rust 使用通用 function/method adapter。 |
 | LangChainRunnableAdapter | Yes | N/A | N/A | N/A | 当前内置目标是 Python LangChain。 |
 | CrewAIAdapter | Yes | N/A | N/A | N/A | CrewAI 是 Python 生态。 |
 | AutoGenAdapter | Yes | N/A | N/A | N/A | 当前内置目标是 Python AutoGen。 |
@@ -109,7 +109,7 @@ portable runtime-core behavior + contract + conformance + CLI/DX + examples + pa
 不是：
 
 ```text
-每种语言都有完全相同的 provider implementation、cloud SDK、Python-only ecosystem adapter
+每种语言都有完全相同的 provider implementation、cloud SDK、ecosystem-specific framework adapter
 ```
 
 ## 目录结构决策

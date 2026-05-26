@@ -44,10 +44,10 @@ Adapter 优先级见 `ADAPTER_ROADMAP.md`：生态成熟且边界能保持 Agent
 已实现：
 
 - 创建 `packages/` workspace，承载官方 Python adapter packages
-- 增加第一批 Python adapter package skeleton：`agentledger-postgres`、`agentledger-s3`、`agentledger-langgraph`、`agentledger-mcp`、`agentledger-otel`、`agentledger-sandbox-docker`
-- 增加 TypeScript subpath exports，以及 `typescript/packages/` 下的 npm adapter package skeleton
+- 增加第一批 Python adapter packages：`agentledger-postgres`、`agentledger-s3`、`agentledger-langgraph`、`agentledger-mcp`、`agentledger-otel`、`agentledger-sandbox-docker`
+- 增加 TypeScript subpath exports，以及 `typescript/packages/` 下的 npm adapter packages
 - 增加 Go adapter import subpackages：`go/adapters/`
-- 增加 Rust adapter features 与 `rust/crates/` 下的 crate skeleton
+- 增加 Rust adapter features 与 `rust/crates/` 下的 crate packages
 - 给 core 增加 extras，用户不用记独立包名也能安装能力：
   - `agentledger-runtime[postgres]`
   - `agentledger-runtime[s3]`

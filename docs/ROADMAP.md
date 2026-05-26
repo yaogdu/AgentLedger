@@ -44,10 +44,10 @@ avoid turning runtime-core into a bundle of optional integrations
 Implemented:
 
 - created a `packages/` workspace for official Python adapter packages
-- added the first Python adapter package skeletons: `agentledger-postgres`, `agentledger-s3`, `agentledger-langgraph`, `agentledger-mcp`, `agentledger-otel`, and `agentledger-sandbox-docker`
-- added TypeScript subpath exports and npm adapter package skeletons under `typescript/packages/`
+- added the first Python adapter packages: `agentledger-postgres`, `agentledger-s3`, `agentledger-langgraph`, `agentledger-mcp`, `agentledger-otel`, and `agentledger-sandbox-docker`
+- added TypeScript subpath exports and npm adapter packages under `typescript/packages/`
 - added Go adapter import subpackages under `go/adapters/`
-- added Rust adapter features and crate skeletons under `rust/crates/`
+- added Rust adapter features and crate packages under `rust/crates/`
 - added core extras so users can install capabilities without memorizing package names:
   - `agentledger-runtime[postgres]`
   - `agentledger-runtime[s3]`

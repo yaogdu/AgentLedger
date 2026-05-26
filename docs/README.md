@@ -23,7 +23,7 @@ This directory is the canonical documentation set for AgentLedger. English docs 
 | Read design and implementation notes | `DESIGN_AND_IMPLEMENTATION.md` | `zh/DESIGN_AND_IMPLEMENTATION.md` |
 | Check current status | `IMPLEMENTATION_STATUS.md` | `zh/IMPLEMENTATION_STATUS.md` |
 | Prepare a release | `RELEASE_CHECKLIST.md` | `zh/RELEASE_CHECKLIST.md` |
-| Understand multi-language parity | `MULTI_LANGUAGE.md`, `LANGUAGE_PARITY_MATRIX.md`, `LANGUAGE_IMPLEMENTATION_COMPARISON.md` | `MULTI_LANGUAGE.md`, `zh/LANGUAGE_PARITY_MATRIX.md`, `zh/LANGUAGE_IMPLEMENTATION_COMPARISON.md` |
+| Understand multi-language parity | `LANGUAGE_IMPLEMENTATION_COMPARISON.md`, `LANGUAGE_PARITY_MATRIX.md`, `MULTI_LANGUAGE.md` | `zh/LANGUAGE_IMPLEMENTATION_COMPARISON.md`, `zh/LANGUAGE_PARITY_MATRIX.md`, `MULTI_LANGUAGE.md` |
 | Understand execution backends | `EXECUTION_BACKENDS.md` | `zh/EXECUTION_BACKENDS.md` |
 
 ## Recommended Reader Paths
@@ -68,7 +68,7 @@ This directory is the canonical documentation set for AgentLedger. English docs 
 - `MULTI_LANGUAGE.md`: contract-first plan for Python, Go, TypeScript, and Rust native runtime parity.
 - `GETTING_STARTED.md`: install commands, language choices, example map, and first validation commands.
 - `LANGUAGE_PARITY_MATRIX.md`: capability matrix and runtime-ready gates for each language.
-- `LANGUAGE_IMPLEMENTATION_COMPARISON.md`: side-by-side four-language implementation table, including core parity, portable adapters, provider differences, Python-only ecosystem adapters, and directory-layout decisions.
+- `LANGUAGE_IMPLEMENTATION_COMPARISON.md`: side-by-side four-language implementation table, including core parity, portable adapters, provider differences, ecosystem-specific framework adapters, and directory-layout decisions.
 
 ## Project Policy
 
@@ -94,3 +94,15 @@ It is embedded by `ARCHITECTURE.md` and `zh/ARCHITECTURE.md`.
 Run `python3.11 scripts/check_language_parity.py` from the repository root to execute the Python reference tests plus Go, TypeScript, Rust, contract diff, Markdown link, and whitespace checks. The runner reads `contracts/conformance/runtime_semantics.v1.json` as the required semantic-check manifest.
 
 - [`LANGUAGE_PARITY_AUDIT.md`](LANGUAGE_PARITY_AUDIT.md) - completion audit for Python vs Go/TypeScript/Rust parity claims.
+
+## Documentation Shape
+
+The current docs are intentionally split by reader task rather than merged into one large manual:
+
+- `README.md` / `README.zh-CN.md` are the project front doors.
+- `GETTING_STARTED.md` and `LANGUAGE_QUICKSTART.md` are the user path.
+- `ARCHITECTURE.md`, `DESIGN_AND_IMPLEMENTATION.md`, and `RUNTIME_SPEC.md` are the design path.
+- `IMPLEMENTATION_STATUS.md`, `MATURITY_MODEL.md`, and `LANGUAGE_IMPLEMENTATION_COMPARISON.md` are the source of truth for what is stable, parity-level, preview, optional, or out of scope.
+- `ADAPTER_PACKAGING.md`, `ADAPTER_CERTIFICATION.md`, and `ADAPTER_ROADMAP.md` are the adapter author path.
+
+Avoid duplicating detailed capability matrices in new documents. Link to the status/comparison docs instead, and keep README-level text short.

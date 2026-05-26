@@ -14,7 +14,7 @@ AgentLedger `1.2.0` is an agent execution safety, evidence, and reliability laye
 
 Most agent frameworks focus on planning, reasoning, and workflow logic. AgentLedger sits underneath or beside LangChain, LangGraph, CrewAI, AutoGen, OpenAI Agents SDK, LlamaIndex, Semantic Kernel, or custom agents to provide runtime guarantees around state, tools, evidence, replay, and recovery.
 
-Python is the current reference implementation. The long-term target is native runtime-core parity across Go, TypeScript, Rust, and Python, all aligned to the same language-neutral runtime contract. See `docs/LANGUAGE_IMPLEMENTATION_COMPARISON.md` for the exact four-language implementation comparison and adapter boundary.
+Python remains the reference implementation, and Go, TypeScript, and Rust now have native runtime-core baselines aligned to the same language-neutral runtime contract. Provider-specific drivers and framework-native adapters intentionally vary by ecosystem. See `docs/LANGUAGE_IMPLEMENTATION_COMPARISON.md` for the exact four-language comparison and adapter boundary.
 
 ## Start Here
 
@@ -32,7 +32,7 @@ Python is the current reference implementation. The long-term target is native r
 
 | Question | Answer |
 | --- | --- |
-| What is stable? | Python v1.0 runtime-core: local durable execution, Tool Ledger, evidence/replay, policy/approval/sandbox boundaries, cost/failure reports, worker/conformance, and the runtime contract. |
+| What is stable? | The v1.x runtime-core contract: durable execution, Tool Ledger, evidence/replay, policy/approval/sandbox boundaries, cost/failure reports, worker/conformance, and Python reference implementation with Go/TypeScript/Rust runtime-core parity gates. |
 | What is optional? | Postgres, S3/MinIO, framework-native packages, OTLP collector transport, sandbox infrastructure, distributed deployment recipes, and real-service hardening. |
 | What is experimental? | Some concrete provider adapters, media/stream processing adapters, and real-service hardening paths. Go/TypeScript/Rust runtime-core baselines are native implementations covered by shared conformance. |
 | What is not in core? | Planning engines, full eval systems, RAG/vector memory, trace stores, hosted application products, and hosted sandbox infrastructure. |
@@ -252,7 +252,7 @@ AgentLedger is also not a new LLM SDK, not a workflow engine, not a general obse
 
 ## Current maturity
 
-AgentLedger 1.2.0 is a stable runtime-core release with Python reference parity gates for Go, TypeScript, and Rust. It is suitable for local use, framework adapter integration, reliability semantics validation, and production pilot preparation with explicit adapter boundaries.
+AgentLedger 1.2.0 is a stable runtime-core release with Python as the reference implementation and Go, TypeScript, and Rust covered by shared runtime-core parity gates. It is suitable for local use, framework adapter integration, reliability semantics validation, and production pilot preparation with explicit adapter boundaries.
 
 The runtime-core contract is stable; optional production adapters and external infrastructure hardening remain separately tracked. See [docs/MATURITY_MODEL.md](docs/MATURITY_MODEL.md), [docs/IMPLEMENTATION_STATUS.md](docs/IMPLEMENTATION_STATUS.md), and [docs/ROADMAP.md](docs/ROADMAP.md).
 

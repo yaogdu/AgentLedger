@@ -14,7 +14,7 @@ AgentLedger `1.2.0` 是一个面向 AI Agent 的 agent execution safety、eviden
 
 大多数 Agent 框架关注 planning、reasoning 和 workflow logic。AgentLedger 放在 LangChain、LangGraph、CrewAI、AutoGen、OpenAI Agents SDK、LlamaIndex、Semantic Kernel 或自定义 Agent 的下方或旁边，提供 state、tool、evidence、replay、recovery 相关的 runtime guarantees。
 
-Python 是当前 reference implementation。长期目标是 Go、TypeScript、Rust、Python 四种语言实现 native runtime-core parity，并共同对齐同一份 language-neutral runtime contract。 四语言实现对比和 adapter 边界见 `docs/zh/LANGUAGE_IMPLEMENTATION_COMPARISON.md`。
+Python 仍然是 reference implementation；Go、TypeScript、Rust 已有 native runtime-core baseline，并对齐同一份 language-neutral runtime contract。provider-specific driver 和 framework-native adapter 会按各语言生态差异处理。四语言实现对比和 adapter 边界见 `docs/zh/LANGUAGE_IMPLEMENTATION_COMPARISON.md`。
 
 ## 从这里开始
 
@@ -33,7 +33,7 @@ Python 是当前 reference implementation。长期目标是 Go、TypeScript、Ru
 
 | 问题 | 回答 |
 | --- | --- |
-| 哪些是稳定的？ | Python v1.0 runtime-core：本地 durable execution、Tool Ledger、evidence/replay、policy/approval/sandbox boundary、cost/failure report、worker/conformance 和 runtime contract。 |
+| 哪些是稳定的？ | v1.x runtime-core contract：durable execution、Tool Ledger、evidence/replay、policy/approval/sandbox boundary、cost/failure report、worker/conformance，以及 Python reference implementation 和 Go/TypeScript/Rust runtime-core parity gate。 |
 | 哪些是可选的？ | Postgres、S3/MinIO、framework-native package、OTLP collector transport、sandbox infrastructure、distributed deployment recipe 和真实服务 hardening。 |
 | 哪些是 experimental？ | 部分具体 provider adapter、media/stream processing adapter 和真实服务 hardening path。Go/TypeScript/Rust runtime-core baseline 是 native implementation，并由共享 conformance 覆盖。 |
 | 哪些不属于 core？ | Planning engine、完整 eval 系统、RAG/vector memory、trace store、托管应用产品和托管 sandbox infrastructure。 |
@@ -253,7 +253,7 @@ AgentLedger 也不是新的 LLM SDK，不是 workflow engine，不是通用 obse
 
 ## 当前成熟度
 
-AgentLedger 1.2.0 现在是 stable runtime-core release，并已建立 Go、TypeScript、Rust 对 Python reference 的 runtime-core parity gate，适合本地使用、framework adapter integration、reliability semantics 验证，以及在明确 adapter 边界下做 production pilot 准备。
+AgentLedger 1.2.0 是 stable runtime-core release，Python 是 reference implementation，Go、TypeScript、Rust 已由共享 runtime-core parity gate 覆盖；适合本地使用、framework adapter integration、reliability semantics 验证，以及在明确 adapter 边界下做 production pilot 准备。
 
 runtime-core contract 已稳定；optional production adapter 和外部基础设施加固仍按独立阶段推进。详见 [docs/MATURITY_MODEL.md](docs/MATURITY_MODEL.md)、[docs/zh/IMPLEMENTATION_STATUS.md](docs/zh/IMPLEMENTATION_STATUS.md) 和 [docs/zh/ROADMAP.md](docs/zh/ROADMAP.md)。
 
