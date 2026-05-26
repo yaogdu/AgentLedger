@@ -33,7 +33,7 @@ def main() -> None:
 
     cli_commands = [
         ("python-help", [PY, "-m", "agentledger", "--help"], ROOT),
-        ("python-doctor", [PY, "-m", "agentledger", "doctor"], ROOT),
+        ("python-doctor", [PY, "-m", "agentledger", "--root", "/tmp/agentledger-complete-core-doctor", "doctor"], ROOT),
         ("go-help", ["go", "run", "./cmd/agentledger-go", "--help"], ROOT / "go"),
         ("go-doctor", ["go", "run", "./cmd/agentledger-go", "doctor"], ROOT / "go"),
         ("go-quickstart", ["go", "run", "./cmd/agentledger-go", "quickstart"], ROOT / "go"),
@@ -67,8 +67,9 @@ def main() -> None:
         "rust_version": next(line.split("=", 1)[1].strip().strip('"') for line in (ROOT / "rust" / "Cargo.toml").read_text().splitlines() if line.startswith("version")),
         "python_version": next(line.split("=", 1)[1].strip().strip('"') for line in (ROOT / "pyproject.toml").read_text().splitlines() if line.startswith("version")),
     }
-    version_ok = metadata == {"typescript_version": "1.0.5", "rust_version": "1.0.5", "python_version": "1.0.5"}
-    checks.append({"name": "package-version-alignment", "ok": version_ok, "metadata": metadata})
+    expected_version = metadata["python_version"]
+    version_ok = metadata == {"typescript_version": expected_version, "rust_version": expected_version, "python_version": expected_version}
+    checks.append({"name": "package-version-alignment", "ok": version_ok, "metadata": metadata, "expected_version": expected_version})
 
     docs = [
         ROOT / "docs" / "COMPLETE_CORE_PARITY_CHECKLIST.md",

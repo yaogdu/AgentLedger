@@ -47,6 +47,7 @@ rce
 # Rust build outputs.
 target/
 **/target/
+rust/crates/*/Cargo.lock
 # Local transient files
 *.tmp
 *.log
@@ -59,4 +60,3 @@ target/
 .coverage.*
 htmlcov/
 .ipynb_checkpoints/
-

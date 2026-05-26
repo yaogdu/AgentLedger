@@ -32,7 +32,7 @@ This directory is the canonical documentation set for AgentLedger. English docs 
 |---|---|
 | New user | `GETTING_STARTED.md` -> `LANGUAGE_QUICKSTART.md` -> `../examples/README.md` -> language example README |
 | Runtime implementer | `ARCHITECTURE.md` -> `COMPARISONS.md` -> `DESIGN_AND_IMPLEMENTATION.md` -> `RUNTIME_SPEC.md` -> `../contracts/agentledger.runtime.v1.json` |
-| Adapter author | `EXTENSIBILITY.md` -> `ADAPTER_CERTIFICATION.md` -> relevant example under `../examples/` -> conformance commands |
+| Adapter author | `EXTENSIBILITY.md` -> `ADAPTER_PACKAGING.md` -> `ADAPTER_CERTIFICATION.md` -> relevant example under `../examples/` -> conformance commands |
 | Production pilot reviewer | `IMPLEMENTATION_STATUS.md` -> `MATURITY_MODEL.md` -> `SECURITY_ENTERPRISE.md` -> `STORAGE.md` -> `RELEASE_CHECKLIST.md` |
 | Future language implementer | `MULTI_LANGUAGE.md` -> `LANGUAGE_PARITY_MATRIX.md` -> `RUNTIME_SPEC.md` -> `../contracts/agentledger.runtime.v1.json` -> `../contracts/conformance/runtime_semantics.v1.json` -> `../contracts/conformance/runtime_baseline.v1.json` -> language README -> conformance fixtures |
 
@@ -44,6 +44,7 @@ This directory is the canonical documentation set for AgentLedger. English docs 
 - `POLICY_ENGINE.md`: policy request/decision contract, PEP/PDP split, evaluator registry, controls, and adapter boundary.
 - `RUNTIME_SPEC.md`: runtime concepts, state model, event schema, Tool Ledger semantics, evidence regression/replay/debug interfaces.
 - `EXTENSIBILITY.md`: adapter model for storage, tools, frameworks, protocols, observability, media, and sandbox.
+- `ADAPTER_PACKAGING.md`: optional adapter package layout, extras install model, compatibility shim strategy, and 1.2.0 packaging release gates.
 - `STORAGE.md`: runtime metadata schema, migrations, StateStore and BlobStore extension contract.
 - `ADAPTER_CERTIFICATION.md`: compatibility checklist for storage, blob, framework, tool, sandbox, media/stream, and observability adapters.
 - `EXECUTION_BACKENDS.md`: Temporal/Ray/Kubernetes positioning and scheduler adapter boundary.

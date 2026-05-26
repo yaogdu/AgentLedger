@@ -174,7 +174,7 @@ class RuntimeTests(unittest.TestCase):
             ["failure", "report", "run-1"],
             ["conformance"],
             ["adapter", "conformance", "--kind", "langchain"],
-            ["adapter", "certify", "--kind", "postgres", "--adapter-version", "1.1.0"],
+            ["adapter", "certify", "--kind", "postgres", "--adapter-version", "1.2.0"],
             ["state", "conformance", "--backend", "sqlite"],
             ["blob", "conformance", "--backend", "local"],
             ["worker", "conformance", "--backend", "sqlite", "--concurrent"],
@@ -208,7 +208,7 @@ class RuntimeTests(unittest.TestCase):
         self.assertIn("s3", project["optional-dependencies"])
         self.assertIn("Programming Language :: Python :: 3.11", project["classifiers"])
         self.assertIn("Programming Language :: Python :: 3.12", project["classifiers"])
-        self.assertEqual(project["version"], "1.1.0")
+        self.assertEqual(project["version"], "1.2.0")
 
     def test_cli_help_points_to_github_docs(self) -> None:
         stdout = io.StringIO()
@@ -536,7 +536,7 @@ class RuntimeTests(unittest.TestCase):
         self.assertEqual(payload["report"]["name"], "semantic-kernel-adapter")
 
     def test_adapter_certification_bundle_marks_external_validation(self) -> None:
-        bundle = build_adapter_certification_bundle("postgres", adapter_version="1.1.0").to_dict()
+        bundle = build_adapter_certification_bundle("postgres", adapter_version="1.2.0").to_dict()
         self.assertEqual(bundle["schema"], "agentledger.adapter_certification.v1")
         self.assertEqual(bundle["adapter"], "postgres")
         self.assertEqual(bundle["package_name"], "agentledger-postgres")
@@ -545,7 +545,7 @@ class RuntimeTests(unittest.TestCase):
         self.assertTrue(bundle["production_validation"]["required"])
         self.assertEqual(bundle["production_validation"]["status"], "external-required")
 
-        langgraph = build_adapter_certification_bundle("langgraph", adapter_version="1.1.0", package_name="custom-langgraph").to_dict()
+        langgraph = build_adapter_certification_bundle("langgraph", adapter_version="1.2.0", package_name="custom-langgraph").to_dict()
         self.assertEqual(langgraph["package_name"], "custom-langgraph")
         self.assertFalse(langgraph["production_validation"]["required"])
         self.assertEqual(langgraph["production_validation"]["status"], "local-contract-verified")
@@ -553,14 +553,14 @@ class RuntimeTests(unittest.TestCase):
     def test_cli_adapter_certify_writes_manifest(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             out = Path(tmp) / "postgres-certification.json"
-            args = type("Args", (), {"kind": "postgres", "adapter_version": "1.1.0", "package_name": None, "out": str(out)})()
+            args = type("Args", (), {"kind": "postgres", "adapter_version": "1.2.0", "package_name": None, "out": str(out)})()
             stdout = io.StringIO()
             with contextlib.redirect_stdout(stdout):
                 cmd_adapter_certify(args)
             payload = json.loads(stdout.getvalue())
             self.assertEqual(payload["certification_bundle"], str(out))
             bundle = json.loads(out.read_text(encoding="utf-8"))
-            self.assertEqual(bundle["adapter_version"], "1.1.0")
+            self.assertEqual(bundle["adapter_version"], "1.2.0")
             self.assertEqual(bundle["production_validation"]["status"], "external-required")
 
     def test_policy_yaml_allows_and_denies_tools(self) -> None:
@@ -2138,7 +2138,7 @@ roles:
         ci = Path(".github/workflows/ci.yml").read_text(encoding="utf-8")
         parity_script = Path("scripts/check_language_parity.py").read_text(encoding="utf-8")
         self.assertIn("[English](README.md) | [中文](README.zh-CN.md)", readme)
-        self.assertIn("![Version 1.1.0 stable]", readme)
+        self.assertIn("![Version 1.2.0 stable]", readme)
         self.assertIn("python3 -m pip install agentledger-runtime", readme)
         self.assertIn("https://github.com/yaogdu/AgentLedger", readme)
         self.assertIn("docs/assets/agentledger-runtime-architecture.svg", readme)

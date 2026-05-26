@@ -1,0 +1,21 @@
+# agentledger-sandbox-docker
+
+Docker sandbox adapter package for AgentLedger.
+
+```bash
+pip install agentledger-sandbox-docker
+pip install "agentledger-runtime[docker]"
+```
+
+```python
+from agentledger_sandbox_docker import DockerSandboxExecutor, SandboxPolicy
+```
+
+This package uses the Docker CLI boundary already defined by runtime-core. It requires Docker to be installed and command execution to be explicitly enabled in sandbox config.
+
+Certification:
+
+```bash
+python3 -m agentledger adapter certify --kind docker --adapter-version 1.2.0
+```
+

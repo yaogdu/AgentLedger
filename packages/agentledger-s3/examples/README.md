@@ -1,0 +1,12 @@
+# Examples
+
+Use environment configuration:
+
+```bash
+export AGENTLEDGER_S3_BUCKET="agentledger"
+export AGENTLEDGER_S3_PREFIX="agentledger/blobs"
+export AGENTLEDGER_S3_ENDPOINT_URL="http://localhost:9000"
+```
+
+Then pass `S3BlobStore(...)` anywhere a blob store is accepted.
+

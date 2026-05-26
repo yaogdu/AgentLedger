@@ -6,7 +6,7 @@ This document tracks what is implemented in the Python reference runtime, what r
 
 ## Current Baseline
 
-AgentLedger 1.1.x is a stable runtime-core line with Python as the reference implementation and Go/TypeScript/Rust covered by shared runtime-core parity gates. The 1.1.0 line adds the normalized Policy Engine decision contract, adapter certification bundles, and richer evidence regression summaries while keeping selected preview/experimental concrete adapter paths explicit. It is suitable for:
+AgentLedger 1.2.0 is a stable runtime-core line with Python as the reference implementation and Go/TypeScript/Rust covered by shared runtime-core parity gates. The 1.2.0 release adds adapter packaging boundaries across the supported language ecosystems while keeping selected preview/experimental concrete adapter paths explicit. It is suitable for:
 
 - local use
 - runtime design review
@@ -15,7 +15,7 @@ AgentLedger 1.1.x is a stable runtime-core line with Python as the reference imp
 - reliability semantics validation
 - production pilot preparation with explicit adapter boundaries
 
-Release-scope note: 1.1.0 completes the local, dependency-free P1/P3 gate slice: official adapter certification manifests and machine-readable evidence regression summaries. It does not complete exact optional adapter packages, framework-native smoke fixtures, production adapter hardening, or the full richer reliability harness roadmap.
+Release-scope note: 1.2.0 completes adapter packaging boundaries, not production adapter hardening. It adds Python adapter packages, TypeScript subpath exports and npm package skeletons, Go adapter subpackages, Rust adapter features/crate skeletons, bilingual adapter packaging docs, and adapter package checks. Real-service production claims still require external validation.
 
 The runtime-core contract is stable. Optional production adapters, external infrastructure hardening, and full eval systems remain outside the stable core boundary; non-Python runtime-core baselines are verified by the shared parity gates.
 
@@ -23,7 +23,7 @@ Scope rule: runtime-core should stay thin but indispensable. It should own only 
 
 ## Current Python Completion Boundary
 
-For the current 1.1.x goal, "stable runtime-core" means the Python reference runtime is usable, documented, tested, release-gated, contract-frozen, and covered by Go/TypeScript/Rust runtime-core parity gates. It does not mean every optional production adapter or external eval integration is shipped in every language.
+For the current 1.2.x goal, "stable runtime-core" means the Python reference runtime is usable, documented, tested, release-gated, contract-frozen, and covered by Go/TypeScript/Rust runtime-core parity gates. It also means first-party adapter boundaries are packaged or importable in each ecosystem where they fit. It does not mean every optional production adapter or external eval integration is production-hardened in every language.
 
 Included in this boundary:
 
@@ -35,8 +35,8 @@ Included in this boundary:
 
 Excluded from this boundary:
 
-- non-Python implementations
-- exact framework-native optional packages
+- production-hardened non-Python infrastructure adapters beyond the shared runtime-core parity boundary
+- exact framework-native optional packages beyond the first `agentledger-langgraph` package boundary
 - full external eval system
 - production-hardened infrastructure adapters and rollout playbooks
 - production hardening for optional adapters beyond the v1.0 core contract
@@ -55,25 +55,25 @@ Excluded from this boundary:
 | Scheduling semantics | leases, fencing, heartbeat, cancellation, retry policy, failure taxonomy |
 | Worker loop | local worker loop, process-shaped `WorkerService`, worker conformance runner |
 | Storage contracts | `StateStoreProtocol`, `BlobStoreProtocol`, SQLite migrations, DDL export |
-| Adapter contracts | framework adapter base, LangGraph facade, MCP tool/context mapping, dependency-free method facades |
+| Adapter contracts | framework adapter base, LangGraph facade, MCP tool/context mapping, dependency-free method facades, first-party adapter package boundaries |
 | Sandbox boundary | fail-closed `none`, local executor, router, external executor contracts, Docker/bubblewrap command paths, Kubernetes dry-run/gated path |
 | Observability | trace JSONL export with media/stream spans, dependency-free OTLP JSON export, optional OTLP/JSON collector POST, evidence-linked audit records |
 | Reliability checks | failure injection suite, failure attribution report, conformance runners including media runtime conformance, runtime-boundary lint, scheduler facade, adversarial review, evidence regression for shell, HTTP, cloud, GitHub, and common model SDK bypasses with JSON rule-pack extension |
 | Media and stream contracts | `MediaArtifact`, `MediaMetadata`, `ArtifactLineage`, `StreamChunkRef`, `EventStreamCheckpoint`, `AgentContext.create_media_artifact(...)`, `AgentContext.create_stream_checkpoint(...)`, media/stream tool schema conventions, ToolGateway/Tool Ledger media tool example, evidence indexes, replay artifact validation/counts |
-| Release scaffolding | CI workflow, changelog, security policy, versioning policy, release checklist, contributor checks, bilingual documentation entrypoints, SVG architecture diagram, ResourceWarning-sensitive test gate, adapter certification checklist |
+| Release scaffolding | CI workflow, changelog, security policy, versioning policy, release checklist, contributor checks, bilingual documentation entrypoints, SVG architecture diagram, ResourceWarning-sensitive test gate, adapter certification checklist, adapter packaging docs/checks |
 
 ## Partially Implemented
 
 | Area | Implemented now | Still missing |
 |---|---|---|
-| Postgres StateStore | DDL, optional psycopg adapter, env/CLI config, migration status/apply, schema isolation, JSONB handling, injected conformance, opt-in real-service test, CI Postgres service conformance job | production rollout exercises, operational tuning, backup/restore exercise against real service |
-| S3/MinIO BlobStore | optional boto3 adapter, env/CLI config, injected conformance, CLI smoke, opt-in real-service test, CI MinIO service conformance job | IAM/KMS/lifecycle review, large object guidance, operational hardening |
-| OpenTelemetry | dependency-free OTLP JSON file export and optional OTLP/JSON collector POST | deployment recipe and hardened adapter package |
+| Postgres StateStore | DDL, optional psycopg adapter, env/CLI config, migration status/apply, schema isolation, JSONB handling, injected conformance, opt-in real-service test, CI Postgres service conformance job, `agentledger-postgres` package boundary | production rollout exercises, operational tuning, backup/restore exercise against real service |
+| S3/MinIO BlobStore | optional boto3 adapter, env/CLI config, injected conformance, CLI smoke, opt-in real-service test, CI MinIO service conformance job, `agentledger-s3` package boundary | IAM/KMS/lifecycle review, large object guidance, operational hardening |
+| OpenTelemetry | dependency-free OTLP JSON file export and optional OTLP/JSON collector POST, `agentledger-otel` package boundary | deployment recipe and hardened SDK adapter |
 | Distributed workers | local worker loop, `WorkerService`, worker conformance, Postgres `FOR UPDATE SKIP LOCKED` path, deployment guide | hardened deployment recipe, supervision examples, real-service load/concurrency validation |
-| Framework support | LangGraph facade, method facades for LangChain/CrewAI/AutoGen/OpenAI Agents SDK/LlamaIndex/Semantic Kernel, generic adapter base, dependency-free examples, adapter conformance fixtures, adapter certification bundles | exact optional packages for each framework and framework-native smoke fixtures |
+| Framework support | LangGraph facade and package boundary, method facades for LangChain/CrewAI/AutoGen/OpenAI Agents SDK/LlamaIndex/Semantic Kernel, generic adapter base, dependency-free examples, adapter conformance fixtures, adapter certification bundles | exact optional packages for every framework and framework-native smoke fixtures |
 | Tool schema/catalog DX | dependency-free schema subset validation with portable composition/constraint keywords, output validation, AgentLedger manifest export, OpenAI function-tool export | framework-specific tool package adapters and optional full JSON Schema integrations |
-| MCP support | descriptor-to-ToolSpec mapping, dependency-free tool/context server fixtures, context read tool adapter, examples | exact MCP SDK client/server integration |
-| Sandbox | contract, local/fail-closed modes, command-style Docker/bubblewrap, Kubernetes dry-run/gated execution, E2B/Firecracker slots | hardened isolation packages, secret injection policy, network policy recipes, resource limit validation |
+| MCP support | descriptor-to-ToolSpec mapping, dependency-free tool/context server fixtures, context read tool adapter, examples, `agentledger-mcp` package boundary | exact MCP SDK client/server integration |
+| Sandbox | contract, local/fail-closed modes, command-style Docker/bubblewrap, Kubernetes dry-run/gated execution, E2B/Firecracker slots, Docker sandbox package boundary | hardened isolation packages, secret injection policy, network policy recipes, resource limit validation |
 | Retention and backup checks | non-destructive retention plan with media/stream protected refs, compaction marker, and backup readiness check including media/stream nested refs | actual compaction/snapshot job that preserves replay guarantees |
 | Time travel and debug | JSON CLI timeline, state reconstruction, state diff view, `debug --json`, `--include-diffs`, `--include-states`, optional static HTML report export | richer report layout and artifact cross-links; no long-running web app in core |
 
@@ -81,10 +81,10 @@ Excluded from this boundary:
 
 These are either outside the stable Python runtime-core, implemented only as preview parity baselines, or still planned as optional production hardening:
 
-- Non-Python implementations: Go, Node/TypeScript, and Rust have dependency-free preview native runtime baselines under `go/`, `typescript/`, and `rust/`. All three execute shared runtime-core parity tests for `runtime_baseline.v1.json`, `local_persistence.v1.json`, `local_blob_store.v1.json`, `tool_schema_validation.v1.json`, `worker_service.v1.json`, `policy_approval_sandbox.v1.json`, `cost_failure_attribution.v1.json`, `media_stream_artifacts.v1.json`, `evidence_consumers.v1.json`, `static_debug_html.v1.json`, `ops_readiness.v1.json`, `storage_schema.v1.json`, `mcp_adapters.v1.json`, `framework_adapters.v1.json`, `otlp_trace_export.v1.json`, `simple_api.v1.json`, and `boundary_lint.v1.json`, `scheduler.v1.json`, `adversarial_review.v1.json`, `evidence_regression.v1.json`, `failure_injection.v1.json`, `shadow.v1.json`, `repro.v1.json`, `time_travel.v1.json`, `optional_adapters.v1.json`, covering leases, cancellation, Tool Ledger idempotency, policy denial, approval pause/resume, sandbox fail-closed behavior, cost/budget accounting, failure attribution, and media/stream artifact references, trace spans, evidence diff, divergence, debug summaries, static HTML debug export, ops readiness planning, storage schema helpers, MCP-style in-memory adapters, dependency-free framework adapters, OTLP JSON trace export, and the simple hello-world API, and Rust local snapshot persistence. `scripts/check_language_parity.py` can emit a JSON parity report, loads `contracts/conformance/runtime_semantics.v1.json` as the semantic-check authority, and now runs preview per-language conformance CLIs for Go, TypeScript, and Rust, including fixture-aligned semantic smokes for state/evidence/replay, local persistence/reopen, local blob store, tool schema validation, worker service, Tool Ledger retry, policy/approval/sandbox, cost/failure attribution, and media/stream artifact refs, trace spans, evidence diff, divergence, debug summaries, static HTML debug export, ops readiness planning, storage schema helpers, MCP-style in-memory adapters, dependency-free framework adapters, OTLP JSON trace export, and the simple hello-world API; SDK/client-only packages may appear first but will not count as runtime-ready.
+- Non-Python implementations: Go, Node/TypeScript, and Rust have native runtime-core baselines under `go/`, `typescript/`, and `rust/`, with shared conformance gates and adapter boundaries. `scripts/check_language_parity.py` emits a JSON parity report, loads `contracts/conformance/runtime_semantics.v1.json` as the semantic-check authority, and runs per-language conformance CLIs for Go, TypeScript, and Rust. Remaining work is production-grade external adapter hardening and ecosystem-specific native SDK coverage, not core runtime parity.
 - Production-hardened Postgres and S3/MinIO rollout playbooks beyond the current CI-backed real-service conformance jobs.
-- Hardened OpenTelemetry adapter package and deployment recipe.
-- Full optional framework packages for LangGraph, LangChain, CrewAI, AutoGen, OpenAI Agents SDK, LlamaIndex, and Semantic Kernel.
+- Hardened OpenTelemetry SDK adapter and deployment recipe.
+- Full optional framework packages for LangChain, CrewAI, AutoGen, OpenAI Agents SDK, LlamaIndex, Semantic Kernel, and framework-native smoke matrices.
 - Exact MCP SDK client/server integration beyond dependency-free fixtures.
 - Larger real-world benchmark corpus beyond the current baseline, Tool Ledger, and media/stream built-in fixtures.
 - Full media processing adapters for image, audio, video, frame extraction, transcription, embedding generation, and stream transport.

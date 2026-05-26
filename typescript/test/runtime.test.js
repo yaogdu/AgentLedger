@@ -5,6 +5,28 @@ import { tmpdir } from 'node:os';
 import test from 'node:test';
 import { JSONStore, LocalBlobStore, LocalWorker, RetryableAgentError, Runtime, WorkerService, exportEvidence, replay, costAttribution, failureAttribution } from '../src/index.js';
 
+test('adapter subpath exports expose the v1.2 package boundary', async () => {
+  const postgres = await import('../src/adapters/postgres.js');
+  const s3 = await import('../src/adapters/s3.js');
+  const mcp = await import('../src/adapters/mcp.js');
+  const otel = await import('../src/adapters/otel.js');
+  const docker = await import('../src/adapters/sandbox-docker.js');
+  const langgraph = await import('../src/adapters/langgraph.js');
+
+  assert.equal(postgres.adapterPackage.version, '1.2.0');
+  assert.equal(typeof postgres.PostgresAdapter, 'function');
+  assert.equal(typeof s3.S3BlobStoreAdapter, 'function');
+  assert.equal(typeof mcp.MCPToolAdapter, 'function');
+  assert.equal(typeof otel.OTLPTransport, 'function');
+  assert.equal(typeof docker.DockerSandboxAdapter, 'function');
+
+  const rt = new Runtime(JSONStore.memory());
+  const { runId } = await rt.createRun({ hello: 'world' });
+  const checkpointer = new langgraph.LangGraphCheckpointerAdapter(rt);
+  const config = checkpointer.configForRun(runId);
+  assert.deepEqual(checkpointer.get(config).state, { hello: 'world' });
+});
+
 test('runtime creates durable run, evidence, and replay summary', async () => {
   const dir = await mkdtemp(join(tmpdir(), 'agentledger-ts-'));
   const path = join(dir, 'state.json');

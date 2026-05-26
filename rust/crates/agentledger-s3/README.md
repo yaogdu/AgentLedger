@@ -1,0 +1,8 @@
+# agentledger-s3
+
+Rust S3-compatible blob store adapter boundary for AgentLedger Runtime.
+
+```toml
+agentledger-s3 = "1.2"
+```
+

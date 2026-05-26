@@ -6055,3 +6055,44 @@ impl DockerSandboxAdapter {
         out
     }
 }
+
+pub mod adapters {
+    pub mod postgres {
+        pub const PACKAGE_NAME: &str = "agentledger-postgres";
+        pub const FEATURE: &str = "adapter-postgres";
+        pub use crate::{migrations_for, Migration, PostgresAdapter, SqlExecutor};
+    }
+
+    pub mod s3 {
+        pub const PACKAGE_NAME: &str = "agentledger-s3";
+        pub const FEATURE: &str = "adapter-s3";
+        pub use crate::{ObjectClient, S3BlobStoreAdapter};
+    }
+
+    pub mod mcp {
+        pub const PACKAGE_NAME: &str = "agentledger-mcp";
+        pub const FEATURE: &str = "adapter-mcp";
+        pub use crate::{
+            InMemoryMCPContextServer, InMemoryMCPToolServer, MCPCall, MCPContextAdapter,
+            MCPResourceDescriptor, MCPResourceRead, MCPToolAdapter,
+        };
+    }
+
+    pub mod otel {
+        pub const PACKAGE_NAME: &str = "agentledger-otel";
+        pub const FEATURE: &str = "adapter-otel";
+        pub use crate::{OtlpClient, OtlpTransport};
+    }
+
+    pub mod docker {
+        pub const PACKAGE_NAME: &str = "agentledger-sandbox-docker";
+        pub const FEATURE: &str = "adapter-docker";
+        pub use crate::{DockerSandboxAdapter, State, Value};
+    }
+
+    pub mod framework {
+        pub const PACKAGE_NAME: &str = "agentledger-framework";
+        pub const FEATURE: &str = "adapter-framework";
+        pub use crate::{FunctionAdapter, MethodFrameworkAdapter};
+    }
+}

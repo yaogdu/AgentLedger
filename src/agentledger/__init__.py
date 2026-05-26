@@ -1,6 +1,6 @@
 """AgentLedger stable agent runtime core."""
 
-__version__ = "1.1.0"
+__version__ = "1.2.0"
 
 from .adapters import FrameworkAdapter, PythonFunctionAdapter, python_agent
 from .adapter_certification import AdapterCertificationBundle, build_adapter_certification_bundle, supported_adapter_certification_profiles

@@ -1,0 +1,12 @@
+[package]
+name = "agentledger-framework"
+version = "1.2.0"
+edition = "2021"
+description = "Framework adapter crate for AgentLedger Runtime"
+license = "Apache-2.0"
+repository = "https://github.com/yaogdu/AgentLedger"
+readme = "README.md"
+
+[dependencies]
+agentledger = { package = "agentledger-runtime", version = ">=1.2, <2", path = "../.." }
+

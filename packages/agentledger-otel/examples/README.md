@@ -1,0 +1,10 @@
+# Examples
+
+Export an evidence bundle to OTLP JSON:
+
+```python
+from agentledger_otel import OTLPTraceExporter
+
+payload = OTLPTraceExporter().to_otlp_json(evidence_bundle)
+```
+

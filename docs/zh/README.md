@@ -29,7 +29,7 @@
 |---|---|
 | 新用户 | `GETTING_STARTED.md` -> `LANGUAGE_QUICKSTART.md` -> `../../examples/README.md` -> 对应语言 example README |
 | Runtime 实现者 | `ARCHITECTURE.md` -> `COMPARISONS.md` -> `DESIGN_AND_IMPLEMENTATION.md` -> `../RUNTIME_SPEC.md` -> `../../contracts/agentledger.runtime.v1.json` |
-| Adapter 作者 | `EXTENSIBILITY.md` -> `ADAPTER_CERTIFICATION.md` -> `../../examples/` 下的相关示例 -> conformance commands |
+| Adapter 作者 | `EXTENSIBILITY.md` -> `ADAPTER_PACKAGING.md` -> `ADAPTER_CERTIFICATION.md` -> `../../examples/` 下的相关示例 -> conformance commands |
 | Production pilot reviewer | `IMPLEMENTATION_STATUS.md` -> `../MATURITY_MODEL.md` -> `SECURITY_ENTERPRISE.md` -> `STORAGE.md` -> `RELEASE_CHECKLIST.md` |
 | 后续语言实现者 | `../MULTI_LANGUAGE.md` -> `LANGUAGE_PARITY_MATRIX.md` -> `../RUNTIME_SPEC.md` -> `../../contracts/agentledger.runtime.v1.json` -> `../../contracts/conformance/runtime_semantics.v1.json` -> `../../contracts/conformance/runtime_baseline.v1.json` -> language README -> conformance fixtures |
 

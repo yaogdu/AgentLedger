@@ -27,6 +27,73 @@ Execution backend 定位见 `EXECUTION_BACKENDS.md`：Temporal、Ray、Kubernete
 
 Adapter 优先级见 `ADAPTER_ROADMAP.md`：生态成熟且边界能保持 AgentLedger invariant 时进入官方 adapter；否则保持 experimental 或 community-owned。
 
+## v1.2.0 - Adapter Packaging Release
+
+状态：已在 `v1.2.0` 分支实现，定位为 adapter packaging 与边界版本。本版本把已有 adapter seam 打包成清晰的 optional package，不改变 runtime-core 语义。
+
+为什么先做拆包，再做 reliability/media/sub-agent 增强：
+
+```text
+先冻结 core-vs-adapter 边界，再继续扩大能力表面积
+保持 runtime-core dependency-light
+让重依赖生态按自己的节奏发布
+让后续 reliability hardening 落在对应 adapter 包里
+避免 runtime-core 变成 optional integration 大合集
+```
+
+已实现：
+
+- 创建 `packages/` workspace，承载官方 Python adapter packages
+- 增加第一批 Python adapter package skeleton：`agentledger-postgres`、`agentledger-s3`、`agentledger-langgraph`、`agentledger-mcp`、`agentledger-otel`、`agentledger-sandbox-docker`
+- 增加 TypeScript subpath exports，以及 `typescript/packages/` 下的 npm adapter package skeleton
+- 增加 Go adapter import subpackages：`go/adapters/`
+- 增加 Rust adapter features 与 `rust/crates/` 下的 crate skeleton
+- 给 core 增加 extras，用户不用记独立包名也能安装能力：
+  - `agentledger-runtime[postgres]`
+  - `agentledger-runtime[s3]`
+  - `agentledger-runtime[langgraph]`
+  - `agentledger-runtime[mcp]`
+  - `agentledger-runtime[otel]`
+  - `agentledger-runtime[docker]`
+  - `agentledger-runtime[all]`
+- core 保留当前 Python adapter module 的 backwards-compatible import shim
+- 每个 adapter package 都有 README、example/readme 或 package entry point，并有本地 smoke 覆盖
+- 增加中英文 adapter package 文档
+- adapter package 尽量使用 optional dependency、facade export 和 injected client，避免引入不必要重依赖
+
+本版本明确不做：
+
+```text
+没有真实服务证据时，不声明 Postgres/S3/sandbox/worker/OTLP production-ready
+不做所有 agent framework 的完整 native version matrix
+不做完整 MCP SDK server/client 覆盖
+不做 Temporal/Ray/Kubernetes scheduler backend adapters
+不做 audio/video/frame/transcription/embedding 的 media processing adapters
+不做 sub-agent 或 multi-agent runtime semantics
+不做 SaaS、hosted platform、长运行 UI 或完整 eval platform
+```
+
+已验证 release gates：
+
+```text
+scripts/check_adapter_packages.py
+Python unittest suite
+Go tests including adapter subpackages
+TypeScript tests and syntax checks including adapter subpath exports
+Rust tests with adapters-all
+cross-language parity script with markdown link and diff checks
+complete core parity/package dry-run script
+```
+
+后续版本：
+
+```text
+1.2.x  adapter packaging fixes、framework-native smoke、package docs polish
+1.3.0  reliability harness expansion：richer divergence、golden corpus UX、cost/failure regression、shadow comparison
+1.4.0  sub-agent/multi-agent runtime semantics：parent-child runs、spawn/join、cancellation/failure/cost attribution
+1.5.0  media adapter release：frame/audio/video refs、transcription/embedding adapters、stream transports
+```
+
 ## v1.1.0 - Adapter Certification And Reliability Gate Upgrade
 
 状态：已在 Python reference runtime-core 中作为向后兼容的 policy、adapter certification 和 evidence regression upgrade 实现。

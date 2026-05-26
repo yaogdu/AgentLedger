@@ -1,0 +1,11 @@
+# Examples
+
+Use `PostgresStoreConfig.from_env()` with:
+
+```bash
+export AGENTLEDGER_POSTGRES_DSN="postgresql://user:password@localhost:5432/agentledger"
+export AGENTLEDGER_POSTGRES_SCHEMA="agentledger"
+```
+
+Then pass the store to `agentledger.Runtime`.
+

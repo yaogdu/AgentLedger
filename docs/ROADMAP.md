@@ -27,6 +27,69 @@ Adapter prioritization is documented in `ADAPTER_ROADMAP.md`: official adapters 
 
 This scope map is part of the release gate: a new feature should either fit runtime-core as a production execution reliability contract, land as an optional adapter, become a separate evidence consumer, or be documented as out of scope. The default choice is adapter or external consumer unless runtime-core is the only layer that can enforce the invariant.
 
+## v1.2.0 - Adapter Packaging Release
+
+Status: implemented on the `v1.2.0` branch as an adapter packaging and boundary release. It packages the existing adapter seams without changing the runtime-core semantics.
+
+Why this comes before reliability/media/sub-agent expansion:
+
+```text
+freeze the core-vs-adapter boundary before adding more surface area
+keep runtime-core dependency-light
+let heavy ecosystem dependencies move at their own release cadence
+make future reliability hardening live next to the adapter it validates
+avoid turning runtime-core into a bundle of optional integrations
+```
+
+Implemented:
+
+- created a `packages/` workspace for official Python adapter packages
+- added the first Python adapter package skeletons: `agentledger-postgres`, `agentledger-s3`, `agentledger-langgraph`, `agentledger-mcp`, `agentledger-otel`, and `agentledger-sandbox-docker`
+- added TypeScript subpath exports and npm adapter package skeletons under `typescript/packages/`
+- added Go adapter import subpackages under `go/adapters/`
+- added Rust adapter features and crate skeletons under `rust/crates/`
+- added core extras so users can install capabilities without memorizing package names:
+  - `agentledger-runtime[postgres]`
+  - `agentledger-runtime[s3]`
+  - `agentledger-runtime[langgraph]`
+  - `agentledger-runtime[mcp]`
+  - `agentledger-runtime[otel]`
+  - `agentledger-runtime[docker]`
+  - `agentledger-runtime[all]`
+- kept backwards-compatible import shims in core for the current Python adapter modules
+- gave every adapter package a README, example/readme or package entry point, and local smoke coverage
+- added adapter-package docs in English and Chinese
+- kept adapter packages dependency-light by using optional dependencies, facade exports, and injected clients where possible
+
+Explicitly not in this version:
+
+- production-ready claims for Postgres/S3/sandbox/worker/OTLP without real service evidence
+- full framework-native version matrix for every agent framework
+- complete MCP SDK server/client coverage
+- Temporal/Ray/Kubernetes scheduler backend adapters
+- media processing adapters for audio/video/frame/transcription/embedding
+- sub-agent or multi-agent runtime semantics
+- SaaS, hosted platform, long-running UI, or full eval platform
+
+Verified release gates:
+
+- `scripts/check_adapter_packages.py`
+- Python unittest suite
+- Go tests including adapter subpackages
+- TypeScript tests and syntax checks including adapter subpath exports
+- Rust tests with `adapters-all`
+- cross-language parity script with markdown link and diff checks
+- complete core parity/package dry-run script
+
+Follow-up versions:
+
+```text
+1.2.x  adapter packaging fixes, framework-native smoke, and package docs polish
+1.3.0  reliability harness expansion: richer divergence, golden corpus UX, cost/failure regression, shadow comparisons
+1.4.0  sub-agent/multi-agent runtime semantics: parent-child runs, spawn/join, cancellation/failure/cost attribution
+1.5.0  media adapter release: frame/audio/video refs, transcription/embedding adapters, stream transports
+```
+
 ## v1.1.0 - Adapter Certification And Reliability Gate Upgrade
 
 Status: implemented in the Python reference runtime-core as a backwards-compatible policy, adapter certification, and evidence regression upgrade.

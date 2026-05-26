@@ -1,14 +1,44 @@
 {
   "name": "agentledger-runtime",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "private": false,
   "description": "Dependency-free Node/TypeScript-compatible runtime for AgentLedger.",
   "type": "module",
   "main": "src/index.js",
   "types": "src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.d.ts",
+      "import": "./src/index.js"
+    },
+    "./postgres": {
+      "types": "./src/adapters/postgres.d.ts",
+      "import": "./src/adapters/postgres.js"
+    },
+    "./s3": {
+      "types": "./src/adapters/s3.d.ts",
+      "import": "./src/adapters/s3.js"
+    },
+    "./mcp": {
+      "types": "./src/adapters/mcp.d.ts",
+      "import": "./src/adapters/mcp.js"
+    },
+    "./otel": {
+      "types": "./src/adapters/otel.d.ts",
+      "import": "./src/adapters/otel.js"
+    },
+    "./sandbox/docker": {
+      "types": "./src/adapters/sandbox-docker.d.ts",
+      "import": "./src/adapters/sandbox-docker.js"
+    },
+    "./langgraph": {
+      "types": "./src/adapters/langgraph.d.ts",
+      "import": "./src/adapters/langgraph.js"
+    }
+  },
   "scripts": {
     "test": "node --test",
-    "check": "node --check src/index.js && node --check test/runtime.test.js",
+    "check": "node --check src/index.js && node --check src/adapters/*.js && node --check test/runtime.test.js",
     "conformance": "node src/cli.js conformance",
     "contract:validate": "node src/cli.js contract validate"
   },
@@ -20,6 +50,7 @@
   },
   "files": [
     "src/",
+    "src/adapters/",
     "examples/README.md",
     "examples/quickstart/",
     "README.md"

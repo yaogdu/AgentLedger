@@ -1,0 +1,12 @@
+# agentledger-otel
+
+TypeScript OTLP export adapter boundary for AgentLedger Runtime.
+
+```bash
+npm install agentledger-runtime agentledger-otel
+```
+
+```js
+import { OTLPTransport, otlpTraceJSON } from 'agentledger-otel';
+```
+
