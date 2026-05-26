@@ -131,6 +131,29 @@ agentledger-runtime/
 
 这里要尊重语言生态。`agentledger-langgraph` 对 Python 和 TypeScript/Node 是一等 adapter，因为这两个生态有 LangGraph 包；Go 和 Rust 不强行假装有原生 LangGraph 生态，而是提供通用 `framework` adapter boundary。
 
+## Sandbox Adapter 范围
+
+Docker 是第一批官方 sandbox package，因为它是最低摩擦的 reference implementation：本地开发、CI、示例和很多受控团队环境都能跑。这个选择不表示 AgentLedger core 依赖 Docker，也不表示 Docker 是最终安全答案。
+
+runtime-core 负责 sandbox contract：
+
+- sandbox policy input
+- sandbox-required tool 的 fail-closed routing
+- command/input/artifact handoff 形状
+- timeout、cancellation 和 cleanup semantics
+- audit、evidence 和 replay-safe result records
+
+sandbox infrastructure 仍然属于 adapter 层。Docker、E2B、Kubernetes Jobs、通过 `runtimeClass` 使用的 gVisor/Kata、Firecracker、bubblewrap、nsjail 或 custom remote executor，都应该在运行模型足够稳定时，通过同一套 sandbox adapter boundary 接入。
+
+实际顺序是：
+
+1. Docker adapter：reference package 和本地/团队 baseline。
+2. Kubernetes Job recipe/adapter：面向集群用户，支持 namespace/service account policy、dry-run manifest 和 optional execution。
+3. E2B 或 custom remote executor：托管 remote sandbox，用于 code/tool execution。
+4. gVisor/Kata/Firecracker/bubblewrap/nsjail：更强或更专门的隔离后端，通常由部署约束驱动。
+
+对于高风险不可信代码，不应把 Docker adapter 单独视为完整安全边界。应使用更强隔离基础设施，并用真实的 network、secret、filesystem、resource-limit 和 cleanup 测试认证该 adapter。
+
 ## Compatibility Shims
 
 `1.2.0` 不应该破坏已有 import。

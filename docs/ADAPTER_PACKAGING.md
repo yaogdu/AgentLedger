@@ -131,6 +131,29 @@ Each adapter package should provide:
 
 Language fit matters. `agentledger-langgraph` is first-class for Python and TypeScript/Node because those ecosystems have LangGraph packages. Go and Rust expose a generic `framework` adapter boundary instead of pretending a native LangGraph ecosystem exists there.
 
+## Sandbox Adapter Scope
+
+Docker is the first official sandbox package because it is the lowest-friction reference implementation: it works for local development, CI, examples, and many controlled team deployments. That does not mean AgentLedger core depends on Docker or treats Docker as the final isolation answer.
+
+Runtime-core owns the sandbox contract:
+
+- sandbox policy input
+- fail-closed routing for sandbox-required tools
+- command/input/artifact handoff shape
+- timeout, cancellation, and cleanup semantics
+- audit, evidence, and replay-safe result records
+
+Sandbox infrastructure stays in adapters. Docker, E2B, Kubernetes Jobs, gVisor/Kata through `runtimeClass`, Firecracker, bubblewrap, nsjail, or a custom remote executor should all fit behind the same sandbox adapter boundary when their operational model is stable enough.
+
+The practical order is:
+
+1. Docker adapter: reference package and local/team baseline.
+2. Kubernetes Job recipe/adapter: cluster users, namespace/service account policy, dry-run manifests, optional execution.
+3. E2B or custom remote executor: managed remote sandbox for code/tool execution.
+4. gVisor/Kata/Firecracker/bubblewrap/nsjail: stronger or more specialized isolation backends, usually driven by deployment constraints.
+
+For high-risk untrusted code, do not treat the Docker adapter alone as a complete security boundary. Use stronger isolation infrastructure and certify that adapter with real network, secret, filesystem, resource-limit, and cleanup tests.
+
 ## Compatibility Shims
 
 `1.2.0` should avoid breaking existing imports.

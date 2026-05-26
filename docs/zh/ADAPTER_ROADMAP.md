@@ -37,6 +37,8 @@ AgentLedger 的 runtime-core 要保持薄：core 负责 invariant、contract、e
 | Sandbox | Docker sandbox | 常见本地/团队 isolation backend，适合在 Kubernetes/gVisor/Firecracker 之前落地。 | `policy_approval_sandbox.v1.json`、sandbox policy/result boundary | `agentledger-sandbox-docker` |
 | Scheduler/backend | Temporal bridge | Temporal 可以负责 durable workflow orchestration，AgentLedger 负责 agent-specific evidence/tool/state semantics。 | `scheduler.v1.json`、execution backend boundary | `agentledger-temporal` |
 
+Docker 优先官方化，是因为它适合作为 reference sandbox adapter，不是因为它是唯一支持的隔离模型。AgentLedger core 应保持 container-runtime neutral：只要是 sandbox-required tool，无论 executor 是 Docker、Kubernetes、E2B、gVisor/Kata、Firecracker、bubblewrap、nsjail 还是 custom remote backend，都应该经过同一套 policy、fail-closed、audit、evidence、timeout 和 cleanup contract。
+
 ## 优先级 2：推荐 Adapter
 
 这些有价值，但应排在优先级 1 之后，或先保持较薄 facade，等需求明确后再稳定。

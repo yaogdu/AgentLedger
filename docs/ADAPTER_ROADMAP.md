@@ -37,6 +37,8 @@ These should be first-class optional packages because they match common producti
 | Sandbox | Docker sandbox | Common local/team isolation backend; useful before Kubernetes/gVisor/Firecracker. | `policy_approval_sandbox.v1.json`, sandbox policy/result boundary | `agentledger-sandbox-docker` |
 | Scheduler/backend | Temporal bridge | Temporal can own durable workflow orchestration while AgentLedger owns agent-specific evidence/tool/state semantics. | `scheduler.v1.json`, execution backend boundary | `agentledger-temporal` |
 
+Docker is official first because it is the reference sandbox adapter, not because it is the only supported isolation model. AgentLedger core should remain container-runtime neutral: sandbox-required tools flow through the same policy, fail-closed, audit, evidence, timeout, and cleanup contract regardless of whether the executor is Docker, Kubernetes, E2B, gVisor/Kata, Firecracker, bubblewrap, nsjail, or a custom remote backend.
+
 ## Priority 2: Recommended Adapters
 
 These are valuable but should follow the Priority 1 adapters or remain thinner facades until demand is clear.
