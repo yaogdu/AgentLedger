@@ -1,5 +1,5 @@
 {
-  "name": "agentledger-mcp",
+  "name": "agentledger-mcp-adapter",
   "version": "1.2.0",
   "private": false,
   "description": "MCP adapter package for AgentLedger Runtime.",
@@ -14,4 +14,3 @@
     "README.md"
   ]
 }
-

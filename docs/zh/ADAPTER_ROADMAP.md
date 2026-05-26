@@ -32,7 +32,7 @@ AgentLedger 的 runtime-core 要保持薄：core 负责 invariant、contract、e
 | Storage | Postgres StateStore | 企业 pilot 通常需要服务端 durable state、locking、migration 和 backup workflow。 | `storage_schema.v1.json`、local persistence semantics、`optional_adapters.v1.json` | `agentledger-postgres` / 各语言原生 package |
 | Blob store | S3 / MinIO BlobStore | Evidence bundle、media ref、stream checkpoint 和 artifact 需要低成本 durable object storage。 | `local_blob_store.v1.json`、content-addressed refs、`optional_adapters.v1.json` | `agentledger-s3` / 各语言原生 package |
 | Framework | LangGraph | 与 stateful agent workflow 高度重合；AgentLedger 补 Tool Ledger、evidence、replay、policy 和 adapter certification。 | `framework_adapters.v1.json`、checkpoint boundary、optional capability descriptor | `agentledger-langgraph` |
-| Tool/context protocol | MCP transport | MCP 很适合作为 agent tool/context 边界。Runtime 应治理 MCP tool，但不拥有所有 tool server。 | `mcp_adapters.v1.json`、`optional_adapters.v1.json` | `agentledger-mcp` |
+| Tool/context protocol | MCP transport | MCP 很适合作为 agent tool/context 边界。Runtime 应治理 MCP tool，但不拥有所有 tool server。 | `mcp_adapters.v1.json`、`optional_adapters.v1.json` | `agentledger-mcp` / npm 上使用 `agentledger-mcp-adapter` |
 | Observability | OpenTelemetry exporter/transport | 企业需要把 trace 接到现有可观测系统。 | `otlp_trace_export.v1.json` | `agentledger-otel` |
 | Sandbox | Docker sandbox | 常见本地/团队 isolation backend，适合在 Kubernetes/gVisor/Firecracker 之前落地。 | `policy_approval_sandbox.v1.json`、sandbox policy/result boundary | `agentledger-sandbox-docker` |
 | Scheduler/backend | Temporal bridge | Temporal 可以负责 durable workflow orchestration，AgentLedger 负责 agent-specific evidence/tool/state semantics。 | `scheduler.v1.json`、execution backend boundary | `agentledger-temporal` |

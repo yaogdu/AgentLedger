@@ -1,12 +1,11 @@
-# agentledger-mcp
+# agentledger-mcp-adapter
 
 TypeScript MCP tool/context adapter boundary for AgentLedger Runtime.
 
 ```bash
-npm install agentledger-runtime agentledger-mcp
+npm install agentledger-runtime agentledger-mcp-adapter
 ```
 
 ```js
-import { MCPToolAdapter, MCPContextAdapter } from 'agentledger-mcp';
+import { MCPToolAdapter, MCPContextAdapter } from 'agentledger-mcp-adapter';
 ```
-

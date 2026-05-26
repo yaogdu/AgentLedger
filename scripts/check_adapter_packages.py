@@ -32,10 +32,14 @@ PYTHON_ADAPTERS = [
 TYPESCRIPT_ADAPTERS = {
     "agentledger-postgres": "./postgres",
     "agentledger-s3": "./s3",
-    "agentledger-mcp": "./mcp",
+    "agentledger-mcp-adapter": "./mcp",
     "agentledger-otel": "./otel",
     "agentledger-sandbox-docker": "./sandbox/docker",
     "agentledger-langgraph": "./langgraph",
+}
+
+TYPESCRIPT_PACKAGE_DIRS = {
+    "agentledger-mcp-adapter": "agentledger-mcp",
 }
 
 RUST_ADAPTERS = {
@@ -114,7 +118,7 @@ def check_typescript(version: str) -> None:
             fail(f"typescript package exports missing {subpath}")
         if "src/adapters" not in "\n".join(runtime_pkg.get("files", [])):
             fail("typescript package files does not include src/adapters")
-        package_dir = ROOT / "typescript" / "packages" / package
+        package_dir = ROOT / "typescript" / "packages" / TYPESCRIPT_PACKAGE_DIRS.get(package, package)
         metadata = json.loads((package_dir / "package.json").read_text(encoding="utf-8"))
         if metadata["name"] != package:
             fail(f"{package}: npm package name mismatch")
@@ -165,4 +169,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

@@ -89,7 +89,7 @@ agentledger-runtime/
       agentledger-postgres/
       agentledger-s3/
       agentledger-langgraph/
-      agentledger-mcp/
+      agentledger-mcp/                   # npm package name: agentledger-mcp-adapter
       agentledger-otel/
       agentledger-sandbox-docker/
   go/adapters/
@@ -125,7 +125,7 @@ agentledger-runtime/
 | `agentledger-postgres` | `PostgresStore`、`PostgresStoreConfig`、migration/conformance helpers | 依赖 `psycopg[binary]`；production rollout 仍需要真实服务演练。 |
 | `agentledger-s3` | `S3BlobStore`、`S3BlobStoreConfig` | 依赖 `boto3`；production rollout 仍需要 IAM/KMS/lifecycle 和 restore drill。 |
 | `agentledger-langgraph` | 基于 dependency-free facade 的 LangGraph checkpointer/node wrapper | core facade 不引入重依赖；optional native SDK 使用放在 package extras 或后续 smoke matrix 中。 |
-| `agentledger-mcp` | MCP-style tool/context mapping package boundary | 当前 package 保持 dependency-light；exact MCP SDK client/server transport 是后续 adapter hardening。 |
+| `agentledger-mcp` / npm 上使用 `agentledger-mcp-adapter` | MCP-style tool/context mapping package boundary | 当前 package 保持 dependency-light；exact MCP SDK client/server transport 是后续 adapter hardening。 |
 | `agentledger-otel` | 围绕 AgentLedger spans 的 OTLP JSON/export package boundary | 当前 package 保持 dependency-light；hardened OpenTelemetry SDK wiring 是后续工作。 |
 | `agentledger-sandbox-docker` | Docker sandbox executor package 和本地/团队 recipe | 当前边界支持 Docker CLI/manifest 语义；daemon hardening、network policy、resource validation 属于外部。 |
 

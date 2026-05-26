@@ -89,7 +89,7 @@ agentledger-runtime/
       agentledger-postgres/
       agentledger-s3/
       agentledger-langgraph/
-      agentledger-mcp/
+      agentledger-mcp/                   # npm package name: agentledger-mcp-adapter
       agentledger-otel/
       agentledger-sandbox-docker/
   go/adapters/
@@ -125,7 +125,7 @@ Each adapter package should provide:
 | `agentledger-postgres` | `PostgresStore`, `PostgresStoreConfig`, migration/conformance helpers | Requires `psycopg[binary]`; production rollout still needs real-service drills. |
 | `agentledger-s3` | `S3BlobStore`, `S3BlobStoreConfig` | Requires `boto3`; production rollout still needs IAM/KMS/lifecycle and restore drills. |
 | `agentledger-langgraph` | LangGraph checkpointer/node wrappers around the dependency-free facade | Core facade is dependency-free; optional native SDK use belongs behind package extras or follow-up smoke matrices. |
-| `agentledger-mcp` | MCP-style tool/context mapping package boundary | Current package is dependency-light; exact MCP SDK client/server transport is a follow-up adapter hardening item. |
+| `agentledger-mcp` / `agentledger-mcp-adapter` on npm | MCP-style tool/context mapping package boundary | Current package is dependency-light; exact MCP SDK client/server transport is a follow-up adapter hardening item. |
 | `agentledger-otel` | OTLP JSON/export package boundary around AgentLedger spans | Current package is dependency-light; hardened OpenTelemetry SDK wiring is follow-up work. |
 | `agentledger-sandbox-docker` | Docker sandbox executor package and local/team recipes | Current boundary can use Docker CLI/manifest semantics; daemon hardening, network policy, and resource validation are external. |
 
