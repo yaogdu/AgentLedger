@@ -8,6 +8,19 @@ This project follows semantic versioning for the stable runtime-core contract. O
 
 No unreleased changes yet.
 
+## 1.2.1
+
+### Added
+
+- Cross-language Docker sandbox execution parity for Go, TypeScript, and Rust.
+- `DockerSandboxExecutor` now supports command-style tools with explicit execution enablement, argv-only defaults, read-only Docker runs, network-deny defaults, stdout/stderr/returncode capture, and fail-closed behavior when execution is disabled.
+- Official adapter conformance now checks Docker manifest generation, fail-closed execution defaults, and injected-binary command execution without requiring a live Docker daemon.
+
+### Clarified
+
+- Docker remains an optional sandbox adapter, not a runtime-core dependency or complete high-risk isolation answer.
+- Postgres, S3/MinIO, OTLP, exact MCP SDK transport, and framework-native adapters still require separate production hardening or ecosystem-specific adapter work.
+
 ## 1.1.0
 
 ### Added

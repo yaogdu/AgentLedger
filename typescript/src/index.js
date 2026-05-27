@@ -1,6 +1,7 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
+import { spawn } from 'node:child_process';
 
 export class NoRunnableStepError extends Error {
   constructor() {
@@ -649,6 +650,98 @@ export class LocalSandboxExecutor {
       return { ok: false, error: String(error?.message ?? error), metadata: { executor: policy.executor ?? 'local', isolation_level: 'none' } };
     }
   }
+}
+
+export class DockerSandboxExecutor {
+  constructor({ image = 'python:3.11-slim', binary = 'docker', allowCommandExecution = false, allowShell = false, shell = '/bin/sh', memory = null, cpus = null } = {}) {
+    this.image = image;
+    this.binary = binary;
+    this.allowCommandExecution = allowCommandExecution;
+    this.allowShell = allowShell;
+    this.shell = shell;
+    this.memory = memory;
+    this.cpus = cpus;
+  }
+
+  async runTool(_spec, args, policy) {
+    let command;
+    try {
+      command = this.extractCommand(args);
+    } catch (error) {
+      return this.failure(policy, 'InvalidSandboxCommand', error.message, null);
+    }
+    const manifest = this.manifest(policy, command);
+    if (!this.allowCommandExecution) {
+      return { ok: false, error: 'command execution is not enabled for this executor', metadata: { executor: policy.executor, isolation_level: 'container', manifest, error_type: 'SandboxAdapterNotInstalled' } };
+    }
+    const argv = this.dockerArgv(policy, command);
+    return runSandboxCommand(argv, policy.timeout_seconds ?? 30, { executor: policy.executor, isolation_level: 'container', manifest, executed: true });
+  }
+
+  manifest(policy, command) {
+    return new DockerSandboxAdapter({ image: this.image }).manifest(policy, command);
+  }
+
+  extractCommand(args) {
+    const raw = args?._sandbox_command ?? args?.command;
+    if (raw == null) throw new Error('external sandbox tools require a command-style `_sandbox_command` arg');
+    if (typeof raw === 'string') {
+      if (!this.allowShell) throw new Error('string commands require allowShell=true; pass argv list in `_sandbox_command` instead');
+      return [this.shell, '-lc', raw];
+    }
+    if (!Array.isArray(raw) || raw.length === 0 || raw.some((item) => typeof item !== 'string' || item.length === 0)) {
+      throw new Error('_sandbox_command must be a non-empty string[]');
+    }
+    return [...raw];
+  }
+
+  dockerArgv(policy, command) {
+    const network = policy.network === 'deny' || !policy.network ? 'none' : policy.network;
+    const argv = [this.binary, 'run', '--rm', '--network', network, '--read-only'];
+    if (this.memory) argv.push('--memory', String(this.memory));
+    if (this.cpus) argv.push('--cpus', String(this.cpus));
+    argv.push(this.image, ...command);
+    return argv;
+  }
+
+  failure(policy, errorType, message, manifest) {
+    return { ok: false, error: message, metadata: { executor: policy.executor, isolation_level: 'container', ...(manifest ? { manifest } : {}), error_type: errorType } };
+  }
+}
+
+function runSandboxCommand(argv, timeoutSeconds, metadata) {
+  return new Promise((resolve) => {
+    let stdout = '';
+    let stderr = '';
+    let settled = false;
+    let child;
+    const finish = (result) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve(result);
+    };
+    const timer = setTimeout(() => {
+      if (child) child.kill('SIGKILL');
+      finish({ ok: false, output: { stdout, stderr, returncode: null }, error: `sandbox command timed out after ${timeoutSeconds}s`, metadata: { ...metadata, error_type: 'SandboxTimeout' } });
+    }, Math.max(1, timeoutSeconds) * 1000);
+    try {
+      child = spawn(argv[0], argv.slice(1), { stdio: ['ignore', 'pipe', 'pipe'], env: { PATH: process.env.PATH ?? '' } });
+    } catch (error) {
+      finish({ ok: false, output: { stdout, stderr, returncode: null }, error: error.message, metadata: { ...metadata, error_type: 'SandboxBinaryMissing' } });
+      return;
+    }
+    child.stdout.on('data', (chunk) => { stdout += chunk.toString('utf8'); });
+    child.stderr.on('data', (chunk) => { stderr += chunk.toString('utf8'); });
+    child.on('error', (error) => {
+      finish({ ok: false, output: { stdout, stderr, returncode: null }, error: error.message, metadata: { ...metadata, error_type: error.code === 'ENOENT' ? 'SandboxBinaryMissing' : error.name } });
+    });
+    child.on('close', (code) => {
+      const output = { stdout, stderr, returncode: code };
+      if (code !== 0) finish({ ok: false, output, error: `sandbox command exited with ${code}`, metadata: { ...metadata, error_type: 'SandboxCommandFailed' } });
+      else finish({ ok: true, output, metadata });
+    });
+  });
 }
 
 export function validateToolSchema(schema, value, path = '$') {
@@ -1661,17 +1754,35 @@ export function optionalAdapterCapabilities() {
 export class PostgresAdapter {
   constructor(client, { schema = 'agentledger' } = {}) { this.client = client; this.schema = schema; }
   migrationPlan() { return [{ version: '0001', name: 'initial_runtime_metadata', dialect: 'postgres', sql: ddlFor('postgres') }]; }
+  async exec(sql, params = []) {
+    if (!this.client) throw new Error('postgres adapter requires an injected SQL client');
+    if (typeof this.client.exec === 'function') return this.client.exec(sql, params);
+    if (typeof this.client.query === 'function') return this.client.query(sql, params);
+    if (typeof this.client.execute === 'function') return this.client.execute(sql, params);
+    throw new Error('postgres adapter requires a client with exec(sql, params), query(sql, params), or execute(sql, params)');
+  }
   async applyMigrations() {
-    if (!this.client || typeof this.client.exec !== 'function') throw new Error('postgres adapter requires an injected SQL client');
     const migrations = this.migrationPlan();
-    await this.client.exec(ddlFor('postgres'));
-    for (const migration of migrations) await this.client.exec('INSERT INTO schema_migrations(version, name, checksum) VALUES ($1, $2, $3) ON CONFLICT (version) DO NOTHING', migration.version, migration.name, migration.sql);
+    await this.exec(ddlFor('postgres'));
+    for (const migration of migrations) await this.exec('INSERT INTO schema_migrations(version, name, checksum) VALUES ($1, $2, $3) ON CONFLICT (version) DO NOTHING', [migration.version, migration.name, migration.sql]);
   }
 }
 export class S3BlobStoreAdapter {
   constructor(client, { bucket, prefix = 'agentledger/blobs' } = {}) { this.client = client; this.bucket = bucket; this.prefix = prefix; }
-  async putJSON(value) { if (!this.client || typeof this.client.putObject !== 'function') throw new Error('s3 adapter requires an injected object client'); const digest = sha256JSON(value); const key = `${this.prefix.replace(/\/+$/, '')}/sha256/${digest}.json`; const body = JSON.stringify(value, null, 2); await this.client.putObject({ Bucket: this.bucket, Key: key, Body: body, ContentType: 'application/json', Metadata: { 'agentledger-digest': `sha256:${digest}` } }); return { digest: `sha256:${digest}`, ref: `s3://${this.bucket}/${key}` }; }
-  async getJSON(ref) { if (!this.client || typeof this.client.getObject !== 'function') throw new Error('s3 adapter requires an injected object client'); const prefix = `s3://${this.bucket}/`; if (!ref.startsWith(prefix) || ref.includes('..')) throw new Error(`unsupported s3 blob ref: ${ref}`); const obj = await this.client.getObject(this.bucket, ref.slice(prefix.length)); const body = typeof obj.Body === 'string' ? obj.Body : new TextDecoder().decode(obj.Body); return JSON.parse(body); }
+  async putObject(input) {
+    if (!this.client) throw new Error('s3 adapter requires an injected object client');
+    if (typeof this.client.putObject === 'function') return this.client.putObject(input);
+    if (typeof this.client.send === 'function') return this.client.send({ input, constructor: { name: 'PutObjectCommand' } });
+    throw new Error('s3 adapter requires a client with putObject(input) or send(command)');
+  }
+  async getObject(bucket, key) {
+    if (!this.client) throw new Error('s3 adapter requires an injected object client');
+    if (typeof this.client.getObject === 'function') return this.client.getObject(bucket, key);
+    if (typeof this.client.send === 'function') return this.client.send({ input: { Bucket: bucket, Key: key }, constructor: { name: 'GetObjectCommand' } });
+    throw new Error('s3 adapter requires a client with getObject(bucket, key) or send(command)');
+  }
+  async putJSON(value) { const digest = sha256JSON(value); const key = `${this.prefix.replace(/\/+$/, '')}/sha256/${digest}.json`; const body = JSON.stringify(value, null, 2); await this.putObject({ Bucket: this.bucket, Key: key, Body: body, ContentType: 'application/json', Metadata: { 'agentledger-digest': `sha256:${digest}` } }); return { digest: `sha256:${digest}`, ref: `s3://${this.bucket}/${key}` }; }
+  async getJSON(ref) { const prefix = `s3://${this.bucket}/`; if (!ref.startsWith(prefix) || ref.includes('..')) throw new Error(`unsupported s3 blob ref: ${ref}`); const obj = await this.getObject(this.bucket, ref.slice(prefix.length)); const body = typeof obj.Body === 'string' ? obj.Body : new TextDecoder().decode(obj.Body); return JSON.parse(body); }
 }
 export class OTLPTransport {
   constructor(client, { endpoint = '' } = {}) { this.client = client; this.endpoint = endpoint; }

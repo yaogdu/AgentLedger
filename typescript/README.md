@@ -1,6 +1,6 @@
 # AgentLedger Node / TypeScript Runtime
 
-This directory contains the dependency-free Node/TypeScript-compatible runtime-core baseline for AgentLedger 1.2.0.
+This directory contains the dependency-free Node/TypeScript-compatible runtime-core baseline for AgentLedger 1.2.1.
 
 It runs a native local runtime loop, participates in the shared Python/Go/TypeScript/Rust conformance gate, and should be treated as runtime-core aligned; concrete production adapters are shipped separately as they mature.
 
@@ -20,7 +20,7 @@ Implemented:
 - scheduler facade, worker service, failure injection, adversarial review, evidence regression
 - MCP-style and dependency-free framework adapters
 - `.d.ts` declarations
-- official optional adapter APIs for Postgres, S3/MinIO, OTLP transport, and Docker sandbox manifests
+- official optional adapter APIs for Postgres, S3/MinIO, OTLP transport, Docker sandbox manifests, and command-style Docker execution
 - CLI for `conformance`, `contract validate`, and `contract export`
 
 Not claimed yet:
@@ -81,7 +81,7 @@ console.log(exportEvidence(rt.store, runId).run.run_id);
 ## Adapter Quickstart
 
 ```js
-import { PostgresAdapter, S3BlobStoreAdapter, DockerSandboxAdapter } from 'agentledger-runtime';
+import { PostgresAdapter, S3BlobStoreAdapter, DockerSandboxAdapter, DockerSandboxExecutor } from 'agentledger-runtime';
 
 await new PostgresAdapter(injectedSqlClient).applyMigrations();
 
@@ -90,6 +90,7 @@ const { ref } = await s3.putJSON({ answer: 'ok' });
 console.log(ref);
 
 const manifest = new DockerSandboxAdapter().manifest({ network: 'deny' }, ['echo', 'ok']);
+rt.setSandbox(new DockerSandboxExecutor({ image: 'python:3.11-slim', allowCommandExecution: true }));
 console.log(manifest);
 ```
 

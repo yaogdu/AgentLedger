@@ -27,9 +27,9 @@ Adapter prioritization is documented in `ADAPTER_ROADMAP.md`: official adapters 
 
 This scope map is part of the release gate: a new feature should either fit runtime-core as a production execution reliability contract, land as an optional adapter, become a separate evidence consumer, or be documented as out of scope. The default choice is adapter or external consumer unless runtime-core is the only layer that can enforce the invariant.
 
-## v1.2.0 - Adapter Packaging Release
+## v1.2.1 - Adapter Packaging Release
 
-Status: implemented on the `v1.2.0` branch as an adapter packaging and boundary release. It packages the existing adapter seams without changing the runtime-core semantics.
+Status: implemented on the `v1.2.1` branch as an adapter packaging and boundary release. It packages the existing adapter seams without changing the runtime-core semantics.
 
 Why this comes before reliability/media/sub-agent expansion:
 

@@ -27,9 +27,9 @@ Execution backend 定位见 `EXECUTION_BACKENDS.md`：Temporal、Ray、Kubernete
 
 Adapter 优先级见 `ADAPTER_ROADMAP.md`：生态成熟且边界能保持 AgentLedger invariant 时进入官方 adapter；否则保持 experimental 或 community-owned。
 
-## v1.2.0 - Adapter Packaging Release
+## v1.2.1 - Adapter Packaging Release
 
-状态：已在 `v1.2.0` 分支实现，定位为 adapter packaging 与边界版本。本版本把已有 adapter seam 打包成清晰的 optional package，不改变 runtime-core 语义。
+状态：已在 `v1.2.1` 分支实现，定位为 adapter packaging 与边界版本。本版本把已有 adapter seam 打包成清晰的 optional package，不改变 runtime-core 语义。
 
 为什么先做拆包，再做 reliability/media/sub-agent 增强：
 

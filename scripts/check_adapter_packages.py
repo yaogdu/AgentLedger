@@ -124,8 +124,8 @@ def check_typescript(version: str) -> None:
             fail(f"{package}: npm package name mismatch")
         if metadata["version"] != version:
             fail(f"{package}: npm package version mismatch")
-        if metadata.get("dependencies", {}).get("agentledger-runtime") != "^1.2.0":
-            fail(f"{package}: missing dependency on agentledger-runtime ^1.2.0")
+        if metadata.get("dependencies", {}).get("agentledger-runtime") != f"^{version}":
+            fail(f"{package}: missing dependency on agentledger-runtime ^{version}")
         if not (package_dir / "src" / "index.js").exists() or not (package_dir / "src" / "index.d.ts").exists():
             fail(f"{package}: npm source exports missing")
 

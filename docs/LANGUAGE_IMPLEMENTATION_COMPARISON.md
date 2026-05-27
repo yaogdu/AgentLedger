@@ -60,7 +60,7 @@ These are portable enough to expose across languages. They do not mean every lan
 | Postgres adapter contract | Yes | Contract | Contract | Contract | Python has `PostgresStore`; Go/TS/Rust use injected SQL adapter/facade. |
 | S3/MinIO blob adapter contract | Yes | Contract | Contract | Contract | Python has `S3BlobStore`; Go/TS/Rust use injected object-client adapter/facade. |
 | OTLP trace export / transport | Yes | Contract | Contract | Contract | JSON/export or injected transport boundary. |
-| Docker sandbox manifest | Yes | Contract | Contract | Contract | Portable manifest/fail-closed behavior; daemon hardening is external. |
+| Docker sandbox manifest | Yes | Yes | Yes | Yes | Portable manifest/fail-closed behavior; daemon hardening is external. |
 | MCP-style tool/context mapping | Yes | Yes | Yes | Yes | Dependency-free in-memory contracts. |
 | Function/method framework facade | Yes | Yes | Yes | Yes | Generic dependency-free framework adapter shape. |
 | Media artifact refs | Yes | Yes | Yes | Yes | Evidence refs only; not full media processing. |
@@ -72,9 +72,9 @@ These are intentionally not required to be identical across languages. They are 
 
 | Capability | Python | Go | TypeScript | Rust | Explanation |
 |---|---:|---:|---:|---:|---|
-| Sandbox executor count | 7 | 2 | 2 | 1 | Python includes Bubblewrap/Docker/E2B/Firecracker/Kubernetes/Local/Remote. Other languages keep provider facades and fail-closed semantics. |
+| Sandbox executor count | 7 | 3 | 3 | 2 | Python includes Bubblewrap/Docker/E2B/Firecracker/Kubernetes/Local/Remote. Go/TypeScript/Rust include local/fail-closed semantics and Docker command-style execution. |
 | Bubblewrap executor | Yes | N/A | N/A | N/A | Linux/Python command executor path; not required for core parity. |
-| Docker executor | Yes | Contract | Contract | Contract | Python can execute via CLI; other languages expose manifest/adapter boundary. |
+| Docker executor | Yes | Yes | Yes | Yes | Command-style tools can execute through Docker CLI when command execution is explicitly enabled; tests use injected binaries and do not require a daemon. |
 | E2B executor | Yes | Roadmap | Roadmap | Roadmap | Hosted sandbox provider; adapter-level, not runtime-core. |
 | Firecracker executor | Yes | Roadmap | Roadmap | Roadmap | Infrastructure-specific sandbox adapter. |
 | Kubernetes executor | Yes | Roadmap | Roadmap | Roadmap | Deployment/sandbox infrastructure adapter. |

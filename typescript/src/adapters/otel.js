@@ -3,7 +3,7 @@ export { OTLPTransport, otlpTraceJSON } from '../index.js';
 export const adapterPackage = {
   name: 'agentledger-otel',
   runtimePackage: 'agentledger-runtime',
-  version: '1.2.0',
+  version: '1.2.1',
   category: 'observability',
 };
 

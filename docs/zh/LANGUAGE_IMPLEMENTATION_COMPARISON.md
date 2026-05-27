@@ -60,7 +60,7 @@
 | Postgres adapter contract | Yes | Contract | Contract | Contract | Python 有 `PostgresStore`；Go/TS/Rust 是 injected SQL adapter/facade。 |
 | S3/MinIO blob adapter contract | Yes | Contract | Contract | Contract | Python 有 `S3BlobStore`；Go/TS/Rust 是 injected object-client adapter/facade。 |
 | OTLP trace export / transport | Yes | Contract | Contract | Contract | JSON/export 或 injected transport boundary。 |
-| Docker sandbox manifest | Yes | Contract | Contract | Contract | portable manifest/fail-closed 行为；daemon hardening 属于外部。 |
+| Docker sandbox manifest | Yes | Yes | Yes | Yes | portable manifest/fail-closed 行为；daemon hardening 属于外部。 |
 | MCP-style tool/context mapping | Yes | Yes | Yes | Yes | dependency-free in-memory contracts。 |
 | Function/method framework facade | Yes | Yes | Yes | Yes | 通用 dependency-free framework adapter shape。 |
 | Media artifact refs | Yes | Yes | Yes | Yes | 只做 evidence refs，不做完整 media processing。 |
@@ -72,9 +72,9 @@
 
 | 能力 | Python | Go | TypeScript | Rust | 说明 |
 |---|---:|---:|---:|---:|---|
-| Sandbox executor 数量 | 7 | 2 | 2 | 1 | Python 有 Bubblewrap/Docker/E2B/Firecracker/Kubernetes/Local/Remote。其他语言保留 provider facade 和 fail-closed semantics。 |
+| Sandbox executor 数量 | 7 | 3 | 3 | 2 | Python 有 Bubblewrap/Docker/E2B/Firecracker/Kubernetes/Local/Remote。Go/TypeScript/Rust 已有 local/fail-closed 语义和 Docker command-style execution。 |
 | Bubblewrap executor | Yes | N/A | N/A | N/A | Linux/Python command executor path；不是 core parity 要求。 |
-| Docker executor | Yes | Contract | Contract | Contract | Python 可通过 CLI 执行；其他语言暴露 manifest/adapter boundary。 |
+| Docker executor | Yes | Yes | Yes | Yes | command-style tool 在显式开启 command execution 后可通过 Docker CLI 执行；测试使用 injected binary，不依赖 daemon。 |
 | E2B executor | Yes | Roadmap | Roadmap | Roadmap | hosted sandbox provider，属于 adapter 层。 |
 | Firecracker executor | Yes | Roadmap | Roadmap | Roadmap | infrastructure-specific sandbox adapter。 |
 | Kubernetes executor | Yes | Roadmap | Roadmap | Roadmap | deployment/sandbox infrastructure adapter。 |

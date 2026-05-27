@@ -170,6 +170,7 @@ var fixtureChecks = []fixtureCheck{
 		"s3_blob_adapter_round_trips_json_with_injected_client",
 		"otlp_transport_posts_json_with_injected_client",
 		"docker_sandbox_adapter_builds_manifest_without_daemon",
+		"docker_sandbox_executor_runs_command_style_tool_with_injected_binary",
 	}},
 }
 
@@ -186,11 +187,11 @@ func run(args []string) error {
 		return nil
 	}
 	if len(args) == 1 && args[0] == "version" {
-		fmt.Println("agentledger-go 1.2.0")
+		fmt.Println("agentledger-go 1.2.1")
 		return nil
 	}
 	if len(args) == 1 && args[0] == "doctor" {
-		fmt.Println(`{"language":"go","version":"1.2.0","status":"ok","runtime_core_parity":true}`)
+		fmt.Println(`{"language":"go","version":"1.2.1","status":"ok","runtime_core_parity":true}`)
 		return nil
 	}
 	if len(args) == 1 && args[0] == "quickstart" {
@@ -218,7 +219,7 @@ func run(args []string) error {
 }
 
 func printHelp() {
-	fmt.Println(`AgentLedger Go Runtime 1.2.0
+	fmt.Println(`AgentLedger Go Runtime 1.2.1
 
 Usage:
   agentledger-go doctor
@@ -1437,6 +1438,18 @@ func runOfficialAdaptersSmoke() error {
 	manifest := (agentledger.DockerSandboxAdapter{}).Manifest(agentledger.SandboxPolicy{Network: "deny"}, []string{"echo", "ok"})
 	if manifest["network"] != "none" || manifest["read_only_root"] != true || manifest["requires_explicit_execution"] != true {
 		return fmt.Errorf("docker adapter manifest failed")
+	}
+	closed := (agentledger.DockerSandboxExecutor{}).RunTool(context.Background(), agentledger.ToolSpec{Name: "cmd.echo"}, agentledger.JSONObject{"_sandbox_command": []any{"echo", "ok"}}, agentledger.SandboxPolicy{Executor: "docker", Network: "deny", TimeoutSeconds: 1})
+	if closed.OK || closed.Metadata["error_type"] != "SandboxAdapterNotInstalled" {
+		return fmt.Errorf("docker executor should fail closed without explicit execution")
+	}
+	executed := (agentledger.DockerSandboxExecutor{Binary: "/bin/echo", Image: "fake-image", AllowCommandExecution: true}).RunTool(context.Background(), agentledger.ToolSpec{Name: "cmd.echo"}, agentledger.JSONObject{"_sandbox_command": []any{"echo", "ok"}}, agentledger.SandboxPolicy{Executor: "docker", Network: "deny", TimeoutSeconds: 1})
+	if !executed.OK {
+		return fmt.Errorf("docker executor injected binary failed: %s", executed.Error)
+	}
+	output, ok := executed.Output.(agentledger.JSONObject)
+	if !ok || !strings.Contains(fmt.Sprint(output["stdout"]), "fake-image") {
+		return fmt.Errorf("docker executor output mismatch: %#v", executed.Output)
 	}
 	return nil
 }

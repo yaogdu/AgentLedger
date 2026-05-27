@@ -1,6 +1,6 @@
 {
   "name": "agentledger-runtime",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "private": false,
   "description": "Dependency-free Node/TypeScript-compatible runtime for AgentLedger.",
   "type": "module",

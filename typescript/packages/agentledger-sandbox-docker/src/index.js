@@ -1,2 +1,1 @@
-export { DockerSandboxAdapter, adapterPackage } from 'agentledger-runtime/sandbox/docker';
-
+export { DockerSandboxAdapter, DockerSandboxExecutor, adapterPackage } from 'agentledger-runtime/sandbox/docker';

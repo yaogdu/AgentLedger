@@ -22,6 +22,11 @@
       "name": "docker_sandbox_adapter_builds_manifest_without_daemon",
       "requires": ["docker_sandbox_adapter", "sandbox_policy"],
       "expected": {"network_default": "none", "read_only_root": true, "requires_explicit_execution": true}
+    },
+    {
+      "name": "docker_sandbox_executor_runs_command_style_tool_with_injected_binary",
+      "requires": ["docker_sandbox_executor", "command_style_tool", "injected_binary"],
+      "expected": {"requires_explicit_enablement": true, "records_stdout_stderr_returncode": true, "does_not_require_docker_daemon": true}
     }
   ],
   "non_goals": [

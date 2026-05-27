@@ -3,14 +3,14 @@
 [English](README.md) | [中文](README.zh-CN.md)
 
 ![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)
-![Version 1.2.0 stable](https://img.shields.io/badge/Version-1.2.0--stable-111827)
+![Version 1.2.1 stable](https://img.shields.io/badge/Version-1.2.1--stable-111827)
 ![License Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-0f766e)
 ![Runtime Durable](https://img.shields.io/badge/Runtime-durable%20execution-1f6feb)
 ![Storage SQLite/Postgres](https://img.shields.io/badge/Storage-SQLite%20%7C%20Postgres-b45309)
 ![Replay Evidence](https://img.shields.io/badge/Replay-evidence%20driven-7c3aed)
 ![Tool Ledger](https://img.shields.io/badge/Tools-ledger%20guarded-d97706)
 
-AgentLedger `1.2.0` is an agent execution safety, evidence, and reliability layer. It does not try to teach agents how to reason; it makes agent runs durable, auditable, replayable, policy-governed, and recoverable when workers crash, tools fail, or prompts change.
+AgentLedger `1.2.1` is an agent execution safety, evidence, and reliability layer. It does not try to teach agents how to reason; it makes agent runs durable, auditable, replayable, policy-governed, and recoverable when workers crash, tools fail, or prompts change.
 
 Most agent frameworks focus on planning, reasoning, and workflow logic. AgentLedger sits underneath or beside LangChain, LangGraph, CrewAI, AutoGen, OpenAI Agents SDK, LlamaIndex, Semantic Kernel, or custom agents to provide runtime guarantees around state, tools, evidence, replay, and recovery.
 
@@ -252,7 +252,7 @@ AgentLedger is also not a new LLM SDK, not a workflow engine, not a general obse
 
 ## Current maturity
 
-AgentLedger 1.2.0 is a stable runtime-core release with Python as the reference implementation and Go, TypeScript, and Rust covered by shared runtime-core parity gates. It is suitable for local use, framework adapter integration, reliability semantics validation, and production pilot preparation with explicit adapter boundaries.
+AgentLedger 1.2.1 is a stable runtime-core release with Python as the reference implementation and Go, TypeScript, and Rust covered by shared runtime-core parity gates. It is suitable for local use, framework adapter integration, reliability semantics validation, and production pilot preparation with explicit adapter boundaries.
 
 The runtime-core contract is stable; optional production adapters and external infrastructure hardening remain separately tracked. See [docs/MATURITY_MODEL.md](docs/MATURITY_MODEL.md), [docs/IMPLEMENTATION_STATUS.md](docs/IMPLEMENTATION_STATUS.md), and [docs/ROADMAP.md](docs/ROADMAP.md).
 

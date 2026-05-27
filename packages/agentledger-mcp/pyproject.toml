@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "agentledger-mcp"
-version = "1.2.0"
+version = "1.2.1"
 description = "MCP tool and context adapter package for AgentLedger"
 readme = "README.md"
 requires-python = ">=3.11"

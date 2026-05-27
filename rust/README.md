@@ -1,6 +1,6 @@
 # AgentLedger Rust Runtime
 
-This directory contains the dependency-free Rust runtime-core package for AgentLedger 1.2.0.
+This directory contains the dependency-free Rust runtime-core package for AgentLedger 1.2.1.
 
 It runs a native local runtime loop and participates in the shared Python/Go/TypeScript/Rust conformance gate.
 
@@ -20,7 +20,7 @@ Implemented:
 - media artifact refs and stream checkpoint refs in evidence/replay
 - scheduler facade, worker service semantics, failure injection, adversarial review, evidence regression
 - MCP-style and dependency-free framework adapters
-- official optional adapter APIs for Postgres, S3/MinIO, OTLP transport, and Docker sandbox manifests
+- official optional adapter APIs for Postgres, S3/MinIO, OTLP transport, Docker sandbox manifests, and command-style Docker execution
 - CLI for `conformance`, `contract validate`, and `contract export`
 
 Not claimed yet:

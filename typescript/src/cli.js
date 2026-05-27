@@ -5,7 +5,7 @@ import { dirname, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
-import { FunctionAdapter, InMemoryMCPContextServer, InMemoryMCPToolServer, JSONStore, LocalBlobStore, LocalWorker, MCPContextAdapter, MCPToolAdapter, MethodFrameworkAdapter, RetryableAgentError, Runtime, RuntimeScheduler, WorkerService, checkBackupReadiness, costAttribution, debugHTML, ddlFor, debugSummary, diffEvidence, divergenceReport, exportEvidence, failureAttribution, latestSchemaVersion, migrationsFor, otlpTraceJSON, planRetention, replay, simpleRun, traceJSONL, traceSpans, scanBoundarySource, adversarialReview, evaluateEvidence, evaluateEvidenceRegression, runFailureInjectionSuite, diffStates, shadowReport, builtinGoldenNames, builtinGoldenEvidence, goldenRegression, timeTravel, timeTravelHTML, optionalAdapterCapabilities, PostgresAdapter, S3BlobStoreAdapter, OTLPTransport, DockerSandboxAdapter } from './index.js';
+import { FunctionAdapter, InMemoryMCPContextServer, InMemoryMCPToolServer, JSONStore, LocalBlobStore, LocalWorker, MCPContextAdapter, MCPToolAdapter, MethodFrameworkAdapter, RetryableAgentError, Runtime, RuntimeScheduler, WorkerService, checkBackupReadiness, costAttribution, debugHTML, ddlFor, debugSummary, diffEvidence, divergenceReport, exportEvidence, failureAttribution, latestSchemaVersion, migrationsFor, otlpTraceJSON, planRetention, replay, simpleRun, traceJSONL, traceSpans, scanBoundarySource, adversarialReview, evaluateEvidence, evaluateEvidenceRegression, runFailureInjectionSuite, diffStates, shadowReport, builtinGoldenNames, builtinGoldenEvidence, goldenRegression, timeTravel, timeTravelHTML, optionalAdapterCapabilities, PostgresAdapter, S3BlobStoreAdapter, OTLPTransport, DockerSandboxAdapter, DockerSandboxExecutor } from './index.js';
 
 const FIXTURE_CHECKS = {
   'runtime_baseline.v1.json': [
@@ -154,6 +154,7 @@ const FIXTURE_CHECKS = {
     's3_blob_adapter_round_trips_json_with_injected_client',
     'otlp_transport_posts_json_with_injected_client',
     'docker_sandbox_adapter_builds_manifest_without_daemon',
+    'docker_sandbox_executor_runs_command_style_tool_with_injected_binary',
   ],
 };
 
@@ -194,7 +195,7 @@ export function validateFixtures() {
 }
 
 function usage() {
-  return `AgentLedger TypeScript Runtime 1.2.0\n\nUsage:\n  agentledger-ts doctor\n  agentledger-ts version\n  agentledger-ts quickstart\n  agentledger-ts conformance\n  agentledger-ts contract validate\n  agentledger-ts contract export\n\nProject: https://github.com/yaogdu/AgentLedger`;
+  return `AgentLedger TypeScript Runtime 1.2.1\n\nUsage:\n  agentledger-ts doctor\n  agentledger-ts version\n  agentledger-ts quickstart\n  agentledger-ts conformance\n  agentledger-ts contract validate\n  agentledger-ts contract export\n\nProject: https://github.com/yaogdu/AgentLedger`;
 }
 
 export async function runRuntimeSmoke() {
@@ -577,11 +578,11 @@ export async function main(args = process.argv.slice(2)) {
     return 0;
   }
   if (args.length === 1 && args[0] === 'version') {
-    console.log('agentledger-ts 1.2.0');
+    console.log('agentledger-ts 1.2.1');
     return 0;
   }
   if (args.length === 1 && args[0] === 'doctor') {
-    console.log(JSON.stringify({ language: 'typescript', version: '1.2.0', status: 'ok', runtime_core_parity: true }, null, 2));
+    console.log(JSON.stringify({ language: 'typescript', version: '1.2.1', status: 'ok', runtime_core_parity: true }, null, 2));
     return 0;
   }
   if (args.length === 1 && args[0] === 'quickstart') {
@@ -740,4 +741,8 @@ async function runOfficialAdaptersSmoke() {
   if (otlp.contentType !== 'application/json') throw new Error('otlp transport failed');
   const manifest = new DockerSandboxAdapter().manifest({ network: 'deny' }, ['echo', 'ok']);
   if (manifest.network !== 'none' || manifest.read_only_root !== true || manifest.requires_explicit_execution !== true) throw new Error('docker manifest failed');
+  const closed = await new DockerSandboxExecutor().runTool({}, { _sandbox_command: ['echo', 'ok'] }, { executor: 'docker', network: 'deny', timeout_seconds: 1 });
+  if (closed.ok || closed.metadata.error_type !== 'SandboxAdapterNotInstalled') throw new Error('docker executor should fail closed without explicit execution');
+  const executed = await new DockerSandboxExecutor({ binary: '/bin/echo', image: 'fake-image', allowCommandExecution: true }).runTool({}, { _sandbox_command: ['echo', 'ok'] }, { executor: 'docker', network: 'deny', timeout_seconds: 1 });
+  if (!executed.ok || !String(executed.output.stdout).includes('fake-image')) throw new Error('docker executor injected binary failed');
 }

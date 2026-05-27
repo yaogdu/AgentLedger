@@ -303,6 +303,126 @@ func TestSandboxRequiredToolFailsClosed(t *testing.T) {
 	}
 }
 
+func TestDockerSandboxExecutorRequiresExplicitExecution(t *testing.T) {
+	executor := DockerSandboxExecutor{}
+	result := executor.RunTool(context.Background(), ToolSpec{Name: "shell.exec"}, JSONObject{"_sandbox_command": []any{"echo", "hi"}}, SandboxPolicy{Executor: "docker", Network: "deny", TimeoutSeconds: 1})
+	if result.OK || result.Metadata["error_type"] != "SandboxAdapterNotInstalled" {
+		t.Fatalf("expected docker executor to fail closed without explicit execution, got %#v", result)
+	}
+}
+
+func TestDockerSandboxExecutorRunsCommandStyleToolWithInjectedBinary(t *testing.T) {
+	rt := NewRuntime(NewMemoryStore())
+	rt.SetSandbox(DockerSandboxExecutor{Binary: "/bin/echo", Image: "fake-image", AllowCommandExecution: true})
+	if err := rt.RegisterTool(ToolSpec{Name: "cmd.echo", SandboxRequired: true, SandboxExecutor: "docker", Func: func(ctx context.Context, args JSONObject) (any, error) {
+		t.Fatalf("sandboxed command-style tool should execute through docker executor, not direct func")
+		return nil, nil
+	}}); err != nil {
+		t.Fatal(err)
+	}
+	runID, _, err := rt.CreateRun(JSONObject{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ok, err := rt.RunOnce(context.Background(), runID, "worker-docker", "Executor", 60, func(ctx context.Context, agentCtx *AgentContext, state JSONObject) error {
+		result, err := agentCtx.CallTool(ctx, "cmd.echo", JSONObject{"_sandbox_command": []any{"echo", "hi"}})
+		if err != nil {
+			return err
+		}
+		output := result.(JSONObject)
+		stdout := output["stdout"].(string)
+		if !strings.Contains(stdout, "run") || !strings.Contains(stdout, "fake-image") {
+			t.Fatalf("expected docker argv in fake binary stdout, got %q", stdout)
+		}
+		return agentCtx.WriteState("sandbox_result", output)
+	})
+	if err != nil || !ok {
+		t.Fatalf("docker sandbox run mismatch ok=%v err=%v", ok, err)
+	}
+	events := rt.Store.Events(runID)
+	if !eventTypeExists(events, "sandbox_completed") || !eventTypeExists(events, "tool_call_completed") {
+		t.Fatalf("missing sandbox/tool events: %#v", events)
+	}
+}
+
+type fakeSQLExecutor struct {
+	queries []string
+	args    [][]any
+}
+
+func (f *fakeSQLExecutor) Exec(ctx context.Context, query string, args ...any) error {
+	f.queries = append(f.queries, query)
+	f.args = append(f.args, args)
+	return nil
+}
+
+func TestPostgresAdapterUsesInjectedSQLExecutor(t *testing.T) {
+	client := &fakeSQLExecutor{}
+	adapter := NewPostgresAdapter("", client)
+	if err := adapter.ApplyMigrations(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if adapter.Schema != "agentledger" {
+		t.Fatalf("expected default schema, got %s", adapter.Schema)
+	}
+	if len(client.queries) < 2 {
+		t.Fatalf("expected DDL plus migration insert queries, got %#v", client.queries)
+	}
+	if !strings.Contains(client.queries[0], "CREATE TABLE IF NOT EXISTS runs") {
+		t.Fatalf("expected postgres DDL first, got %s", client.queries[0])
+	}
+	if !strings.Contains(client.queries[1], "INSERT INTO schema_migrations") || len(client.args[1]) != 3 {
+		t.Fatalf("expected schema migration insert with args, got query=%s args=%#v", client.queries[1], client.args[1])
+	}
+}
+
+type fakeObjectClient struct {
+	objects map[string][]byte
+	puts    []ObjectPutInput
+}
+
+func (f *fakeObjectClient) PutObject(ctx context.Context, input ObjectPutInput) error {
+	if f.objects == nil {
+		f.objects = map[string][]byte{}
+	}
+	f.puts = append(f.puts, input)
+	f.objects[input.Bucket+"/"+input.Key] = append([]byte(nil), input.Body...)
+	return nil
+}
+
+func (f *fakeObjectClient) GetObject(ctx context.Context, bucket string, key string) (ObjectGetOutput, error) {
+	body, ok := f.objects[bucket+"/"+key]
+	if !ok {
+		return ObjectGetOutput{}, errors.New("object not found")
+	}
+	return ObjectGetOutput{Body: append([]byte(nil), body...)}, nil
+}
+
+func TestS3BlobStoreUsesInjectedObjectClient(t *testing.T) {
+	client := &fakeObjectClient{}
+	blobs := NewS3BlobStore("agentledger-test", "", client)
+	digest, ref, err := blobs.PutJSON(context.Background(), JSONObject{"hello": "world"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasPrefix(digest, "sha256:") || !strings.HasPrefix(ref, "s3://agentledger-test/agentledger/blobs/sha256/") {
+		t.Fatalf("unexpected digest/ref: %s %s", digest, ref)
+	}
+	if len(client.puts) != 1 || client.puts[0].ContentType != "application/json" || client.puts[0].Metadata["agentledger-digest"] != digest {
+		t.Fatalf("unexpected put object call: %#v", client.puts)
+	}
+	value, err := blobs.GetJSON(context.Background(), ref)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if value.(map[string]any)["hello"] != "world" {
+		t.Fatalf("unexpected roundtrip value: %#v", value)
+	}
+	if _, err := blobs.GetJSON(context.Background(), "s3://agentledger-test/../bad.json"); err == nil {
+		t.Fatal("expected unsafe s3 ref to be rejected")
+	}
+}
+
 func TestCostBudgetAndFailureAttribution(t *testing.T) {
 	rt := NewRuntime(NewMemoryStore())
 	rt.SetBudget(BudgetLimits{MaxToolCalls: 1})

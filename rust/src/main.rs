@@ -8,11 +8,11 @@ use agentledger::{
     cost_attribution, ddl_for, debug_html, debug_summary, diff_evidence, diff_states,
     divergence_report, evaluate_evidence, evaluate_evidence_regression, export_evidence,
     failure_attribution, golden_regression, latest_schema_version, migrations_for, otlp_trace_json,
-    optional_adapter_capabilities, DockerSandboxAdapter, ObjectClient, OtlpClient, OtlpTransport, PostgresAdapter, S3BlobStoreAdapter, SqlExecutor, plan_retention, replay, run_failure_injection_suite, scan_boundary_source, shadow_report,
+    optional_adapter_capabilities, DockerSandboxAdapter, DockerSandboxExecutor, ObjectClient, OtlpClient, OtlpTransport, PostgresAdapter, S3BlobStoreAdapter, SqlExecutor, plan_retention, replay, run_failure_injection_suite, scan_boundary_source, shadow_report,
     simple_run, time_travel, time_travel_html, trace_jsonl, trace_spans, AgentContext,
     BudgetLimits, FunctionAdapter, InMemoryMCPContextServer, InMemoryMCPToolServer, LocalBlobStore,
     LocalWorker, MCPContextAdapter, MCPToolAdapter, MemoryStore, MethodFrameworkAdapter, Runtime,
-    RuntimeScheduler, State, ToolSpec, Value, WorkerService,
+    RuntimeScheduler, SandboxExecutor, State, ToolSpec, Value, WorkerService,
 };
 
 const FIXTURE_CHECKS: &[(&str, &[&str])] = &[
@@ -239,6 +239,7 @@ const FIXTURE_CHECKS: &[(&str, &[&str])] = &[
             "s3_blob_adapter_round_trips_json_with_injected_client",
             "otlp_transport_posts_json_with_injected_client",
             "docker_sandbox_adapter_builds_manifest_without_daemon",
+            "docker_sandbox_executor_runs_command_style_tool_with_injected_binary",
         ],
     ),
 ];
@@ -254,8 +255,8 @@ fn run(args: Vec<String>) -> Result<(), Box<dyn Error>> {
     match args.as_slice() {
         [] => { print_help(); Ok(()) }
         [command] if command == "--help" || command == "help" => { print_help(); Ok(()) }
-        [command] if command == "version" => { println!("agentledger-rust 1.2.0"); Ok(()) }
-        [command] if command == "doctor" => { println!("{{\n  \"language\": \"rust\",\n  \"version\": \"1.2.0\",\n  \"status\": \"ok\",\n  \"runtime_core_parity\": true\n}}"); Ok(()) }
+        [command] if command == "version" => { println!("agentledger-rust 1.2.1"); Ok(()) }
+        [command] if command == "doctor" => { println!("{{\n  \"language\": \"rust\",\n  \"version\": \"1.2.1\",\n  \"status\": \"ok\",\n  \"runtime_core_parity\": true\n}}"); Ok(()) }
         [command] if command == "quickstart" => run_quickstart(),
         [command] if command == "conformance" => run_conformance(),
         [command, action] if command == "contract" && action == "validate" => validate_contract(),
@@ -268,7 +269,7 @@ fn run(args: Vec<String>) -> Result<(), Box<dyn Error>> {
 }
 
 fn print_help() {
-    println!("AgentLedger Rust Runtime 1.2.0\n\nUsage:\n  agentledger-rust doctor\n  agentledger-rust version\n  agentledger-rust quickstart\n  agentledger-rust conformance\n  agentledger-rust contract validate\n  agentledger-rust contract export\n\nProject: https://github.com/yaogdu/AgentLedger");
+    println!("AgentLedger Rust Runtime 1.2.1\n\nUsage:\n  agentledger-rust doctor\n  agentledger-rust version\n  agentledger-rust quickstart\n  agentledger-rust conformance\n  agentledger-rust contract validate\n  agentledger-rust contract export\n\nProject: https://github.com/yaogdu/AgentLedger");
 }
 
 fn run_quickstart() -> Result<(), Box<dyn Error>> {
@@ -1589,5 +1590,34 @@ fn run_official_adapters_smoke() -> Result<(), Box<dyn Error>> {
     if otlp.client.content_type != "application/json" { return Err("otlp transport failed".into()); }
     let manifest = (DockerSandboxAdapter { image: String::new() }).manifest(&state(&[("network", "deny".into())]), vec!["echo".to_string(), "ok".to_string()]);
     if manifest.get("network") != Some(&Value::String("none".to_string())) || manifest.get("read_only_root") != Some(&Value::Bool(true)) { return Err("docker manifest failed".into()); }
+    let closed = DockerSandboxExecutor::new("fake-image", false).with_binary("/bin/echo").run_tool(
+        state(&[("_sandbox_command", Value::Array(vec!["echo".into(), "ok".into()]))]),
+        &agentledger::SandboxPolicy {
+            tool_name: "cmd.echo".to_string(),
+            run_id: "run".to_string(),
+            step_id: "step".to_string(),
+            executor: "docker".to_string(),
+            network: "deny".to_string(),
+            filesystem: "read-only".to_string(),
+            timeout_seconds: 1,
+            extra: State::new(),
+        },
+    );
+    if closed.ok || closed.metadata.get("error_type") != Some(&Value::String("SandboxAdapterNotInstalled".to_string())) { return Err("docker executor should fail closed without explicit execution".into()); }
+    let executed = DockerSandboxExecutor::new("fake-image", true).with_binary("/bin/echo").run_tool(
+        state(&[("_sandbox_command", Value::Array(vec!["echo".into(), "ok".into()]))]),
+        &agentledger::SandboxPolicy {
+            tool_name: "cmd.echo".to_string(),
+            run_id: "run".to_string(),
+            step_id: "step".to_string(),
+            executor: "docker".to_string(),
+            network: "deny".to_string(),
+            filesystem: "read-only".to_string(),
+            timeout_seconds: 1,
+            extra: State::new(),
+        },
+    );
+    let stdout = match executed.output { Value::Object(output) => match output.get("stdout") { Some(Value::String(value)) => value.clone(), _ => String::new() }, _ => String::new() };
+    if !executed.ok || !stdout.contains("fake-image") { return Err("docker executor injected binary failed".into()); }
     Ok(())
 }

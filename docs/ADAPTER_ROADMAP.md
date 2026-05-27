@@ -4,7 +4,7 @@
 
 AgentLedger keeps runtime-core thin: core owns invariants, contracts, events, evidence, replay, policy, and fail-closed behavior. Concrete integrations should be shipped as optional adapters when the target ecosystem is mature enough and the integration boundary is stable.
 
-Packaging mechanics for the `1.2.0` adapter packaging release are defined in `ADAPTER_PACKAGING.md`. This roadmap defines priority and ownership; the packaging document defines package layout, extras, compatibility shims, and release gates.
+Packaging mechanics for the `1.2.1` adapter packaging release are defined in `ADAPTER_PACKAGING.md`. This roadmap defines priority and ownership; the packaging document defines package layout, extras, compatibility shims, and release gates.
 
 ## Decision Rules
 

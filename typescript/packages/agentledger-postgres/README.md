@@ -8,5 +8,7 @@ npm install agentledger-runtime agentledger-postgres
 
 ```js
 import { PostgresAdapter } from 'agentledger-postgres';
-```
 
+const adapter = new PostgresAdapter(pgClient); // supports exec, query, or execute
+await adapter.applyMigrations();
+```

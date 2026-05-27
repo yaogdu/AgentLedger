@@ -212,9 +212,9 @@ This does not make an adapter production-ready by itself. It gives users a concr
 AgentLedger can generate a machine-readable starting bundle for official adapter profiles:
 
 ```bash
-PYTHONPATH=src python3 -m agentledger adapter certify --kind postgres --adapter-version 1.2.0
-PYTHONPATH=src python3 -m agentledger adapter certify --kind s3 --adapter-version 1.2.0 --out ./s3-certification.json
-PYTHONPATH=src python3 -m agentledger adapter certify --kind langgraph --adapter-version 1.2.0 --package-name agentledger-langgraph
+PYTHONPATH=src python3 -m agentledger adapter certify --kind postgres --adapter-version 1.2.1
+PYTHONPATH=src python3 -m agentledger adapter certify --kind s3 --adapter-version 1.2.1 --out ./s3-certification.json
+PYTHONPATH=src python3 -m agentledger adapter certify --kind langgraph --adapter-version 1.2.1 --package-name agentledger-langgraph
 ```
 
 Supported built-in profiles:

@@ -54,6 +54,8 @@ from agentledger.simple import agent, arun, run
 from agentledger.tools import PermissionDenied, ToolSpec, ToolValidationError, validate_tool_schema
 from agentledger.worker import LocalWorker, WorkerService, build_worker_deployment_plan
 
+from agentledger import __version__ as AGENTLEDGER_VERSION
+
 
 class FakePostgresConnection:
     """SQLite-backed stand-in for psycopg's small connection surface."""
@@ -208,7 +210,7 @@ class RuntimeTests(unittest.TestCase):
         self.assertIn("s3", project["optional-dependencies"])
         self.assertIn("Programming Language :: Python :: 3.11", project["classifiers"])
         self.assertIn("Programming Language :: Python :: 3.12", project["classifiers"])
-        self.assertEqual(project["version"], "1.2.0")
+        self.assertEqual(project["version"], AGENTLEDGER_VERSION)
 
     def test_cli_help_points_to_github_docs(self) -> None:
         stdout = io.StringIO()
@@ -2138,7 +2140,7 @@ roles:
         ci = Path(".github/workflows/ci.yml").read_text(encoding="utf-8")
         parity_script = Path("scripts/check_language_parity.py").read_text(encoding="utf-8")
         self.assertIn("[English](README.md) | [中文](README.zh-CN.md)", readme)
-        self.assertIn("![Version 1.2.0 stable]", readme)
+        self.assertIn(f"![Version {AGENTLEDGER_VERSION} stable]", readme)
         self.assertIn("python3 -m pip install agentledger-runtime", readme)
         self.assertIn("https://github.com/yaogdu/AgentLedger", readme)
         self.assertIn("docs/assets/agentledger-runtime-architecture.svg", readme)

@@ -1,6 +1,6 @@
 # Adapter Packaging
 
-AgentLedger `1.2.0` 引入 adapter packaging model。runtime-core 保持小而稳定，具体生态集成进入 optional adapter packages，用户可以通过 extras 或直接安装 adapter 包启用。
+AgentLedger `1.2.1` 引入 adapter packaging model。runtime-core 保持小而稳定，具体生态集成进入 optional adapter packages，用户可以通过 extras 或直接安装 adapter 包启用。
 
 ## 为什么拆包
 
@@ -24,7 +24,7 @@ extras 保持安装体验简单
 
 adapter packaging 是按语言生态落地的。同一个目标，在不同语言里使用不同机制：
 
-| 语言 | `1.2.0` 机制 | 原因 |
+| 语言 | `1.2.1` 机制 | 原因 |
 | --- | --- | --- |
 | Python | `packages/` 下独立 PyPI 包，加 `agentledger-runtime[...]` extras | Python extras 最适合把 optional SDK dependency 留在 core 之外 |
 | TypeScript/Node | `agentledger-runtime` subpath exports，加 `typescript/packages/` 下 npm adapter packages | subpath exports 方便本地使用；独立 package 保留后续独立发布能力 |
@@ -120,7 +120,7 @@ agentledger-runtime/
 
 ## 第一批 Adapter Packages
 
-| Package | `1.2.0` 负责 | 依赖状态 |
+| Package | `1.2.1` 负责 | 依赖状态 |
 | --- | --- | --- |
 | `agentledger-postgres` | `PostgresStore`、`PostgresStoreConfig`、migration/conformance helpers | 依赖 `psycopg[binary]`；production rollout 仍需要真实服务演练。 |
 | `agentledger-s3` | `S3BlobStore`、`S3BlobStoreConfig` | 依赖 `boto3`；production rollout 仍需要 IAM/KMS/lifecycle 和 restore drill。 |
@@ -156,7 +156,7 @@ sandbox infrastructure 仍然属于 adapter 层。Docker、E2B、Kubernetes Jobs
 
 ## Compatibility Shims
 
-`1.2.0` 不应该破坏已有 import。
+`1.2.1` 不应该破坏已有 import。
 
 已有 import 例如：
 
@@ -173,7 +173,7 @@ Postgres support moved to agentledger-postgres.
 Install with: pip install "agentledger-runtime[postgres]"
 ```
 
-`1.2.0` 不删除这些 shim path。未来 `2.0` 可在 deprecation window 后移除 compatibility shims。
+`1.2.1` 不删除这些 shim path。未来 `2.0` 可在 deprecation window 后移除 compatibility shims。
 
 ## Core Extras
 
@@ -201,11 +201,11 @@ monorepo 本地开发时，测试可以从 `packages/*` 路径安装；发布后
 
 ## Release Gates
 
-`1.2.0` packaging release 期望通过：
+`1.2.1` packaging release 期望通过：
 
 ```bash
 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m unittest discover -s tests -q
-PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m agentledger adapter certify --kind postgres --adapter-version 1.2.0
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m agentledger adapter certify --kind postgres --adapter-version 1.2.1
 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 scripts/check_adapter_packages.py
 go test ./...
 cd typescript && npm test
@@ -220,9 +220,9 @@ python3 -m pip install dist/<adapter>.whl
 python3 -c "import <adapter_import_name>"
 ```
 
-## 1.2.0 非目标
+## 1.2.1 非目标
 
-`1.2.0` 不因为 package 存在就声明 production hardening 完成。以下内容继续作为后续工作：
+`1.2.1` 不因为 package 存在就声明 production hardening 完成。以下内容继续作为后续工作：
 
 - 真实 Postgres/S3 restore drill 和 load/concurrency report
 - 完整 framework-native version matrix

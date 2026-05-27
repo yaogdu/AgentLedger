@@ -3,7 +3,7 @@ import { mkdtemp, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import test from 'node:test';
-import { JSONStore, LocalBlobStore, LocalWorker, RetryableAgentError, Runtime, WorkerService, exportEvidence, replay, costAttribution, failureAttribution } from '../src/index.js';
+import { DockerSandboxExecutor, JSONStore, LocalBlobStore, LocalWorker, RetryableAgentError, Runtime, WorkerService, exportEvidence, replay, costAttribution, failureAttribution } from '../src/index.js';
 
 test('adapter subpath exports expose the v1.2 package boundary', async () => {
   const postgres = await import('../src/adapters/postgres.js');
@@ -13,18 +13,95 @@ test('adapter subpath exports expose the v1.2 package boundary', async () => {
   const docker = await import('../src/adapters/sandbox-docker.js');
   const langgraph = await import('../src/adapters/langgraph.js');
 
-  assert.equal(postgres.adapterPackage.version, '1.2.0');
+  assert.equal(postgres.adapterPackage.version, '1.2.1');
   assert.equal(typeof postgres.PostgresAdapter, 'function');
   assert.equal(typeof s3.S3BlobStoreAdapter, 'function');
   assert.equal(typeof mcp.MCPToolAdapter, 'function');
   assert.equal(typeof otel.OTLPTransport, 'function');
   assert.equal(typeof docker.DockerSandboxAdapter, 'function');
+  assert.equal(typeof docker.DockerSandboxExecutor, 'function');
 
   const rt = new Runtime(JSONStore.memory());
   const { runId } = await rt.createRun({ hello: 'world' });
   const checkpointer = new langgraph.LangGraphCheckpointerAdapter(rt);
   const config = checkpointer.configForRun(runId);
   assert.deepEqual(checkpointer.get(config).state, { hello: 'world' });
+});
+
+test('docker sandbox executor fails closed unless execution is explicitly enabled', async () => {
+  const executor = new DockerSandboxExecutor();
+  const result = await executor.runTool({}, { _sandbox_command: ['echo', 'hi'] }, { executor: 'docker', network: 'deny', timeout_seconds: 1 });
+  assert.equal(result.ok, false);
+  assert.equal(result.metadata.error_type, 'SandboxAdapterNotInstalled');
+});
+
+test('docker sandbox executor can run command-style tool through runtime with injected binary', async () => {
+  const rt = new Runtime(JSONStore.memory());
+  rt.setSandbox(new DockerSandboxExecutor({ binary: '/bin/echo', image: 'fake-image', allowCommandExecution: true }));
+  rt.registerTool({
+    name: 'cmd.echo',
+    sandboxRequired: true,
+    sandboxExecutor: 'docker',
+    func: async () => {
+      throw new Error('sandboxed command-style tool should execute through docker executor, not direct func');
+    },
+  });
+  const { runId } = await rt.createRun({});
+  const ok = await rt.runOnce({
+    runId,
+    agentRole: 'Executor',
+    agent: async (ctx) => {
+      const result = await ctx.callTool('cmd.echo', { _sandbox_command: ['echo', 'hi'] });
+      assert.match(result.stdout, /run/);
+      assert.match(result.stdout, /fake-image/);
+      await ctx.writeState('sandbox_result', result);
+    },
+  });
+  assert.equal(ok, true);
+  const events = rt.store.events(runId).map((event) => event.type);
+  assert.ok(events.includes('sandbox_completed'));
+  assert.ok(events.includes('tool_call_completed'));
+});
+
+test('postgres adapter can use injected query-style clients', async () => {
+  const { PostgresAdapter } = await import('../src/adapters/postgres.js');
+  const calls = [];
+  const adapter = new PostgresAdapter({
+    async query(sql, params = []) {
+      calls.push({ sql, params });
+      return { rowCount: 1 };
+    },
+  });
+  await adapter.applyMigrations();
+  assert.ok(calls.length >= 2);
+  assert.match(calls[0].sql, /CREATE TABLE IF NOT EXISTS runs/);
+  assert.match(calls[1].sql, /INSERT INTO schema_migrations/);
+  assert.deepEqual(calls[1].params.slice(0, 2), ['0001', 'initial_runtime_metadata']);
+});
+
+test('s3 adapter can use injected send-style object clients', async () => {
+  const { S3BlobStoreAdapter } = await import('../src/adapters/s3.js');
+  const objects = new Map();
+  const sent = [];
+  const adapter = new S3BlobStoreAdapter({
+    async send(command) {
+      sent.push(command);
+      const input = command.input;
+      if (command.constructor.name === 'PutObjectCommand') {
+        objects.set(`${input.Bucket}/${input.Key}`, input.Body);
+        return {};
+      }
+      if (command.constructor.name === 'GetObjectCommand') {
+        return { Body: objects.get(`${input.Bucket}/${input.Key}`) };
+      }
+      throw new Error(`unexpected command ${command.constructor.name}`);
+    },
+  }, { bucket: 'agentledger-test' });
+  const { digest, ref } = await adapter.putJSON({ hello: 'world' });
+  assert.ok(digest.startsWith('sha256:'));
+  assert.ok(ref.startsWith('s3://agentledger-test/agentledger/blobs/sha256/'));
+  assert.deepEqual(await adapter.getJSON(ref), { hello: 'world' });
+  assert.equal(sent.map((command) => command.constructor.name).join(','), 'PutObjectCommand,GetObjectCommand');
 });
 
 test('runtime creates durable run, evidence, and replay summary', async () => {

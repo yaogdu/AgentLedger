@@ -4,7 +4,7 @@
 
 AgentLedger 的 runtime-core 要保持薄：core 负责 invariant、contract、event、evidence、replay、policy 和 fail-closed 行为。具体生态集成应该在目标生态足够成熟、边界足够稳定时，作为 optional adapter 发布。
 
-`1.2.0` adapter packaging release 的包结构、extras、compatibility shim 和 release gate 见 `ADAPTER_PACKAGING.md`。本文定义 adapter 优先级和所有权；packaging 文档定义具体打包机制。
+`1.2.1` adapter packaging release 的包结构、extras、compatibility shim 和 release gate 见 `ADAPTER_PACKAGING.md`。本文定义 adapter 优先级和所有权；packaging 文档定义具体打包机制。
 
 ## 决策规则
 

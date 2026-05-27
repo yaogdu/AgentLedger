@@ -1,6 +1,6 @@
 # Adapter Packaging
 
-AgentLedger `1.2.0` introduces the adapter packaging model. Runtime-core stays small and dependency-light; concrete integrations move into optional adapter packages that can be installed through extras or directly.
+AgentLedger `1.2.1` introduces the adapter packaging model. Runtime-core stays small and dependency-light; concrete integrations move into optional adapter packages that can be installed through extras or directly.
 
 ## Why Split Adapters
 
@@ -24,7 +24,7 @@ extras preserve easy installation
 
 Adapter packaging is language-specific. The goal is the same across languages, but the package mechanism follows each ecosystem:
 
-| Language | Mechanism in `1.2.0` | Reason |
+| Language | Mechanism in `1.2.1` | Reason |
 | --- | --- | --- |
 | Python | separate PyPI packages under `packages/` plus `agentledger-runtime[...]` extras | Python extras are the cleanest way to keep optional SDK dependencies out of core |
 | TypeScript/Node | `agentledger-runtime` subpath exports plus separate npm adapter packages under `typescript/packages/` | subpath exports are ergonomic for local use; adapter packages preserve future independent npm releases |
@@ -120,7 +120,7 @@ Each adapter package should provide:
 
 ## First Adapter Packages
 
-| Package | Owns in `1.2.0` | Dependency status |
+| Package | Owns in `1.2.1` | Dependency status |
 | --- | --- | --- |
 | `agentledger-postgres` | `PostgresStore`, `PostgresStoreConfig`, migration/conformance helpers | Requires `psycopg[binary]`; production rollout still needs real-service drills. |
 | `agentledger-s3` | `S3BlobStore`, `S3BlobStoreConfig` | Requires `boto3`; production rollout still needs IAM/KMS/lifecycle and restore drills. |
@@ -156,7 +156,7 @@ For high-risk untrusted code, do not treat the Docker adapter alone as a complet
 
 ## Compatibility Shims
 
-`1.2.0` should avoid breaking existing imports.
+`1.2.1` should avoid breaking existing imports.
 
 Existing imports such as:
 
@@ -173,7 +173,7 @@ Postgres support moved to agentledger-postgres.
 Install with: pip install "agentledger-runtime[postgres]"
 ```
 
-Do not remove these shim paths in `1.2.0`. A future `2.0` may remove compatibility shims after a deprecation window.
+Do not remove these shim paths in `1.2.1`. A future `2.0` may remove compatibility shims after a deprecation window.
 
 ## Core Extras
 
@@ -201,11 +201,11 @@ During local monorepo development, tests may install packages from `packages/*` 
 
 ## Release Gates
 
-The `1.2.0` packaging release is expected to pass:
+The `1.2.1` packaging release is expected to pass:
 
 ```bash
 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m unittest discover -s tests -q
-PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m agentledger adapter certify --kind postgres --adapter-version 1.2.0
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m agentledger adapter certify --kind postgres --adapter-version 1.2.1
 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 scripts/check_adapter_packages.py
 go test ./...
 cd typescript && npm test
@@ -220,9 +220,9 @@ python3 -m pip install dist/<adapter>.whl
 python3 -c "import <adapter_import_name>"
 ```
 
-## Non-Goals For 1.2.0
+## Non-Goals For 1.2.1
 
-`1.2.0` should not claim production hardening just because packages exist. The following stay as later work:
+`1.2.1` should not claim production hardening just because packages exist. The following stay as later work:
 
 - real Postgres/S3 restore drills and load/concurrency reports
 - full framework-native version matrix

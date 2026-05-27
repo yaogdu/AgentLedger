@@ -1,3 +1,2 @@
-export { DockerSandboxAdapter } from '../index.js';
+export { DockerSandboxAdapter, DockerSandboxExecutor } from '../index.js';
 export const adapterPackage: { name: string; runtimePackage: string; version: string; category: string };
-

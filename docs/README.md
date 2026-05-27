@@ -44,7 +44,7 @@ This directory is the canonical documentation set for AgentLedger. English docs 
 - `POLICY_ENGINE.md`: policy request/decision contract, PEP/PDP split, evaluator registry, controls, and adapter boundary.
 - `RUNTIME_SPEC.md`: runtime concepts, state model, event schema, Tool Ledger semantics, evidence regression/replay/debug interfaces.
 - `EXTENSIBILITY.md`: adapter model for storage, tools, frameworks, protocols, observability, media, and sandbox.
-- `ADAPTER_PACKAGING.md`: optional adapter package layout, extras install model, compatibility shim strategy, and 1.2.0 packaging release gates.
+- `ADAPTER_PACKAGING.md`: optional adapter package layout, extras install model, compatibility shim strategy, and 1.2.1 packaging release gates.
 - `STORAGE.md`: runtime metadata schema, migrations, StateStore and BlobStore extension contract.
 - `ADAPTER_CERTIFICATION.md`: compatibility checklist for storage, blob, framework, tool, sandbox, media/stream, and observability adapters.
 - `EXECUTION_BACKENDS.md`: Temporal/Ray/Kubernetes positioning and scheduler adapter boundary.

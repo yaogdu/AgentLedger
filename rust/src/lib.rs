@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::fmt;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -298,6 +299,45 @@ pub type Result<T> = std::result::Result<T, RuntimeError>;
 pub type ToolFunc = Box<dyn Fn(State) -> Result<Value> + Send + Sync>;
 pub type AgentFunc = fn(&mut AgentContext, State) -> Result<()>;
 
+pub struct SandboxPolicy {
+    pub tool_name: String,
+    pub run_id: String,
+    pub step_id: String,
+    pub executor: String,
+    pub network: String,
+    pub filesystem: String,
+    pub timeout_seconds: u64,
+    pub extra: State,
+}
+
+pub struct SandboxResult {
+    pub ok: bool,
+    pub output: Value,
+    pub error: Option<String>,
+    pub metadata: State,
+}
+
+pub trait SandboxExecutor {
+    fn run_tool(&self, args: State, policy: &SandboxPolicy) -> SandboxResult;
+}
+
+pub struct DisabledSandboxExecutor;
+
+impl SandboxExecutor for DisabledSandboxExecutor {
+    fn run_tool(&self, _args: State, policy: &SandboxPolicy) -> SandboxResult {
+        let mut metadata = State::new();
+        metadata.insert("executor".to_string(), Value::String(policy.executor.clone()));
+        metadata.insert("isolation_level".to_string(), Value::String("none".to_string()));
+        metadata.insert("fail_closed".to_string(), Value::Bool(true));
+        SandboxResult {
+            ok: false,
+            output: Value::Null,
+            error: Some(format!("sandbox executor \"{}\" is disabled", policy.executor)),
+            metadata,
+        }
+    }
+}
+
 pub struct ToolSpec {
     pub name: String,
     pub version: String,
@@ -306,6 +346,8 @@ pub struct ToolSpec {
     pub idempotency_required: bool,
     pub approval_required: bool,
     pub sandbox_required: bool,
+    pub sandbox_executor: String,
+    pub sandbox_policy: State,
     pub input_schema: Option<Value>,
     pub output_schema: Option<Value>,
     pub func: ToolFunc,
@@ -321,6 +363,8 @@ impl ToolSpec {
             idempotency_required: false,
             approval_required: false,
             sandbox_required: false,
+            sandbox_executor: String::new(),
+            sandbox_policy: State::new(),
             input_schema: None,
             output_schema: None,
             func,
@@ -349,6 +393,16 @@ impl ToolSpec {
 
     pub fn sandbox_required(mut self, required: bool) -> Self {
         self.sandbox_required = required;
+        self
+    }
+
+    pub fn sandbox_executor(mut self, executor: &str) -> Self {
+        self.sandbox_executor = executor.to_string();
+        self
+    }
+
+    pub fn sandbox_policy(mut self, policy: State) -> Self {
+        self.sandbox_policy = policy;
         self
     }
 
@@ -1298,6 +1352,7 @@ pub struct Runtime {
     pub store: MemoryStore,
     pub registry: ToolRegistry,
     pub budget: BudgetLimits,
+    pub sandbox: Box<dyn SandboxExecutor>,
 }
 
 impl Runtime {
@@ -1306,6 +1361,7 @@ impl Runtime {
             store: MemoryStore::new(),
             registry: ToolRegistry::new(),
             budget: BudgetLimits::default(),
+            sandbox: Box::new(DisabledSandboxExecutor),
         }
     }
 
@@ -1315,6 +1371,10 @@ impl Runtime {
 
     pub fn set_budget(&mut self, budget: BudgetLimits) {
         self.budget = budget;
+    }
+
+    pub fn set_sandbox(&mut self, sandbox: Box<dyn SandboxExecutor>) {
+        self.sandbox = sandbox;
     }
 
     pub fn create_run(&mut self, initial_state: State) -> (String, String) {
@@ -1407,6 +1467,8 @@ impl Runtime {
             idempotency_required,
             approval_required,
             sandbox_required,
+            sandbox_executor,
+            sandbox_policy,
             input_schema,
             output_schema,
         ) = {
@@ -1418,6 +1480,8 @@ impl Runtime {
                 spec.idempotency_required,
                 spec.approval_required,
                 spec.sandbox_required,
+                spec.sandbox_executor.clone(),
+                spec.sandbox_policy.clone(),
                 spec.input_schema.clone(),
                 spec.output_schema.clone(),
             )
@@ -1614,12 +1678,35 @@ impl Runtime {
                 .update_ledger(&idempotency_key, "RUNNING", None, None);
         }
         if sandbox_required {
+            let executor = if sandbox_executor.is_empty() { "default".to_string() } else { sandbox_executor.clone() };
+            let network = match sandbox_policy.get("network") {
+                Some(Value::String(value)) => value.clone(),
+                _ => "deny".to_string(),
+            };
+            let filesystem = match sandbox_policy.get("filesystem") {
+                Some(Value::String(value)) => value.clone(),
+                _ => "read-only".to_string(),
+            };
+            let timeout_seconds = match sandbox_policy.get("timeout_seconds") {
+                Some(Value::Number(value)) if *value > 0.0 => *value as u64,
+                _ => 30,
+            };
+            let policy = SandboxPolicy {
+                tool_name: tool_name.to_string(),
+                run_id: ctx.run_id.clone(),
+                step_id: ctx.step_id.clone(),
+                executor: executor.clone(),
+                network,
+                filesystem,
+                timeout_seconds,
+                extra: sandbox_policy.clone(),
+            };
             let mut sandbox_payload = State::new();
-            sandbox_payload.insert(
-                "tool_name".to_string(),
-                Value::String(tool_name.to_string()),
-            );
-            sandbox_payload.insert("executor".to_string(), Value::String("default".to_string()));
+            sandbox_payload.insert("tool_name".to_string(), Value::String(tool_name.to_string()));
+            sandbox_payload.insert("executor".to_string(), Value::String(executor));
+            sandbox_payload.insert("network".to_string(), Value::String(policy.network.clone()));
+            sandbox_payload.insert("filesystem".to_string(), Value::String(policy.filesystem.clone()));
+            sandbox_payload.insert("timeout_seconds".to_string(), Value::Number(policy.timeout_seconds as f64));
             self.store.append_event(
                 &ctx.run_id,
                 Some(&ctx.session_id),
@@ -1630,10 +1717,13 @@ impl Runtime {
                 Some(ctx.state_version),
                 Some(&causal_token),
             );
-            let message = "sandbox executor \"default\" is disabled".to_string();
+            let result = self.sandbox.run_tool(args, &policy);
             let mut completed = State::new();
-            completed.insert("ok".to_string(), Value::Bool(false));
-            completed.insert("error".to_string(), Value::String(message.clone()));
+            completed.insert("ok".to_string(), Value::Bool(result.ok));
+            completed.insert("metadata".to_string(), Value::Object(result.metadata.clone()));
+            if let Some(error) = &result.error {
+                completed.insert("error".to_string(), Value::String(error.clone()));
+            }
             self.store.append_event(
                 &ctx.run_id,
                 Some(&ctx.session_id),
@@ -1644,20 +1734,54 @@ impl Runtime {
                 Some(ctx.state_version),
                 Some(&causal_token),
             );
-            let mut failed = State::new();
-            failed.insert("tool".to_string(), Value::String(tool_name.to_string()));
-            failed.insert("error".to_string(), Value::String(message.clone()));
+            if !result.ok {
+                let message = result.error.unwrap_or_else(|| "sandboxed tool failed".to_string());
+                let mut failed = State::new();
+                failed.insert("tool".to_string(), Value::String(tool_name.to_string()));
+                failed.insert("error".to_string(), Value::String(message.clone()));
+                self.store.append_event(
+                    &ctx.run_id,
+                    Some(&ctx.session_id),
+                    Some(&ctx.step_id),
+                    "tool_call_failed",
+                    failed,
+                    Some(&ctx.agent_role),
+                    Some(ctx.state_version),
+                    Some(&causal_token),
+                );
+                return Err(RuntimeError(message));
+            }
+            let value = result.output;
+            if let Some(schema) = output_schema.as_ref() {
+                validate_tool_schema(schema, &value, "$result")?;
+            }
+            if managed {
+                self.store.update_ledger(&idempotency_key, "SUCCEEDED", Some(value.clone()), None);
+            }
+            let mut payload = State::new();
+            payload.insert("tool".to_string(), Value::String(tool_name.to_string()));
+            payload.insert("idempotency_key".to_string(), Value::String(idempotency_key));
             self.store.append_event(
                 &ctx.run_id,
                 Some(&ctx.session_id),
                 Some(&ctx.step_id),
-                "tool_call_failed",
-                failed,
+                "tool_call_completed",
+                payload,
                 Some(&ctx.agent_role),
                 Some(ctx.state_version),
                 Some(&causal_token),
             );
-            return Err(RuntimeError(message));
+            self.store.record_cost(
+                &ctx.run_id,
+                &ctx.session_id,
+                &ctx.step_id,
+                "tool",
+                tool_name,
+                1.0,
+                "call",
+                State::new(),
+            );
+            return Ok(value);
         }
         let result = {
             let spec = self.registry.get(tool_name)?;
@@ -3676,6 +3800,53 @@ mod tests {
         let events = runtime.store.events(&run_id);
         assert!(event_exists(&events, "sandbox_started"));
         assert!(event_exists(&events, "tool_call_failed"));
+    }
+
+    #[test]
+    fn docker_sandbox_executor_requires_explicit_execution() {
+        let executor = DockerSandboxExecutor::new("fake-image", false).with_binary("/bin/echo");
+        let result = executor.run_tool(
+            state(&[("_sandbox_command", Value::Array(vec!["echo".into(), "hi".into()]))]),
+            &SandboxPolicy {
+                tool_name: "cmd.echo".to_string(),
+                run_id: "run".to_string(),
+                step_id: "step".to_string(),
+                executor: "docker".to_string(),
+                network: "deny".to_string(),
+                filesystem: "read-only".to_string(),
+                timeout_seconds: 1,
+                extra: State::new(),
+            },
+        );
+        assert!(!result.ok);
+        assert_eq!(result.metadata.get("error_type"), Some(&Value::String("SandboxAdapterNotInstalled".to_string())));
+    }
+
+    #[test]
+    fn docker_sandbox_executor_runs_command_style_tool_with_injected_binary() {
+        let mut runtime = Runtime::new();
+        runtime.set_sandbox(Box::new(DockerSandboxExecutor::new("fake-image", true).with_binary("/bin/echo")));
+        runtime.register_tool(
+            ToolSpec::new("cmd.echo", Box::new(|_| Err(RuntimeError("direct func should not execute".to_string()))))
+                .sandbox_required(true)
+                .sandbox_executor("docker"),
+        );
+        let (run_id, _) = runtime.create_run(State::new());
+        let ctx = claim_context(&mut runtime, &run_id, "worker", "Executor");
+        let value = runtime
+            .call_tool(
+                &ctx,
+                "cmd.echo",
+                state(&[("_sandbox_command", Value::Array(vec!["echo".into(), "hi".into()]))]),
+            )
+            .unwrap();
+        let output = match value { Value::Object(output) => output, _ => panic!("expected object output") };
+        let stdout = match output.get("stdout") { Some(Value::String(value)) => value, _ => panic!("expected stdout") };
+        assert!(stdout.contains("run"));
+        assert!(stdout.contains("fake-image"));
+        let events = runtime.store.events(&run_id);
+        assert!(event_exists(&events, "sandbox_completed"));
+        assert!(event_exists(&events, "tool_call_completed"));
     }
 
     #[test]
@@ -6056,6 +6227,136 @@ impl DockerSandboxAdapter {
     }
 }
 
+pub struct DockerSandboxExecutor {
+    pub image: String,
+    pub binary: String,
+    pub allow_command_execution: bool,
+    pub allow_shell: bool,
+    pub shell: String,
+    pub memory: String,
+    pub cpus: String,
+}
+
+impl DockerSandboxExecutor {
+    pub fn new(image: &str, allow_command_execution: bool) -> Self {
+        Self {
+            image: image.to_string(),
+            binary: "docker".to_string(),
+            allow_command_execution,
+            allow_shell: false,
+            shell: "/bin/sh".to_string(),
+            memory: String::new(),
+            cpus: String::new(),
+        }
+    }
+
+    pub fn with_binary(mut self, binary: &str) -> Self {
+        self.binary = binary.to_string();
+        self
+    }
+
+    fn extract_command(&self, args: &State) -> std::result::Result<Vec<String>, String> {
+        let raw = args.get("_sandbox_command").or_else(|| args.get("command"));
+        match raw {
+            Some(Value::String(command)) => {
+                if !self.allow_shell {
+                    Err("string commands require allow_shell=true; pass argv list in `_sandbox_command` instead".to_string())
+                } else {
+                    let shell = if self.shell.is_empty() { "/bin/sh" } else { &self.shell };
+                    Ok(vec![shell.to_string(), "-lc".to_string(), command.clone()])
+                }
+            }
+            Some(Value::Array(items)) => {
+                let mut command = Vec::new();
+                for item in items {
+                    match item {
+                        Value::String(value) if !value.is_empty() => command.push(value.clone()),
+                        _ => return Err("_sandbox_command must be a non-empty string array".to_string()),
+                    }
+                }
+                if command.is_empty() {
+                    Err("_sandbox_command must be a non-empty string array".to_string())
+                } else {
+                    Ok(command)
+                }
+            }
+            _ => Err("external sandbox tools require a command-style `_sandbox_command` arg".to_string()),
+        }
+    }
+
+    fn docker_argv(&self, policy: &SandboxPolicy, command: &[String]) -> Vec<String> {
+        let image = if self.image.is_empty() { "python:3.11-slim" } else { &self.image };
+        let network = if policy.network == "deny" || policy.network.is_empty() { "none" } else { &policy.network };
+        let mut argv = vec![
+            self.binary.clone(),
+            "run".to_string(),
+            "--rm".to_string(),
+            "--network".to_string(),
+            network.to_string(),
+            "--read-only".to_string(),
+        ];
+        if !self.memory.is_empty() {
+            argv.extend(["--memory".to_string(), self.memory.clone()]);
+        }
+        if !self.cpus.is_empty() {
+            argv.extend(["--cpus".to_string(), self.cpus.clone()]);
+        }
+        argv.push(image.to_string());
+        argv.extend(command.iter().cloned());
+        argv
+    }
+
+    fn result_error(policy: &SandboxPolicy, manifest: State, error_type: &str, error: String) -> SandboxResult {
+        let mut metadata = State::new();
+        metadata.insert("executor".to_string(), Value::String(policy.executor.clone()));
+        metadata.insert("isolation_level".to_string(), Value::String("container".to_string()));
+        metadata.insert("manifest".to_string(), Value::Object(manifest));
+        metadata.insert("error_type".to_string(), Value::String(error_type.to_string()));
+        SandboxResult { ok: false, output: Value::Null, error: Some(error), metadata }
+    }
+}
+
+impl SandboxExecutor for DockerSandboxExecutor {
+    fn run_tool(&self, args: State, policy: &SandboxPolicy) -> SandboxResult {
+        let command = match self.extract_command(&args) {
+            Ok(command) => command,
+            Err(error) => return Self::result_error(policy, State::new(), "InvalidSandboxCommand", error),
+        };
+        let mut policy_state = State::new();
+        policy_state.insert("network".to_string(), Value::String(policy.network.clone()));
+        let manifest = (DockerSandboxAdapter { image: self.image.clone() }).manifest(&policy_state, command.clone());
+        if !self.allow_command_execution {
+            return Self::result_error(policy, manifest, "SandboxAdapterNotInstalled", "command execution is not enabled for this executor".to_string());
+        }
+        let argv = self.docker_argv(policy, &command);
+        let mut cmd = Command::new(&argv[0]);
+        cmd.args(&argv[1..]).stdout(Stdio::piped()).stderr(Stdio::piped());
+        let output = match cmd.output() {
+            Ok(output) => output,
+            Err(error) => return Self::result_error(policy, manifest, "SandboxBinaryMissing", error.to_string()),
+        };
+        let mut value = State::new();
+        value.insert("stdout".to_string(), Value::String(String::from_utf8_lossy(&output.stdout).to_string()));
+        value.insert("stderr".to_string(), Value::String(String::from_utf8_lossy(&output.stderr).to_string()));
+        value.insert("returncode".to_string(), Value::Number(output.status.code().unwrap_or(-1) as f64));
+        let mut metadata = State::new();
+        metadata.insert("executor".to_string(), Value::String(policy.executor.clone()));
+        metadata.insert("isolation_level".to_string(), Value::String("container".to_string()));
+        metadata.insert("manifest".to_string(), Value::Object(manifest));
+        metadata.insert("executed".to_string(), Value::Bool(true));
+        if !output.status.success() {
+            metadata.insert("error_type".to_string(), Value::String("SandboxCommandFailed".to_string()));
+            return SandboxResult {
+                ok: false,
+                output: Value::Object(value),
+                error: Some(format!("sandbox command exited with {}", output.status.code().unwrap_or(-1))),
+                metadata,
+            };
+        }
+        SandboxResult { ok: true, output: Value::Object(value), error: None, metadata }
+    }
+}
+
 pub mod adapters {
     pub mod postgres {
         pub const PACKAGE_NAME: &str = "agentledger-postgres";
@@ -6087,7 +6388,7 @@ pub mod adapters {
     pub mod docker {
         pub const PACKAGE_NAME: &str = "agentledger-sandbox-docker";
         pub const FEATURE: &str = "adapter-docker";
-        pub use crate::{DockerSandboxAdapter, State, Value};
+        pub use crate::{DockerSandboxAdapter, DockerSandboxExecutor, State, Value};
     }
 
     pub mod framework {

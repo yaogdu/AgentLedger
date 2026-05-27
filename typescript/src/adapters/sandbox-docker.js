@@ -1,9 +1,8 @@
-export { DockerSandboxAdapter } from '../index.js';
+export { DockerSandboxAdapter, DockerSandboxExecutor } from '../index.js';
 
 export const adapterPackage = {
   name: 'agentledger-sandbox-docker',
   runtimePackage: 'agentledger-runtime',
-  version: '1.2.0',
+  version: '1.2.1',
   category: 'sandbox',
 };
-
