@@ -29,6 +29,106 @@ Adapter prioritization is documented in `ADAPTER_ROADMAP.md`: official adapters 
 
 This scope map is part of the release gate: a new feature should either fit runtime-core as a production execution reliability contract, land as an optional adapter, become a separate evidence consumer, or be documented as out of scope. The default choice is adapter or external consumer unless runtime-core is the only layer that can enforce the invariant.
 
+## Agent Harness Positioning
+
+AgentLedger should not try to become a complete Agent Harness product. A full harness would need to rebuild or deeply own workflow orchestration, trace UI, eval systems, model gateways, context engines, sandbox infrastructure, tool hosting, and enterprise governance. Those layers already have mature or fast-moving ecosystems such as LangGraph, Temporal, Langfuse, LangSmith, OpenTelemetry, LiteLLM, MCP, vector databases, Kubernetes, and sandbox providers.
+
+AgentLedger's role is narrower and more defensible:
+
+```text
+AgentLedger is the reliability substrate for Agent Harness stacks.
+
+It provides durable execution, tool/model governance, evidence, replay,
+policy, sandbox boundaries, cost/failure attribution, and adapter contracts.
+
+It integrates with LangGraph, Temporal, Langfuse, MCP, model providers,
+storage backends, and sandbox systems instead of replacing them.
+```
+
+Recommended stack positioning:
+
+| Layer | Example systems | AgentLedger responsibility |
+|---|---|---|
+| Workflow / planning | LangGraph, CrewAI, AutoGen, LangChain, custom code | adapter boundary, checkpoint/evidence hooks, side-effect-safe node/tool execution |
+| Durable workflow backend | Temporal, Ray, Kubernetes workers | agent-specific leases, fencing, cancellation, checkpoints, Tool Ledger, evidence, replay |
+| Observability / eval UI | Langfuse, LangSmith, OpenTelemetry, custom dashboards | structured events, evidence bundles, trace/cost/failure export, correlation IDs |
+| Tool and context protocols | MCP, internal tool servers, provider SDK tools | ToolGateway, Tool Ledger, schema validation, approvals, sandbox, audit records |
+| Model providers / routers | OpenAI, Anthropic, Gemini, Bedrock, Ollama, LiteLLM | ModelGateway contract, archived model responses, budget/fallback/replay semantics |
+| Storage / artifacts | SQLite, Postgres, MySQL, S3/MinIO, internal stores | StateStore/BlobStore contracts, migrations, conformance, evidence refs |
+
+### Must Stay In Runtime-Core
+
+These capabilities are core because only the runtime execution path can enforce them reliably:
+
+```text
+ToolGateway / Tool Ledger / idempotency
+StateStore / checkpoint / lease / fencing / cancellation
+event log / evidence bundle / replay
+policy / approval / sandbox contract
+cost and failure attribution
+conformance and adapter certification
+ModelGateway contract after the model boundary is designed
+```
+
+Runtime-core may include dependency-free local defaults and protocol contracts, but it should not force provider SDKs, web frameworks, cloud SDKs, or orchestration engines into the base package.
+
+### Should Be Official Optional Packages
+
+These are valuable and should be supported when the package boundary is clear:
+
+```text
+agentledger-inspector: read-only local/internal dashboard for run timeline, state diff, Tool Ledger, cost/failure, evidence
+agentledger-langgraph: LangGraph checkpointer/node integration
+agentledger-mcp: MCP tool/context integration
+agentledger-otel and Langfuse/LangSmith-style exporters: observability/evidence export
+agentledger-temporal: Temporal execution-backend bridge
+agentledger-model-* packages: OpenAI, Anthropic, Gemini, Bedrock, Ollama, LiteLLM-style provider/router adapters
+agentledger-sandbox-* packages: Docker, Kubernetes, E2B, Firecracker/gVisor/bubblewrap where appropriate
+agentledger-postgres, agentledger-mysql, agentledger-s3: storage and artifact adapters
+```
+
+Official optional packages must preserve AgentLedger invariants, stay fail-closed when dependencies or permissions are missing, and publish conformance or injected-client tests.
+
+### Should Be Adapter / Export / Contract Only
+
+These systems should be integrated with, not rebuilt:
+
+```text
+LangChain / CrewAI / AutoGen / OpenAI Agents SDK / LlamaIndex / Semantic Kernel
+Langfuse / LangSmith / OpenTelemetry backends
+Temporal / Ray / Kubernetes
+LiteLLM and enterprise model gateways
+vector databases, RAG systems, long-term memory systems
+eval platforms and benchmark runners
+MCP tool servers and enterprise tool catalogs
+```
+
+AgentLedger should provide adapters, export formats, evidence bundles, trace correlation, and conformance checks for these layers.
+
+### Should Stay Out Of Scope
+
+These would make the project too broad or turn it into a different product:
+
+```text
+complete agent workflow engine
+complete eval platform
+complete Langfuse/LangSmith replacement
+complete RAG or memory platform
+complete sandbox infrastructure platform
+hosted SaaS, multi-tenant app platform, billing, organization admin
+dashboard write/control plane in the first inspector release
+tool marketplace or app store
+```
+
+### Recommended Implementation Order
+
+1. Build `agentledger-inspector` as a read-only dashboard over existing SQLite/Postgres/MySQL runtime metadata and evidence bundles.
+2. Harden observability export: OTLP now, then Langfuse/LangSmith-style evidence/trace exporters without replacing those tools.
+3. Design and implement the `ModelGateway`/`ModelRouter` contract in runtime-core with injected provider clients and replay-safe archived responses.
+4. Add optional model provider/router adapters for OpenAI, Anthropic, Gemini, Bedrock, Ollama, and LiteLLM-style routing.
+5. Add a Temporal bridge that makes the boundary explicit: Temporal owns workflow lifecycle; AgentLedger owns node-internal tool/model/runtime safety.
+6. Continue hardening storage, sandbox, MCP, tool, and framework adapters with real-service conformance, permission boundaries, backup/restore, and failure semantics.
+
 ## v1.2.2 - MySQL Adapter Boundary Release
 
 Status: implemented as a storage adapter boundary release. It extends the `1.2.x` adapter packaging model without changing runtime-core semantics.

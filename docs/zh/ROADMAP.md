@@ -29,6 +29,106 @@ Execution backend 定位见 `EXECUTION_BACKENDS.md`：Temporal、Ray、Kubernete
 
 Adapter 优先级见 `ADAPTER_ROADMAP.md`：生态成熟且边界能保持 AgentLedger invariant 时进入官方 adapter；否则保持 experimental 或 community-owned。
 
+## Agent Harness 定位
+
+AgentLedger 不应该尝试做成完整 Agent Harness 产品。完整 Harness 会要求重新实现或深度拥有 workflow orchestration、trace UI、eval system、model gateway、context engine、sandbox infrastructure、tool hosting 和 enterprise governance。这些层已经有成熟或快速演进的生态，例如 LangGraph、Temporal、Langfuse、LangSmith、OpenTelemetry、LiteLLM、MCP、vector database、Kubernetes 和 sandbox provider。
+
+AgentLedger 更窄，也更稳的定位是：
+
+```text
+AgentLedger is the reliability substrate for Agent Harness stacks.
+
+It provides durable execution, tool/model governance, evidence, replay,
+policy, sandbox boundaries, cost/failure attribution, and adapter contracts.
+
+It integrates with LangGraph, Temporal, Langfuse, MCP, model providers,
+storage backends, and sandbox systems instead of replacing them.
+```
+
+推荐 stack 定位：
+
+| 层 | 示例系统 | AgentLedger 职责 |
+|---|---|---|
+| Workflow / planning | LangGraph、CrewAI、AutoGen、LangChain、自定义代码 | adapter boundary、checkpoint/evidence hooks、side-effect-safe node/tool execution |
+| Durable workflow backend | Temporal、Ray、Kubernetes workers | agent-specific leases、fencing、cancellation、checkpoint、Tool Ledger、evidence、replay |
+| Observability / eval UI | Langfuse、LangSmith、OpenTelemetry、custom dashboards | structured events、evidence bundles、trace/cost/failure export、correlation IDs |
+| Tool and context protocols | MCP、internal tool servers、provider SDK tools | ToolGateway、Tool Ledger、schema validation、approval、sandbox、audit records |
+| Model providers / routers | OpenAI、Anthropic、Gemini、Bedrock、Ollama、LiteLLM | ModelGateway contract、archived model responses、budget/fallback/replay semantics |
+| Storage / artifacts | SQLite、Postgres、MySQL、S3/MinIO、internal stores | StateStore/BlobStore contracts、migration、conformance、evidence refs |
+
+### 必须留在 runtime-core 的能力
+
+这些能力必须进 core，因为只有 runtime execution path 才能可靠强制保证：
+
+```text
+ToolGateway / Tool Ledger / idempotency
+StateStore / checkpoint / lease / fencing / cancellation
+event log / evidence bundle / replay
+policy / approval / sandbox contract
+cost and failure attribution
+conformance and adapter certification
+ModelGateway contract：等 model boundary 设计稳定后进入 core
+```
+
+runtime-core 可以包含 dependency-free local defaults 和 protocol contracts，但不应该把 provider SDK、Web framework、cloud SDK 或 orchestration engine 强塞进 base package。
+
+### 应该做成官方 optional packages 的能力
+
+这些有价值，但要保持清晰 package boundary：
+
+```text
+agentledger-inspector：read-only local/internal dashboard，展示 run timeline、state diff、Tool Ledger、cost/failure、evidence
+agentledger-langgraph：LangGraph checkpointer/node integration
+agentledger-mcp：MCP tool/context integration
+agentledger-otel 和 Langfuse/LangSmith-style exporters：observability/evidence export
+agentledger-temporal：Temporal execution-backend bridge
+agentledger-model-* packages：OpenAI、Anthropic、Gemini、Bedrock、Ollama、LiteLLM-style provider/router adapters
+agentledger-sandbox-* packages：Docker、Kubernetes、E2B、Firecracker/gVisor/bubblewrap 等
+agentledger-postgres、agentledger-mysql、agentledger-s3：storage and artifact adapters
+```
+
+官方 optional package 必须保持 AgentLedger invariants；依赖、权限或 credential 缺失时 fail closed；并提供 conformance 或 injected-client tests。
+
+### 只应该做 adapter / export / contract 的系统
+
+这些系统应该集成，不应该重做：
+
+```text
+LangChain / CrewAI / AutoGen / OpenAI Agents SDK / LlamaIndex / Semantic Kernel
+Langfuse / LangSmith / OpenTelemetry backends
+Temporal / Ray / Kubernetes
+LiteLLM and enterprise model gateways
+vector databases, RAG systems, long-term memory systems
+eval platforms and benchmark runners
+MCP tool servers and enterprise tool catalogs
+```
+
+AgentLedger 应该为这些层提供 adapter、export format、evidence bundle、trace correlation 和 conformance checks。
+
+### 明确不进入范围的能力
+
+这些会让项目过宽，或者变成另一个产品：
+
+```text
+complete agent workflow engine
+complete eval platform
+complete Langfuse/LangSmith replacement
+complete RAG or memory platform
+complete sandbox infrastructure platform
+hosted SaaS、多租户 app platform、billing、organization admin
+第一版 inspector 中的 dashboard write/control plane
+tool marketplace or app store
+```
+
+### 推荐实现顺序
+
+1. 先做 `agentledger-inspector`，read-only 读取现有 SQLite/Postgres/MySQL runtime metadata 和 evidence bundle。
+2. 强化 observability export：先 OTLP，再做 Langfuse/LangSmith-style evidence/trace exporter，但不替代这些工具。
+3. 设计并实现 runtime-core 中的 `ModelGateway`/`ModelRouter` contract，使用 injected provider clients 和 replay-safe archived responses。
+4. 增加 OpenAI、Anthropic、Gemini、Bedrock、Ollama、LiteLLM-style routing 的 optional model provider/router adapters。
+5. 增加 Temporal bridge，并明确边界：Temporal 管 workflow lifecycle；AgentLedger 管 node 内部 tool/model/runtime safety。
+6. 继续 harden storage、sandbox、MCP、tool 和 framework adapters：真实服务 conformance、权限边界、backup/restore 和 failure semantics。
+
 ## v1.2.2 - MySQL Adapter Boundary Release
 
 状态：已实现，定位为 storage adapter boundary release。本版本延续 `1.2.x` adapter packaging 模型，不改变 runtime-core 语义。
