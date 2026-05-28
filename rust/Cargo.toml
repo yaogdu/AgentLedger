@@ -1,6 +1,6 @@
 [package]
 name = "agentledger-runtime"
-version = "1.2.1"
+version = "1.2.2"
 edition = "2021"
 description = "Dependency-free Rust runtime for AgentLedger"
 license = "Apache-2.0"
@@ -26,6 +26,7 @@ path = "src/lib.rs"
 [features]
 default = []
 adapter-postgres = []
+adapter-mysql = []
 adapter-s3 = []
 adapter-mcp = []
 adapter-otel = []
@@ -33,6 +34,7 @@ adapter-docker = []
 adapter-framework = []
 adapters-all = [
     "adapter-postgres",
+    "adapter-mysql",
     "adapter-s3",
     "adapter-mcp",
     "adapter-otel",

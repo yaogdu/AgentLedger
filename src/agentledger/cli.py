@@ -34,6 +34,7 @@ from .scheduler import RuntimeScheduler
 from .shadow import ShadowRunner
 from .storage_schema import ddl_for, latest_schema_version
 from .storage_postgres import PostgresStore, PostgresStoreConfig
+from .storage_mysql import MySQLStore, MySQLStoreConfig
 from .store import SQLiteStore
 from .trace import OTLPResource, OTLPTraceExporter, TraceExporter
 from .timetravel import TimeTravelDebugger
@@ -264,7 +265,11 @@ def create_blob_store(args: argparse.Namespace, *, s3_client=None):
     raise ValueError(f"unsupported blob backend: {backend}")
 
 
-def create_state_store(args: argparse.Namespace, *, postgres_connection=None):
+def _sql_connection_for(value):
+    return value() if callable(value) else value
+
+
+def create_state_store(args: argparse.Namespace, *, postgres_connection=None, mysql_connection=None):
     backend = getattr(args, "backend", "sqlite")
     if backend == "sqlite":
         store = SQLiteStore(Path(args.root) / "state.db")
@@ -279,14 +284,24 @@ def create_state_store(args: argparse.Namespace, *, postgres_connection=None):
         store = PostgresStore(config, connection=injected_connection, owns_connection=postgres_connection is None or callable(postgres_connection))
         store.init()
         return store
+    if backend == "mysql":
+        config = MySQLStoreConfig.from_env(
+            dsn=getattr(args, "dsn", None),
+            database=getattr(args, "database", None),
+        )
+        injected_connection = _sql_connection_for(mysql_connection)
+        store = MySQLStore(config, connection=injected_connection, owns_connection=mysql_connection is None or callable(mysql_connection))
+        store.init()
+        return store
     raise ValueError(f"unsupported state backend: {backend}")
 
 
-def cmd_state_conformance(args: argparse.Namespace, *, postgres_connection=None) -> None:
+def cmd_state_conformance(args: argparse.Namespace, *, postgres_connection=None, mysql_connection=None) -> None:
     def factory():
-        return create_state_store(args, postgres_connection=postgres_connection)
+        return create_state_store(args, postgres_connection=postgres_connection, mysql_connection=mysql_connection)
 
-    close_stores = not (postgres_connection is not None and not callable(postgres_connection))
+    injected = postgres_connection if args.backend == "postgres" else mysql_connection if args.backend == "mysql" else None
+    close_stores = not (injected is not None and not callable(injected))
     report = StateStoreConformanceRunner(factory, name=f"{args.backend}-state", close_stores=close_stores).run()
     print(json.dumps({"backend": args.backend, "passed": report.passed, "report": report.to_dict()}, indent=2, ensure_ascii=False))
     if not report.passed:
@@ -317,11 +332,12 @@ def cmd_worker_plan(args: argparse.Namespace) -> None:
     )
     print(json.dumps(plan.to_dict(), indent=2, ensure_ascii=False))
 
-def cmd_worker_conformance(args: argparse.Namespace, *, postgres_connection=None) -> None:
+def cmd_worker_conformance(args: argparse.Namespace, *, postgres_connection=None, mysql_connection=None) -> None:
     def factory():
-        return create_state_store(args, postgres_connection=postgres_connection)
+        return create_state_store(args, postgres_connection=postgres_connection, mysql_connection=mysql_connection)
 
-    close_stores = not (postgres_connection is not None and not callable(postgres_connection))
+    injected = postgres_connection if args.backend == "postgres" else mysql_connection if args.backend == "mysql" else None
+    close_stores = not (injected is not None and not callable(injected))
     report = WorkerConformanceRunner(
         factory,
         name=f"{args.backend}-worker",
@@ -529,6 +545,10 @@ def cmd_postgres_ddl(args: argparse.Namespace) -> None:
     print(PostgresStore.ddl())
 
 
+def cmd_mysql_ddl(args: argparse.Namespace) -> None:
+    print(MySQLStore.ddl())
+
+
 def cmd_contract_export(args: argparse.Namespace) -> None:
     payload = contract_json()
     if args.out:
@@ -538,7 +558,7 @@ def cmd_contract_export(args: argparse.Namespace) -> None:
     print(payload)
 
 
-def cmd_migrate_up(args: argparse.Namespace, *, postgres_connection=None) -> None:
+def cmd_migrate_up(args: argparse.Namespace, *, postgres_connection=None, mysql_connection=None) -> None:
     if args.dialect == "sqlite":
         store = SQLiteStore(Path(args.root) / "state.db")
         try:
@@ -557,18 +577,33 @@ def cmd_migrate_up(args: argparse.Namespace, *, postgres_connection=None) -> Non
         finally:
             store.close()
         return
+    if args.dialect == "mysql":
+        config = MySQLStoreConfig.from_env(dsn=getattr(args, "dsn", None), database=getattr(args, "database", None))
+        injected_connection = _sql_connection_for(mysql_connection)
+        store = MySQLStore(config, connection=injected_connection, owns_connection=mysql_connection is None or callable(mysql_connection))
+        try:
+            store.init()
+            print(json.dumps({"config": config.to_dict(), "migration_status": store.migration_status().to_dict()}, indent=2, ensure_ascii=False))
+        finally:
+            store.close()
+        return
     raise ValueError(f"unsupported migration dialect: {args.dialect}")
 
 
-def cmd_migrate_status(args: argparse.Namespace, *, postgres_connection=None) -> None:
-    if args.dialect == "postgres":
+def cmd_migrate_status(args: argparse.Namespace, *, postgres_connection=None, mysql_connection=None) -> None:
+    if args.dialect in {"postgres", "mysql"}:
         try:
-            config = PostgresStoreConfig.from_env(dsn=getattr(args, "dsn", None), schema=getattr(args, "schema", None))
+            if args.dialect == "postgres":
+                config = PostgresStoreConfig.from_env(dsn=getattr(args, "dsn", None), schema=getattr(args, "schema", None))
+                injected_connection = _sql_connection_for(postgres_connection)
+                store = PostgresStore(config, connection=injected_connection, owns_connection=postgres_connection is None or callable(postgres_connection))
+            else:
+                config = MySQLStoreConfig.from_env(dsn=getattr(args, "dsn", None), database=getattr(args, "database", None))
+                injected_connection = _sql_connection_for(mysql_connection)
+                store = MySQLStore(config, connection=injected_connection, owns_connection=mysql_connection is None or callable(mysql_connection))
         except ValueError:
             print(json.dumps({"dialect": args.dialect, "latest_version": latest_schema_version(args.dialect), "status": "dsn-not-configured"}, indent=2))
             return
-        injected_connection = postgres_connection() if callable(postgres_connection) else postgres_connection
-        store = PostgresStore(config, connection=injected_connection, owns_connection=postgres_connection is None or callable(postgres_connection))
         try:
             print(json.dumps({"config": config.to_dict(), "migration_status": store.migration_status().to_dict()}, indent=2, ensure_ascii=False))
         finally:
@@ -851,9 +886,10 @@ def build_parser() -> argparse.ArgumentParser:
     state = sub.add_parser("state")
     state_sub = state.add_subparsers(dest="state_cmd", required=True)
     state_conf = state_sub.add_parser("conformance")
-    state_conf.add_argument("--backend", choices=["sqlite", "postgres"], default="sqlite")
-    state_conf.add_argument("--dsn", help="Postgres DSN; falls back to AGENTLEDGER_POSTGRES_DSN")
+    state_conf.add_argument("--backend", choices=["sqlite", "postgres", "mysql"], default="sqlite")
+    state_conf.add_argument("--dsn", help="Postgres/MySQL DSN; falls back to AGENTLEDGER_POSTGRES_DSN or AGENTLEDGER_MYSQL_DSN")
     state_conf.add_argument("--schema", help="Postgres schema; falls back to AGENTLEDGER_POSTGRES_SCHEMA")
+    state_conf.add_argument("--database", help="MySQL database; falls back to AGENTLEDGER_MYSQL_DATABASE")
     state_conf.set_defaults(func=cmd_state_conformance)
 
     blob = sub.add_parser("blob")
@@ -871,15 +907,16 @@ def build_parser() -> argparse.ArgumentParser:
     worker = sub.add_parser("worker")
     worker_sub = worker.add_subparsers(dest="worker_cmd", required=True)
     worker_conf = worker_sub.add_parser("conformance")
-    worker_conf.add_argument("--backend", choices=["sqlite", "postgres"], default="sqlite")
-    worker_conf.add_argument("--dsn", help="Postgres DSN; falls back to AGENTLEDGER_POSTGRES_DSN")
+    worker_conf.add_argument("--backend", choices=["sqlite", "postgres", "mysql"], default="sqlite")
+    worker_conf.add_argument("--dsn", help="Postgres/MySQL DSN; falls back to AGENTLEDGER_POSTGRES_DSN or AGENTLEDGER_MYSQL_DSN")
     worker_conf.add_argument("--schema", help="Postgres schema; falls back to AGENTLEDGER_POSTGRES_SCHEMA")
+    worker_conf.add_argument("--database", help="MySQL database; falls back to AGENTLEDGER_MYSQL_DATABASE")
     worker_conf.add_argument("--workers", type=int, default=4)
     worker_conf.add_argument("--concurrent", action="store_true", help="claim from separate worker connections concurrently")
     worker_conf.set_defaults(func=cmd_worker_conformance)
     worker_plan = worker_sub.add_parser("plan")
     worker_plan.add_argument("example")
-    worker_plan.add_argument("--backend", choices=["sqlite", "postgres"], default="sqlite")
+    worker_plan.add_argument("--backend", choices=["sqlite", "postgres", "mysql"], default="sqlite")
     worker_plan.add_argument("--replicas", type=int, default=1)
     worker_plan.add_argument("--worker-id-prefix", default="worker")
     worker_plan.add_argument("--lease-seconds", type=int, default=60)
@@ -1034,6 +1071,15 @@ def build_parser() -> argparse.ArgumentParser:
     postgres_conf.add_argument("--dsn", help="Postgres DSN; falls back to AGENTLEDGER_POSTGRES_DSN")
     postgres_conf.add_argument("--schema", help="Postgres schema; falls back to AGENTLEDGER_POSTGRES_SCHEMA")
     postgres_conf.set_defaults(func=cmd_state_conformance)
+    mysql = sub.add_parser("mysql")
+    mysql_sub = mysql.add_subparsers(dest="mysql_cmd", required=True)
+    mysql_ddl = mysql_sub.add_parser("ddl")
+    mysql_ddl.set_defaults(func=cmd_mysql_ddl)
+    mysql_conf = mysql_sub.add_parser("conformance")
+    mysql_conf.add_argument("--backend", choices=["mysql"], default="mysql")
+    mysql_conf.add_argument("--dsn", help="MySQL DSN; falls back to AGENTLEDGER_MYSQL_DSN")
+    mysql_conf.add_argument("--database", help="MySQL database; falls back to AGENTLEDGER_MYSQL_DATABASE")
+    mysql_conf.set_defaults(func=cmd_state_conformance)
 
     contract = sub.add_parser("contract")
     contract_sub = contract.add_subparsers(dest="contract_cmd", required=True)
@@ -1044,17 +1090,19 @@ def build_parser() -> argparse.ArgumentParser:
     migrate = sub.add_parser("migrate")
     migrate_sub = migrate.add_subparsers(dest="migrate_cmd", required=True)
     migrate_up = migrate_sub.add_parser("up")
-    migrate_up.add_argument("--dialect", choices=["sqlite", "postgres"], default="sqlite")
-    migrate_up.add_argument("--dsn", help="Postgres DSN; falls back to AGENTLEDGER_POSTGRES_DSN")
+    migrate_up.add_argument("--dialect", choices=["sqlite", "postgres", "mysql"], default="sqlite")
+    migrate_up.add_argument("--dsn", help="Postgres/MySQL DSN; falls back to AGENTLEDGER_POSTGRES_DSN or AGENTLEDGER_MYSQL_DSN")
     migrate_up.add_argument("--schema", help="Postgres schema; falls back to AGENTLEDGER_POSTGRES_SCHEMA")
+    migrate_up.add_argument("--database", help="MySQL database; falls back to AGENTLEDGER_MYSQL_DATABASE")
     migrate_up.set_defaults(func=cmd_migrate_up)
     migrate_status = migrate_sub.add_parser("status")
-    migrate_status.add_argument("--dialect", choices=["sqlite", "postgres"], default="sqlite")
-    migrate_status.add_argument("--dsn", help="Postgres DSN; falls back to AGENTLEDGER_POSTGRES_DSN")
+    migrate_status.add_argument("--dialect", choices=["sqlite", "postgres", "mysql"], default="sqlite")
+    migrate_status.add_argument("--dsn", help="Postgres/MySQL DSN; falls back to AGENTLEDGER_POSTGRES_DSN or AGENTLEDGER_MYSQL_DSN")
     migrate_status.add_argument("--schema", help="Postgres schema; falls back to AGENTLEDGER_POSTGRES_SCHEMA")
+    migrate_status.add_argument("--database", help="MySQL database; falls back to AGENTLEDGER_MYSQL_DATABASE")
     migrate_status.set_defaults(func=cmd_migrate_status)
     migrate_ddl = migrate_sub.add_parser("ddl")
-    migrate_ddl.add_argument("--dialect", choices=["sqlite", "postgres"], default="sqlite")
+    migrate_ddl.add_argument("--dialect", choices=["sqlite", "postgres", "mysql"], default="sqlite")
     migrate_ddl.set_defaults(func=cmd_migrate_ddl)
 
     policy = sub.add_parser("policy")

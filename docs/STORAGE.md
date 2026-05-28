@@ -42,6 +42,7 @@ PYTHONPATH=src python3 -m agentledger migrate up
 PYTHONPATH=src python3 -m agentledger migrate status
 PYTHONPATH=src python3 -m agentledger migrate ddl --dialect sqlite
 PYTHONPATH=src python3 -m agentledger migrate ddl --dialect postgres
+PYTHONPATH=src python3 -m agentledger migrate ddl --dialect mysql
 ```
 
 For configured Postgres backends, `migrate up` creates or advances only AgentLedger-owned runtime tables and `schema_migrations`; it does not drop schemas or delete data:
@@ -54,6 +55,16 @@ PYTHONPATH=src python3 -m agentledger migrate up --dialect postgres
 AGENTLEDGER_POSTGRES_DSN=postgresql://user:password@localhost:15432/database \
 AGENTLEDGER_POSTGRES_SCHEMA=agentledger \
 PYTHONPATH=src python3 -m agentledger migrate status --dialect postgres
+```
+
+For configured MySQL backends, `migrate up` follows the same non-destructive rule:
+
+```bash
+AGENTLEDGER_MYSQL_DSN=mysql://user:password@localhost:3306/database \
+PYTHONPATH=src python3 -m agentledger migrate up --dialect mysql
+
+AGENTLEDGER_MYSQL_DSN=mysql://user:password@localhost:3306/database \
+PYTHONPATH=src python3 -m agentledger migrate status --dialect mysql
 ```
 
 The current built-in schema version is:
@@ -128,6 +139,18 @@ AGENTLEDGER_POSTGRES_DSN=postgresql://agentledger:secret@localhost:5432/agentled
 AGENTLEDGER_POSTGRES_SCHEMA=agentledger \
 PYTHONPATH=src python3 -m agentledger state conformance --backend postgres
 PYTHONPATH=src python3 -m agentledger worker conformance --backend postgres --concurrent
+```
+
+## MySQL
+
+MySQL has an optional `pymysql`-backed adapter path with DDL, migration status/apply CLI, JSON runtime payload fields, and cross-language injected SQL adapter contracts. A hardened production deployment still needs migration rollout guidance, backup/restore procedures, real-service concurrency checks, and operational tuning. See `docs/MYSQL.md`.
+
+MySQL conformance is explicit and requires `pymysql` plus a configured DSN:
+
+```bash
+AGENTLEDGER_MYSQL_DSN=mysql://agentledger:secret@localhost:3306/agentledger \
+PYTHONPATH=src python3 -m agentledger state conformance --backend mysql
+PYTHONPATH=src python3 -m agentledger worker conformance --backend mysql --concurrent
 ```
 
 ## Blob Stores

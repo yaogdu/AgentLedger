@@ -35,7 +35,7 @@ Examples:
 
 | Area | Core contract | Built-in minimal implementation | Optional production adapter |
 |---|---|---|---|
-| Storage | `StateStoreProtocol`, migrations, lease/fencing invariants | SQLite WAL + local blob store | Postgres, S3/MinIO, custom store |
+| Storage | `StateStoreProtocol`, migrations, lease/fencing invariants | SQLite WAL + local blob store | Postgres, MySQL, S3/MinIO, custom store |
 | Sandbox | `SandboxPolicy`, `SandboxExecutor`, fail-closed routing, audit/evidence | fail-closed `none`, local executor, dry-run manifests | Docker, E2B, bubblewrap, Kubernetes/gVisor, Firecracker |
 | Observability | structured events, evidence links, trace span shape | JSONL and OTLP/JSON export | OpenTelemetry SDK, collector recipes, trace stores |
 | Policy | `PolicyRequest` / `PolicyDecision`, capability checks, approvals, pre/postcondition hooks | YAML/JSON role-capability policy and built-in evaluators | OPA, Cedar, internal policy service, PII/injection/DLP evaluators |
@@ -46,7 +46,7 @@ Examples:
 
 | Layer | Interface | Common Implementations |
 |---|---|---|
-| State | `StateStore` | SQLite WAL, Postgres |
+| State | `StateStore` | SQLite WAL, Postgres, MySQL |
 | Events | `EventStore` | DB table, Kafka/Redpanda optional |
 | Blob | `BlobStore` | local fs, S3, MinIO |
 | Tools | `ToolExecutor` | local function, HTTP, MCP, sandbox executor |
@@ -351,7 +351,7 @@ os.system("allowed")  # agentledger: ignore-boundary
 
 ## Store Conformance for Adapters
 
-Storage adapters should pass `StateStoreConformanceRunner` before they are considered runtime-compatible. The current checks cover create/claim/commit, stale lease fencing, expired lease recovery, and cancellation fencing. Backends used by worker pools should also pass `WorkerConformanceRunner`, which checks distinct multi-worker claims, heartbeat fencing, and recovery fencing against a shared backing store. Adapter packages can reuse these runners against Postgres, remote stores, or embedded stores.
+Storage adapters should pass `StateStoreConformanceRunner` before they are considered runtime-compatible. The current checks cover create/claim/commit, stale lease fencing, expired lease recovery, and cancellation fencing. Backends used by worker pools should also pass `WorkerConformanceRunner`, which checks distinct multi-worker claims, heartbeat fencing, and recovery fencing against a shared backing store. Adapter packages can reuse these runners against Postgres, MySQL, remote stores, or embedded stores.
 
 ## BlobStore Conformance for Adapters
 
@@ -371,6 +371,10 @@ Blob adapters should implement `BlobStoreProtocol` and pass `BlobStoreConformanc
 ## Postgres Adapter Boundary
 
 `PostgresStore` is an experimental psycopg-backed adapter path with DDL, migrations, native `FOR UPDATE SKIP LOCKED` worker claiming, and connection-injection conformance coverage. A production adapter should still keep driver details optional, add real-service integration tests, and pass `StateStoreConformanceRunner` plus `WorkerConformanceRunner` against an actual Postgres instance.
+
+## MySQL Adapter Boundary
+
+`MySQLStore` is an optional pymysql-backed adapter path with DDL, migrations, CLI status/apply wiring, and cross-language injected SQL adapter facades. A production adapter should keep driver details optional, add real-service integration tests, and pass `StateStoreConformanceRunner` plus `WorkerConformanceRunner` against an actual MySQL instance before claiming production readiness.
 
 ## Diff and Regression Boundary
 

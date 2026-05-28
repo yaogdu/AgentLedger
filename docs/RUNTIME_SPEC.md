@@ -169,7 +169,7 @@ Recommended implementations:
 
 ```text
 Local: SQLite WAL
-Production: Postgres
+Production: Postgres or MySQL through optional adapters
 ```
 
 The built-in SQLite backend owns AgentLedger runtime metadata only. It auto-applies dependency-free migrations and records them in `schema_migrations`; ordinary hello-world users should not need to inspect or manage DDL. Storage adapters may choose different physical schemas, but they must preserve the StateStore invariants and pass conformance tests.
@@ -696,7 +696,7 @@ heartbeat_fences_wrong_owner
 recovery_fences_previous_owner
 ```
 
-Future Postgres or remote stores should run both suites before being considered compatible with runtime-core worker pools.
+Future Postgres, MySQL, or remote stores should run both suites before being considered compatible with runtime-core worker pools.
 
 `MediaRuntimeConformanceRunner` defines the executable smoke contract for media/stream runtime semantics:
 
@@ -967,3 +967,7 @@ OTLP file export is side-effect free. Collector POST is explicit opt-in through 
 ## Postgres Store Skeleton
 
 `PostgresStore` currently provides schema DDL from the storage migration catalog, an explicit optional-dependency boundary, and a psycopg-backed adapter path that can be conformance-tested through connection injection. A hardened production adapter should add real-service integration tests, operational migration rollout, and backup/restore guidance. Runtime-core must not require a Postgres driver for local use.
+
+## MySQL Store Skeleton
+
+`MySQLStore` provides schema DDL from the storage migration catalog, an explicit optional-dependency boundary, and a pymysql-backed adapter path. Go, TypeScript, and Rust expose the same MySQL migration contract through injected SQL clients. A hardened production adapter should add real-service integration tests, operational migration rollout, and backup/restore guidance. Runtime-core must not require a MySQL driver for local use.

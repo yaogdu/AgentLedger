@@ -3,14 +3,14 @@
 [English](README.md) | [中文](README.zh-CN.md)
 
 ![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)
-![Version 1.2.1 stable](https://img.shields.io/badge/Version-1.2.1--stable-111827)
+![Version 1.2.2 stable](https://img.shields.io/badge/Version-1.2.2--stable-111827)
 ![License Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-0f766e)
 ![Runtime Durable](https://img.shields.io/badge/Runtime-durable%20execution-1f6feb)
-![Storage SQLite/Postgres](https://img.shields.io/badge/Storage-SQLite%20%7C%20Postgres-b45309)
+![Storage SQLite/Postgres/MySQL](https://img.shields.io/badge/Storage-SQLite%20%7C%20Postgres%20%7C%20MySQL-b45309)
 ![Replay Evidence](https://img.shields.io/badge/Replay-evidence%20driven-7c3aed)
 ![Tool Ledger](https://img.shields.io/badge/Tools-ledger%20guarded-d97706)
 
-AgentLedger `1.2.1` is an agent execution safety, evidence, and reliability layer. It does not try to teach agents how to reason; it makes agent runs durable, auditable, replayable, policy-governed, and recoverable when workers crash, tools fail, or prompts change.
+AgentLedger `1.2.2` is an agent execution safety, evidence, and reliability layer. It does not try to teach agents how to reason; it makes agent runs durable, auditable, replayable, policy-governed, and recoverable when workers crash, tools fail, or prompts change.
 
 Most agent frameworks focus on planning, reasoning, and workflow logic. AgentLedger sits underneath or beside LangChain, LangGraph, CrewAI, AutoGen, OpenAI Agents SDK, LlamaIndex, Semantic Kernel, or custom agents to provide runtime guarantees around state, tools, evidence, replay, and recovery.
 
@@ -33,7 +33,7 @@ Python remains the reference implementation, and Go, TypeScript, and Rust now ha
 | Question | Answer |
 | --- | --- |
 | What is stable? | The v1.x runtime-core contract: durable execution, Tool Ledger, evidence/replay, policy/approval/sandbox boundaries, cost/failure reports, worker/conformance, and Python reference implementation with Go/TypeScript/Rust runtime-core parity gates. |
-| What is optional? | Postgres, S3/MinIO, framework-native packages, OTLP collector transport, sandbox infrastructure, distributed deployment recipes, and real-service hardening. |
+| What is optional? | Postgres, MySQL, S3/MinIO, framework-native packages, OTLP collector transport, sandbox infrastructure, distributed deployment recipes, and real-service hardening. |
 | What is experimental? | Some concrete provider adapters, media/stream processing adapters, and real-service hardening paths. Go/TypeScript/Rust runtime-core baselines are native implementations covered by shared conformance. |
 | What is not in core? | Planning engines, full eval systems, RAG/vector memory, trace stores, hosted application products, and hosted sandbox infrastructure. |
 | How should other languages work? | This repo is contract-first. Python is the reference runtime; Go, Node/TypeScript, and Rust now have native runtime baselines under `go/`, `typescript/`, and `rust/`. Runtime-ready requires `contracts/agentledger.runtime.v1.json`, the shared semantic manifest `contracts/conformance/runtime_semantics.v1.json`, shared conformance fixtures, and per-language conformance commands. |
@@ -79,7 +79,7 @@ For example, sandbox semantics are core, but sandbox infrastructure is not. Core
 - Replaying historical runs without repeating model calls or tool side effects
 - Enforcing tool permissions, approvals, sandbox boundaries, cost budgets, and failure semantics at runtime
 - Providing adapter seams for agent frameworks, storage backends, blob stores, tool systems, traces, and sandbox executors
-- Keeping the core dependency-free for local development while allowing optional Postgres, S3/MinIO, OTLP, and framework adapters
+- Keeping the core dependency-free for local development while allowing optional Postgres, MySQL, S3/MinIO, OTLP, and framework adapters
 
 ## Key capabilities
 
@@ -89,7 +89,7 @@ For example, sandbox semantics are core, but sandbox infrastructure is not. Core
 - Reliability engineering: failure taxonomy, failure injection suite, evidence regression gates, adversarial review checklist, backup readiness checks, and retention planning
 - Cost and budget control: token/cost records, in-flight budget enforcement, attribution by run, agent, step, tool, and model
 - Framework adoption: plain Python API plus adapter facades for LangGraph, LangChain, CrewAI, AutoGen, OpenAI Agents SDK, LlamaIndex, Semantic Kernel, and MCP-style tools/context
-- Storage choices: SQLite WAL + local blobs by default; optional Postgres StateStore and S3/MinIO BlobStore adapters
+- Storage choices: SQLite WAL + local blobs by default; optional Postgres/MySQL StateStore and S3/MinIO BlobStore adapters
 - Media and stream contracts: durable refs, metadata, lineage, chunk refs, offsets, watermarks, and replay validation without codecs or stream transport in core
 
 ## Examples
@@ -131,7 +131,7 @@ If a term overlaps, read it this way: AgentLedger records trace/eval/cost/failur
 - Side-effect safety: Tool Ledger, causal tokens, idempotency keys, and pending-verification states prevent unsafe duplicate external writes.
 - Crash recovery: leases, fencing tokens, checkpoints, and cancellation semantics let a new worker resume while blocking stale workers.
 - Replay-safe evidence: event logs, payload refs, state versions, cost records, and artifacts allow debugging without repeating real model/tool calls.
-- Thin core: built-in local defaults work out of the box, while Postgres, S3/MinIO, OTLP, framework packages, and sandboxes stay adapter-driven.
+- Thin core: built-in local defaults work out of the box, while Postgres, MySQL, S3/MinIO, OTLP, framework packages, and sandboxes stay adapter-driven.
 - Framework-neutral contract: Python is the stable reference runtime; Go, Node/TypeScript, and Rust runtime-core packages target the same runtime semantics and shared conformance gate.
 
 ## LangGraph relationship
@@ -236,7 +236,7 @@ PYTHONPATH=src python3 -m agentledger contract export
 | Agent logic | user functions, framework nodes, prompts, model choices | LangGraph, LangChain, CrewAI, AutoGen, OpenAI Agents SDK, LlamaIndex, Semantic Kernel, custom workers |
 | Runtime boundary | `AgentContext`, tool gateway, policy, approval, budget, sandbox routing | tool registry, policy loader, approval store, sandbox executor |
 | Scheduling | step claim, lease, fencing, retry, heartbeat, cancellation, recovery | local worker loop, distributed worker recipes, custom claimers |
-| Durable state | runs, sessions, steps, events, tool ledger, checkpoints, migrations | SQLite, Postgres, custom StateStore |
+| Durable state | runs, sessions, steps, events, tool ledger, checkpoints, migrations | SQLite, Postgres, MySQL, custom StateStore |
 | Evidence | payload refs, blob refs, artifacts, media refs, traces, costs, failures | local blob store, S3/MinIO, OTLP JSON, static HTML export |
 | Reliability consumers | replay, diff, shadow mode, evidence regression, conformance, backup check | golden corpus, adapter certification, custom review gates |
 
@@ -252,7 +252,7 @@ AgentLedger is also not a new LLM SDK, not a workflow engine, not a general obse
 
 ## Current maturity
 
-AgentLedger 1.2.1 is a stable runtime-core release with Python as the reference implementation and Go, TypeScript, and Rust covered by shared runtime-core parity gates. It is suitable for local use, framework adapter integration, reliability semantics validation, and production pilot preparation with explicit adapter boundaries.
+AgentLedger 1.2.2 is a stable runtime-core release with Python as the reference implementation and Go, TypeScript, and Rust covered by shared runtime-core parity gates. It is suitable for local use, framework adapter integration, reliability semantics validation, and production pilot preparation with explicit adapter boundaries.
 
 The runtime-core contract is stable; optional production adapters and external infrastructure hardening remain separately tracked. See [docs/MATURITY_MODEL.md](docs/MATURITY_MODEL.md), [docs/IMPLEMENTATION_STATUS.md](docs/IMPLEMENTATION_STATUS.md), and [docs/ROADMAP.md](docs/ROADMAP.md).
 
@@ -266,7 +266,7 @@ The runtime-core contract is stable; optional production adapters and external i
 | Read implementation details | [docs/DESIGN_AND_IMPLEMENTATION.md](docs/DESIGN_AND_IMPLEMENTATION.md) |
 | Check runtime spec | [docs/RUNTIME_SPEC.md](docs/RUNTIME_SPEC.md) |
 | Extend storage, tools, and adapters | [docs/EXTENSIBILITY.md](docs/EXTENSIBILITY.md), [docs/STORAGE.md](docs/STORAGE.md), [docs/ADAPTER_ROADMAP.md](docs/ADAPTER_ROADMAP.md), [docs/ADAPTER_CERTIFICATION.md](docs/ADAPTER_CERTIFICATION.md) |
-| Configure Postgres or S3/MinIO | [docs/POSTGRES.md](docs/POSTGRES.md), [docs/S3_MINIO.md](docs/S3_MINIO.md) |
+| Configure Postgres, MySQL, or S3/MinIO | [docs/POSTGRES.md](docs/POSTGRES.md), [docs/MYSQL.md](docs/MYSQL.md), [docs/S3_MINIO.md](docs/S3_MINIO.md) |
 | Prepare releases | [docs/RELEASE_CHECKLIST.md](docs/RELEASE_CHECKLIST.md), [docs/VERSIONING.md](docs/VERSIONING.md) |
 | Understand multi-language parity and Go install/use | [docs/LANGUAGE_QUICKSTART.md](docs/LANGUAGE_QUICKSTART.md), [go/README.md](go/README.md), [docs/MULTI_LANGUAGE.md](docs/MULTI_LANGUAGE.md), [docs/LANGUAGE_PARITY_MATRIX.md](docs/LANGUAGE_PARITY_MATRIX.md) |
 | Read Chinese docs | [README.zh-CN.md](README.zh-CN.md), [docs/zh/README.md](docs/zh/README.md) |
@@ -283,7 +283,7 @@ contracts/           language-neutral runtime contract, semantic manifest, and c
 go/                  Go native runtime-core package
 typescript/          Node/TypeScript-compatible runtime-core package
 rust/                Rust runtime-core package
-migrations/          SQLite/Postgres DDL and migration baselines
+migrations/          SQLite/Postgres/MySQL DDL and migration baselines
 ```
 
 ## Automated validation

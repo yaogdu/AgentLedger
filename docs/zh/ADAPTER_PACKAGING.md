@@ -1,6 +1,6 @@
 # Adapter Packaging
 
-AgentLedger `1.2.1` 引入 adapter packaging model。runtime-core 保持小而稳定，具体生态集成进入 optional adapter packages，用户可以通过 extras 或直接安装 adapter 包启用。
+AgentLedger `1.2.1` 引入 adapter packaging model，`1.2.2` 在这个模型上补充官方 MySQL storage adapter boundary。runtime-core 保持小而稳定，具体生态集成进入 optional adapter packages，用户可以通过 extras 或直接安装 adapter 包启用。
 
 ## 为什么拆包
 
@@ -24,7 +24,7 @@ extras 保持安装体验简单
 
 adapter packaging 是按语言生态落地的。同一个目标，在不同语言里使用不同机制：
 
-| 语言 | `1.2.1` 机制 | 原因 |
+| 语言 | `1.2.x` 机制 | 原因 |
 | --- | --- | --- |
 | Python | `packages/` 下独立 PyPI 包，加 `agentledger-runtime[...]` extras | Python extras 最适合把 optional SDK dependency 留在 core 之外 |
 | TypeScript/Node | `agentledger-runtime` subpath exports，加 `typescript/packages/` 下 npm adapter packages | subpath exports 方便本地使用；独立 package 保留后续独立发布能力 |
@@ -43,6 +43,7 @@ pip install agentledger-runtime
 
 ```bash
 pip install "agentledger-runtime[postgres]"
+pip install "agentledger-runtime[mysql]"
 pip install "agentledger-runtime[s3]"
 pip install "agentledger-runtime[langgraph]"
 pip install "agentledger-runtime[mcp]"
@@ -55,6 +56,7 @@ pip install "agentledger-runtime[all]"
 
 ```bash
 pip install agentledger-postgres
+pip install agentledger-mysql
 pip install agentledger-s3
 pip install agentledger-langgraph
 pip install agentledger-mcp
@@ -78,6 +80,7 @@ agentledger-runtime/
       src/agentledger_postgres/
       tests/
       examples/
+    agentledger-mysql/
     agentledger-s3/
     agentledger-langgraph/
     agentledger-mcp/
@@ -87,6 +90,7 @@ agentledger-runtime/
     src/adapters/                        # runtime subpath exports
     packages/                            # npm adapter packages
       agentledger-postgres/
+      agentledger-mysql/
       agentledger-s3/
       agentledger-langgraph/
       agentledger-mcp/                   # npm package name: agentledger-mcp-adapter
@@ -94,6 +98,7 @@ agentledger-runtime/
       agentledger-sandbox-docker/
   go/adapters/
     postgres/
+    mysql/
     s3/
     mcp/
     otel/
@@ -102,6 +107,7 @@ agentledger-runtime/
   rust/
     crates/
       agentledger-postgres/
+      agentledger-mysql/
       agentledger-s3/
       agentledger-mcp/
       agentledger-otel/
@@ -120,9 +126,10 @@ agentledger-runtime/
 
 ## 第一批 Adapter Packages
 
-| Package | `1.2.1` 负责 | 依赖状态 |
+| Package | `1.2.x` 负责 | 依赖状态 |
 | --- | --- | --- |
 | `agentledger-postgres` | `PostgresStore`、`PostgresStoreConfig`、migration/conformance helpers | 依赖 `psycopg[binary]`；production rollout 仍需要真实服务演练。 |
+| `agentledger-mysql` | `MySQLStore`、`MySQLStoreConfig`、migration/conformance helpers | 依赖 `pymysql`；production rollout 仍需要真实服务演练。 |
 | `agentledger-s3` | `S3BlobStore`、`S3BlobStoreConfig` | 依赖 `boto3`；production rollout 仍需要 IAM/KMS/lifecycle 和 restore drill。 |
 | `agentledger-langgraph` | 基于 dependency-free facade 的 LangGraph checkpointer/node wrapper | core facade 不引入重依赖；optional native SDK 使用放在 package extras 或后续 smoke matrix 中。 |
 | `agentledger-mcp` / npm 上使用 `agentledger-mcp-adapter` | MCP-style tool/context mapping package boundary | 当前 package 保持 dependency-light；exact MCP SDK client/server transport 是后续 adapter hardening。 |
@@ -182,6 +189,7 @@ Install with: pip install "agentledger-runtime[postgres]"
 ```toml
 [project.optional-dependencies]
 postgres = ["agentledger-postgres>=1.2,<2"]
+mysql = ["agentledger-mysql>=1.2,<2"]
 s3 = ["agentledger-s3>=1.2,<2"]
 langgraph = ["agentledger-langgraph>=1.2,<2"]
 mcp = ["agentledger-mcp>=1.2,<2"]
@@ -189,6 +197,7 @@ otel = ["agentledger-otel>=1.2,<2"]
 docker = ["agentledger-sandbox-docker>=1.2,<2"]
 all = [
   "agentledger-postgres>=1.2,<2",
+  "agentledger-mysql>=1.2,<2",
   "agentledger-s3>=1.2,<2",
   "agentledger-langgraph>=1.2,<2",
   "agentledger-mcp>=1.2,<2",
@@ -201,11 +210,12 @@ monorepo 本地开发时，测试可以从 `packages/*` 路径安装；发布后
 
 ## Release Gates
 
-`1.2.1` packaging release 期望通过：
+`1.2.x` packaging release 期望通过：
 
 ```bash
 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m unittest discover -s tests -q
-PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m agentledger adapter certify --kind postgres --adapter-version 1.2.1
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m agentledger adapter certify --kind postgres --adapter-version 1.2.2
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m agentledger adapter certify --kind mysql --adapter-version 1.2.2
 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 scripts/check_adapter_packages.py
 go test ./...
 cd typescript && npm test

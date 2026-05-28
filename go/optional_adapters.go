@@ -14,6 +14,7 @@ type OptionalAdapterCapability struct {
 func OptionalAdapterCapabilities() []OptionalAdapterCapability {
 	return []OptionalAdapterCapability{
 		{Name: "postgres", Category: "storage", AdapterIsOptional: true, FailClosedWithout: true, ContractSurface: []string{"ddl_for", "migrations_for", "state_store"}},
+		{Name: "mysql", Category: "storage", AdapterIsOptional: true, FailClosedWithout: true, ContractSurface: []string{"ddl_for", "migrations_for", "state_store"}},
 		{Name: "s3", Category: "blobstore", AdapterIsOptional: true, FailClosedWithout: true, ContractSurface: []string{"put_json", "get_json", "content_address"}},
 		{Name: "docker", Category: "sandbox", AdapterIsOptional: true, FailClosedWithout: true, ContractSurface: []string{"sandbox_policy", "sandbox_result", "tool_gateway"}},
 		{Name: "e2b", Category: "sandbox", AdapterIsOptional: true, FailClosedWithout: true, ContractSurface: []string{"sandbox_policy", "sandbox_result", "tool_gateway"}},

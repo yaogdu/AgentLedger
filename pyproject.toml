@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "agentledger-runtime"
-version = "1.2.1"
+version = "1.2.2"
 description = "Durable execution and reliability runtime for production-grade AI agents"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -32,6 +32,7 @@ Issues = "https://github.com/yaogdu/AgentLedger/issues"
 
 [project.optional-dependencies]
 postgres = ["agentledger-postgres>=1.2,<2"]
+mysql = ["agentledger-mysql>=1.2,<2"]
 s3 = ["agentledger-s3>=1.2,<2"]
 langgraph = ["agentledger-langgraph>=1.2,<2"]
 mcp = ["agentledger-mcp>=1.2,<2"]
@@ -39,6 +40,7 @@ otel = ["agentledger-otel>=1.2,<2"]
 docker = ["agentledger-sandbox-docker>=1.2,<2"]
 all = [
   "agentledger-postgres>=1.2,<2",
+  "agentledger-mysql>=1.2,<2",
   "agentledger-s3>=1.2,<2",
   "agentledger-langgraph>=1.2,<2",
   "agentledger-mcp>=1.2,<2",

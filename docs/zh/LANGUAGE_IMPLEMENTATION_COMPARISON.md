@@ -58,6 +58,7 @@
 | Local StateStore | Yes | Yes | Yes | Yes | quickstart 和测试默认本地实现。 |
 | Local BlobStore | Yes | Yes | Yes | Yes | content-addressed local blob 语义。 |
 | Postgres adapter contract | Yes | Contract | Contract | Contract | Python 有 `PostgresStore`；Go/TS/Rust 是 injected SQL adapter/facade。 |
+| MySQL adapter contract | Yes | Contract | Contract | Contract | Python 有 `MySQLStore`；Go/TS/Rust 是 injected SQL adapter/facade。 |
 | S3/MinIO blob adapter contract | Yes | Contract | Contract | Contract | Python 有 `S3BlobStore`；Go/TS/Rust 是 injected object-client adapter/facade。 |
 | OTLP trace export / transport | Yes | Contract | Contract | Contract | JSON/export 或 injected transport boundary。 |
 | Docker sandbox manifest | Yes | Yes | Yes | Yes | portable manifest/fail-closed 行为；daemon hardening 属于外部。 |
@@ -79,8 +80,10 @@
 | Firecracker executor | Yes | Roadmap | Roadmap | Roadmap | infrastructure-specific sandbox adapter。 |
 | Kubernetes executor | Yes | Roadmap | Roadmap | Roadmap | deployment/sandbox infrastructure adapter。 |
 | Native Postgres StateStore driver | Yes | Roadmap | Roadmap | Roadmap | Python 有 psycopg-backed store；其他语言当前是 injected SQL contract。 |
+| Native MySQL StateStore driver | Yes | Roadmap | Roadmap | Roadmap | Python 有 pymysql-backed store；其他语言当前是 injected SQL contract。 |
 | Native S3 SDK-backed BlobStore | Yes | Roadmap | Roadmap | Roadmap | Python 有 optional boto3 path；其他语言是 injected object client boundary。 |
 | Real-service Postgres hardening | Optional | Optional | Optional | Optional | release/pilot 验证，不属于当前 core parity。 |
+| Real-service MySQL hardening | Optional | Optional | Optional | Optional | release/pilot 验证，不属于当前 core parity。 |
 | Real-service S3/MinIO hardening | Optional | Optional | Optional | Optional | release/pilot 验证，不属于当前 core parity。 |
 
 ## 生态特定 Framework Adapter

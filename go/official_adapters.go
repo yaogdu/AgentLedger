@@ -72,6 +72,43 @@ func (a PostgresAdapter) ApplyMigrations(ctx context.Context) error {
 	return nil
 }
 
+type MySQLAdapter struct {
+	Database string
+	Client   SQLExecutor
+}
+
+func NewMySQLAdapter(database string, client SQLExecutor) MySQLAdapter {
+	if database == "" {
+		database = "agentledger"
+	}
+	return MySQLAdapter{Database: database, Client: client}
+}
+
+func (a MySQLAdapter) MigrationPlan() ([]Migration, error) { return MigrationsFor("mysql") }
+
+func (a MySQLAdapter) ApplyMigrations(ctx context.Context) error {
+	if a.Client == nil {
+		return fmt.Errorf("mysql adapter requires an injected SQL client")
+	}
+	migrations, err := a.MigrationPlan()
+	if err != nil {
+		return err
+	}
+	ddl, err := DDLFor("mysql")
+	if err != nil {
+		return err
+	}
+	if err := a.Client.Exec(ctx, ddl); err != nil {
+		return err
+	}
+	for _, migration := range migrations {
+		if err := a.Client.Exec(ctx, "INSERT INTO schema_migrations(version, name, checksum, applied_at) VALUES (?, ?, ?, UNIX_TIMESTAMP()) ON DUPLICATE KEY UPDATE version=version", migration.Version, migration.Name, migration.Checksum()); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 type ObjectPutInput struct {
 	Bucket      string
 	Key         string

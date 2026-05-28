@@ -58,6 +58,7 @@ These are portable enough to expose across languages. They do not mean every lan
 | Local StateStore | Yes | Yes | Yes | Yes | Default local implementation for quickstart and tests. |
 | Local BlobStore | Yes | Yes | Yes | Yes | Content-addressed local blob semantics. |
 | Postgres adapter contract | Yes | Contract | Contract | Contract | Python has `PostgresStore`; Go/TS/Rust use injected SQL adapter/facade. |
+| MySQL adapter contract | Yes | Contract | Contract | Contract | Python has `MySQLStore`; Go/TS/Rust use injected SQL adapter/facade. |
 | S3/MinIO blob adapter contract | Yes | Contract | Contract | Contract | Python has `S3BlobStore`; Go/TS/Rust use injected object-client adapter/facade. |
 | OTLP trace export / transport | Yes | Contract | Contract | Contract | JSON/export or injected transport boundary. |
 | Docker sandbox manifest | Yes | Yes | Yes | Yes | Portable manifest/fail-closed behavior; daemon hardening is external. |
@@ -79,8 +80,10 @@ These are intentionally not required to be identical across languages. They are 
 | Firecracker executor | Yes | Roadmap | Roadmap | Roadmap | Infrastructure-specific sandbox adapter. |
 | Kubernetes executor | Yes | Roadmap | Roadmap | Roadmap | Deployment/sandbox infrastructure adapter. |
 | Native Postgres StateStore driver | Yes | Roadmap | Roadmap | Roadmap | Python has psycopg-backed store; other languages currently expose injected SQL contract. |
+| Native MySQL StateStore driver | Yes | Roadmap | Roadmap | Roadmap | Python has pymysql-backed store; other languages currently expose injected SQL contract. |
 | Native S3 SDK-backed BlobStore | Yes | Roadmap | Roadmap | Roadmap | Python has optional boto3 path; other languages use injected object client boundary. |
 | Real-service Postgres hardening | Optional | Optional | Optional | Optional | Release/pilot validation, not current core parity. |
+| Real-service MySQL hardening | Optional | Optional | Optional | Optional | Release/pilot validation, not current core parity. |
 | Real-service S3/MinIO hardening | Optional | Optional | Optional | Optional | Release/pilot validation, not current core parity. |
 
 ## Ecosystem-Specific Framework Adapters

@@ -27,6 +27,26 @@ Execution backend 定位见 `EXECUTION_BACKENDS.md`：Temporal、Ray、Kubernete
 
 Adapter 优先级见 `ADAPTER_ROADMAP.md`：生态成熟且边界能保持 AgentLedger invariant 时进入官方 adapter；否则保持 experimental 或 community-owned。
 
+## v1.2.2 - MySQL Adapter Boundary Release
+
+状态：已实现，定位为 storage adapter boundary release。本版本延续 `1.2.x` adapter packaging 模型，不改变 runtime-core 语义。
+
+已实现：
+
+- 在 Python、Go、TypeScript、Rust 的 storage schema helper 中增加 MySQL DDL/migration metadata
+- 增加 Python `MySQLStore` / `MySQLStoreConfig`，通过 optional `pymysql` 依赖启用，并支持 CLI migration/status
+- 增加 `agentledger-mysql` Python package、TypeScript npm package boundary、Go `go/adapters/mysql`、Rust `agentledger-mysql` crate boundary
+- 增加 MySQL 的跨语言 optional adapter 与 official adapter conformance token
+- 文档中明确 MySQL 是官方 optional adapter boundary，不是 production-hardening 声明
+
+本版本明确不做：
+
+```text
+没有真实服务证据时，不声明 MySQL production-ready
+不做 live MySQL concurrency/load/backup/restore gate
+不把非 Python native MySQL driver 放进 core；Go/TypeScript/Rust 暴露 injected SQL adapter contract
+```
+
 ## v1.2.1 - Adapter Packaging Release
 
 状态：已在 `v1.2.1` 分支实现，定位为 adapter packaging 与边界版本。本版本把已有 adapter seam 打包成清晰的 optional package，不改变 runtime-core 语义。

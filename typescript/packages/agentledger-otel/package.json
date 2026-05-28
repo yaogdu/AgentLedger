@@ -1,13 +1,13 @@
 {
   "name": "agentledger-otel",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "private": false,
   "description": "OTLP export adapter package for AgentLedger Runtime.",
   "type": "module",
   "main": "src/index.js",
   "types": "src/index.d.ts",
   "dependencies": {
-    "agentledger-runtime": "^1.2.1"
+    "agentledger-runtime": "^1.2.2"
   },
   "files": [
     "src/",

@@ -7,14 +7,17 @@ import { DockerSandboxExecutor, JSONStore, LocalBlobStore, LocalWorker, Retryabl
 
 test('adapter subpath exports expose the v1.2 package boundary', async () => {
   const postgres = await import('../src/adapters/postgres.js');
+  const mysql = await import('../src/adapters/mysql.js');
   const s3 = await import('../src/adapters/s3.js');
   const mcp = await import('../src/adapters/mcp.js');
   const otel = await import('../src/adapters/otel.js');
   const docker = await import('../src/adapters/sandbox-docker.js');
   const langgraph = await import('../src/adapters/langgraph.js');
 
-  assert.equal(postgres.adapterPackage.version, '1.2.1');
+  assert.equal(postgres.adapterPackage.version, '1.2.2');
+  assert.equal(mysql.adapterPackage.version, '1.2.2');
   assert.equal(typeof postgres.PostgresAdapter, 'function');
+  assert.equal(typeof mysql.MySQLAdapter, 'function');
   assert.equal(typeof s3.S3BlobStoreAdapter, 'function');
   assert.equal(typeof mcp.MCPToolAdapter, 'function');
   assert.equal(typeof otel.OTLPTransport, 'function');
@@ -76,6 +79,22 @@ test('postgres adapter can use injected query-style clients', async () => {
   assert.ok(calls.length >= 2);
   assert.match(calls[0].sql, /CREATE TABLE IF NOT EXISTS runs/);
   assert.match(calls[1].sql, /INSERT INTO schema_migrations/);
+  assert.deepEqual(calls[1].params.slice(0, 2), ['0001', 'initial_runtime_metadata']);
+});
+
+test('mysql adapter can use injected execute-style clients', async () => {
+  const { MySQLAdapter } = await import('../src/adapters/mysql.js');
+  const calls = [];
+  const adapter = new MySQLAdapter({
+    async execute(sql, params = []) {
+      calls.push({ sql, params });
+      return { affectedRows: 1 };
+    },
+  });
+  await adapter.applyMigrations();
+  assert.ok(calls.length >= 2);
+  assert.match(calls[0].sql, /CREATE TABLE IF NOT EXISTS runs/);
+  assert.match(calls[1].sql, /ON DUPLICATE KEY UPDATE/);
   assert.deepEqual(calls[1].params.slice(0, 2), ['0001', 'initial_runtime_metadata']);
 });
 

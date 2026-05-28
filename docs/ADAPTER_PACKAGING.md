@@ -1,6 +1,6 @@
 # Adapter Packaging
 
-AgentLedger `1.2.1` introduces the adapter packaging model. Runtime-core stays small and dependency-light; concrete integrations move into optional adapter packages that can be installed through extras or directly.
+AgentLedger `1.2.1` introduced the adapter packaging model, and `1.2.2` extends that model with the official MySQL storage adapter boundary. Runtime-core stays small and dependency-light; concrete integrations move into optional adapter packages that can be installed through extras or directly.
 
 ## Why Split Adapters
 
@@ -24,7 +24,7 @@ extras preserve easy installation
 
 Adapter packaging is language-specific. The goal is the same across languages, but the package mechanism follows each ecosystem:
 
-| Language | Mechanism in `1.2.1` | Reason |
+| Language | Mechanism in `1.2.x` | Reason |
 | --- | --- | --- |
 | Python | separate PyPI packages under `packages/` plus `agentledger-runtime[...]` extras | Python extras are the cleanest way to keep optional SDK dependencies out of core |
 | TypeScript/Node | `agentledger-runtime` subpath exports plus separate npm adapter packages under `typescript/packages/` | subpath exports are ergonomic for local use; adapter packages preserve future independent npm releases |
@@ -43,6 +43,7 @@ Install by feature through extras:
 
 ```bash
 pip install "agentledger-runtime[postgres]"
+pip install "agentledger-runtime[mysql]"
 pip install "agentledger-runtime[s3]"
 pip install "agentledger-runtime[langgraph]"
 pip install "agentledger-runtime[mcp]"
@@ -55,6 +56,7 @@ Install an adapter package directly:
 
 ```bash
 pip install agentledger-postgres
+pip install agentledger-mysql
 pip install agentledger-s3
 pip install agentledger-langgraph
 pip install agentledger-mcp
@@ -78,6 +80,7 @@ agentledger-runtime/
       src/agentledger_postgres/
       tests/
       examples/
+    agentledger-mysql/
     agentledger-s3/
     agentledger-langgraph/
     agentledger-mcp/
@@ -87,6 +90,7 @@ agentledger-runtime/
     src/adapters/                        # runtime subpath exports
     packages/                            # npm adapter packages
       agentledger-postgres/
+      agentledger-mysql/
       agentledger-s3/
       agentledger-langgraph/
       agentledger-mcp/                   # npm package name: agentledger-mcp-adapter
@@ -94,6 +98,7 @@ agentledger-runtime/
       agentledger-sandbox-docker/
   go/adapters/
     postgres/
+    mysql/
     s3/
     mcp/
     otel/
@@ -102,6 +107,7 @@ agentledger-runtime/
   rust/
     crates/
       agentledger-postgres/
+      agentledger-mysql/
       agentledger-s3/
       agentledger-mcp/
       agentledger-otel/
@@ -120,9 +126,10 @@ Each adapter package should provide:
 
 ## First Adapter Packages
 
-| Package | Owns in `1.2.1` | Dependency status |
+| Package | Owns in `1.2.x` | Dependency status |
 | --- | --- | --- |
 | `agentledger-postgres` | `PostgresStore`, `PostgresStoreConfig`, migration/conformance helpers | Requires `psycopg[binary]`; production rollout still needs real-service drills. |
+| `agentledger-mysql` | `MySQLStore`, `MySQLStoreConfig`, migration/conformance helpers | Requires `pymysql`; production rollout still needs real-service drills. |
 | `agentledger-s3` | `S3BlobStore`, `S3BlobStoreConfig` | Requires `boto3`; production rollout still needs IAM/KMS/lifecycle and restore drills. |
 | `agentledger-langgraph` | LangGraph checkpointer/node wrappers around the dependency-free facade | Core facade is dependency-free; optional native SDK use belongs behind package extras or follow-up smoke matrices. |
 | `agentledger-mcp` / `agentledger-mcp-adapter` on npm | MCP-style tool/context mapping package boundary | Current package is dependency-light; exact MCP SDK client/server transport is a follow-up adapter hardening item. |
@@ -182,6 +189,7 @@ Do not remove these shim paths in `1.2.1`. A future `2.0` may remove compatibili
 ```toml
 [project.optional-dependencies]
 postgres = ["agentledger-postgres>=1.2,<2"]
+mysql = ["agentledger-mysql>=1.2,<2"]
 s3 = ["agentledger-s3>=1.2,<2"]
 langgraph = ["agentledger-langgraph>=1.2,<2"]
 mcp = ["agentledger-mcp>=1.2,<2"]
@@ -189,6 +197,7 @@ otel = ["agentledger-otel>=1.2,<2"]
 docker = ["agentledger-sandbox-docker>=1.2,<2"]
 all = [
   "agentledger-postgres>=1.2,<2",
+  "agentledger-mysql>=1.2,<2",
   "agentledger-s3>=1.2,<2",
   "agentledger-langgraph>=1.2,<2",
   "agentledger-mcp>=1.2,<2",
@@ -201,11 +210,12 @@ During local monorepo development, tests may install packages from `packages/*` 
 
 ## Release Gates
 
-The `1.2.1` packaging release is expected to pass:
+The `1.2.x` packaging release is expected to pass:
 
 ```bash
 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m unittest discover -s tests -q
-PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m agentledger adapter certify --kind postgres --adapter-version 1.2.1
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m agentledger adapter certify --kind postgres --adapter-version 1.2.2
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m agentledger adapter certify --kind mysql --adapter-version 1.2.2
 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 scripts/check_adapter_packages.py
 go test ./...
 cd typescript && npm test

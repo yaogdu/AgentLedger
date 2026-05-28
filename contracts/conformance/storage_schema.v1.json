@@ -6,7 +6,7 @@
     {
       "name": "latest_schema_version_and_ddl_are_available",
       "requires": ["latest_schema_version", "ddl_for", "migrations_for"],
-      "dialects": ["sqlite", "postgres"],
+      "dialects": ["sqlite", "postgres", "mysql"],
       "expected": {
         "latest_version": "0001",
         "migration_name": "initial_runtime_metadata",

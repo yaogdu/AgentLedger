@@ -1,6 +1,6 @@
 """AgentLedger stable agent runtime core."""
 
-__version__ = "1.2.1"
+__version__ = "1.2.2"
 
 from .adapters import FrameworkAdapter, PythonFunctionAdapter, python_agent
 from .adapter_certification import AdapterCertificationBundle, build_adapter_certification_bundle, supported_adapter_certification_profiles
@@ -35,6 +35,7 @@ from .simple import RunResult, SimpleAgent, agent, arun, run
 from .scheduler import RecoverySummary, RuntimeScheduler
 from .storage_schema import Migration, MigrationStatus, SQLiteMigrationRunner, ddl_for, latest_schema_version, migrations_for
 from .storage_postgres import PostgresDependencyMissing, PostgresStore, PostgresStoreConfig
+from .storage_mysql import MYSQL_SCHEMA_SQL, MySQLDependencyMissing, MySQLStore, MySQLStoreConfig
 from .store import SQLiteStore
 from .tools import ToolRegistry, ToolSpec, ToolValidationError, tool, validate_tool_schema
 from .trace import OTLPResource, OTLPTraceExporter, TraceExporter, TraceSpan
@@ -104,6 +105,10 @@ __all__ = [
     "PostgresStoreConfig",
     "PostgresStore",
     "PostgresDependencyMissing",
+    "MySQLStoreConfig",
+    "MySQLStore",
+    "MySQLDependencyMissing",
+    "MYSQL_SCHEMA_SQL",
     "EvidenceDiffer",
     "DiffReport",
     "DivergenceReport",

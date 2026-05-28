@@ -1,12 +1,12 @@
 # Implementation Status
 
-Updated: 2026-05-18
+Updated: 2026-05-27
 
 This document tracks what is implemented in runtime-core, what remains planned for optional adapters, and what should stay outside runtime-core.
 
 ## Current Baseline
 
-AgentLedger 1.2.1 is a stable runtime-core line with Python as the reference implementation and Go/TypeScript/Rust covered by shared runtime-core parity gates. The 1.2.1 release adds adapter packaging boundaries across the supported language ecosystems while keeping selected preview/experimental concrete adapter paths explicit. It is suitable for:
+AgentLedger 1.2.2 is a stable runtime-core line with Python as the reference implementation and Go/TypeScript/Rust covered by shared runtime-core parity gates. The 1.2.x line adds adapter packaging boundaries across the supported language ecosystems and now includes the official MySQL storage adapter boundary while keeping selected preview/experimental concrete adapter paths explicit. It is suitable for:
 
 - local use
 - runtime design review
@@ -15,7 +15,7 @@ AgentLedger 1.2.1 is a stable runtime-core line with Python as the reference imp
 - reliability semantics validation
 - production pilot preparation with explicit adapter boundaries
 
-Release-scope note: 1.2.1 completes adapter packaging boundaries, not production adapter hardening. It adds Python adapter packages, TypeScript subpath exports and npm adapter packages, Go adapter subpackages, Rust adapter features/crate packages, bilingual adapter packaging docs, and adapter package checks. Real-service production claims still require external validation.
+Release-scope note: 1.2.2 completes the MySQL adapter boundary in the same packaging model, not production adapter hardening. It adds Python adapter packages, TypeScript subpath exports and npm adapter packages, Go adapter subpackages, Rust adapter features/crate packages, bilingual adapter packaging docs, and adapter package checks. Real-service production claims still require external validation.
 
 The runtime-core contract is stable. Optional production adapters, external infrastructure hardening, and full eval systems remain outside the stable core boundary; non-Python runtime-core baselines are verified by the shared parity gates.
 
@@ -67,6 +67,7 @@ Excluded from this boundary:
 | Area | Implemented now | Still missing |
 |---|---|---|
 | Postgres StateStore | DDL, optional psycopg adapter, env/CLI config, migration status/apply, schema isolation, JSONB handling, injected conformance, opt-in real-service test, CI Postgres service conformance job, `agentledger-postgres` package boundary | production rollout exercises, operational tuning, backup/restore exercise against real service |
+| MySQL StateStore | DDL, optional pymysql adapter, env/CLI config, migration status/apply, JSON handling, package/import boundary, cross-language injected SQL adapter facades, `agentledger-mysql` package boundary | real-service conformance job, production rollout exercises, operational tuning, backup/restore exercise against real service |
 | S3/MinIO BlobStore | optional boto3 adapter, env/CLI config, injected conformance, CLI smoke, opt-in real-service test, CI MinIO service conformance job, `agentledger-s3` package boundary | IAM/KMS/lifecycle review, large object guidance, operational hardening |
 | OpenTelemetry | dependency-free OTLP JSON file export and optional OTLP/JSON collector POST, `agentledger-otel` package boundary | deployment recipe and hardened SDK adapter |
 | Distributed workers | local worker loop, `WorkerService`, worker conformance, Postgres `FOR UPDATE SKIP LOCKED` path, deployment guide | hardened deployment recipe, supervision examples, real-service load/concurrency validation |
@@ -82,7 +83,7 @@ Excluded from this boundary:
 These are either outside the stable Python runtime-core, implemented only as preview parity baselines, or still planned as optional production hardening:
 
 - Non-Python implementations: Go, Node/TypeScript, and Rust have native runtime-core baselines under `go/`, `typescript/`, and `rust/`, with shared conformance gates and adapter boundaries. `scripts/check_language_parity.py` emits a JSON parity report, loads `contracts/conformance/runtime_semantics.v1.json` as the semantic-check authority, and runs per-language conformance CLIs for Go, TypeScript, and Rust. Remaining work is production-grade external adapter hardening and ecosystem-specific native SDK coverage, not core runtime parity.
-- Production-hardened Postgres and S3/MinIO rollout playbooks beyond the current CI-backed real-service conformance jobs.
+- Production-hardened Postgres, MySQL, and S3/MinIO rollout playbooks beyond the current CI-backed real-service conformance jobs.
 - Hardened OpenTelemetry SDK adapter and deployment recipe.
 - Full optional framework packages for LangChain, CrewAI, AutoGen, OpenAI Agents SDK, LlamaIndex, Semantic Kernel, and framework-native smoke matrices.
 - Exact MCP SDK client/server integration beyond dependency-free fixtures.

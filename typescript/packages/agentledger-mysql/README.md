@@ -1,0 +1,16 @@
+# agentledger-mysql
+
+MySQL adapter boundary package for AgentLedger Runtime.
+
+```bash
+npm install agentledger-mysql agentledger-runtime
+```
+
+```js
+import { MySQLAdapter } from 'agentledger-mysql';
+
+const adapter = new MySQLAdapter(mysqlClient);
+await adapter.applyMigrations();
+```
+
+The package re-exports `agentledger-runtime/mysql`. Runtime core does not bundle a MySQL driver; inject the client used by your application.

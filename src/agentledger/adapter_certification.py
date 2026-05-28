@@ -73,6 +73,28 @@ _PROFILES: dict[str, dict[str, Any]] = {
             "local injected conformance is not a substitute for real-service transaction, lock, and restore drills",
         ],
     },
+    "mysql": {
+        "adapter": "mysql",
+        "adapter_type": "state_store",
+        "package_name": "agentledger-mysql",
+        "conformance_commands": [
+            "PYTHONPATH=src python3 -m agentledger state conformance --backend mysql",
+            "PYTHONPATH=src python3 -m agentledger worker conformance --backend mysql --concurrent",
+        ],
+        "smoke_commands": [
+            "PYTHONPATH=src python3 -m agentledger migrate status --dialect mysql",
+            "PYTHONPATH=src python3 -m agentledger migrate up --dialect mysql",
+        ],
+        "required_external_services": ["mysql"],
+        "security_assumptions": [
+            "DSN credentials are provided through environment or secret manager and are redacted from evidence",
+            "database/user permissions are scoped to AgentLedger tables",
+            "backup and restore are owned by the deployment environment",
+        ],
+        "known_limitations": [
+            "local injected conformance is not a substitute for real-service transaction, lock, and restore drills",
+        ],
+    },
     "s3": {
         "adapter": "s3",
         "adapter_type": "blob_store",

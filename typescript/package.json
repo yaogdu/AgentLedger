@@ -1,6 +1,6 @@
 {
   "name": "agentledger-runtime",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "private": false,
   "description": "Dependency-free Node/TypeScript-compatible runtime for AgentLedger.",
   "type": "module",
@@ -14,6 +14,10 @@
     "./postgres": {
       "types": "./src/adapters/postgres.d.ts",
       "import": "./src/adapters/postgres.js"
+    },
+    "./mysql": {
+      "types": "./src/adapters/mysql.d.ts",
+      "import": "./src/adapters/mysql.js"
     },
     "./s3": {
       "types": "./src/adapters/s3.d.ts",

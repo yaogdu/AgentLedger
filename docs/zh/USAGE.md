@@ -40,10 +40,11 @@ agentledger --help
 
 ```bash
 python3 -m pip install "agentledger-runtime[postgres]"
+python3 -m pip install "agentledger-runtime[mysql]"
 python3 -m pip install "agentledger-runtime[s3]"
 ```
 
-如果是从仓库本地开发，再使用 `python3 -m pip install -e ".[postgres]"` 或 `python3 -m pip install -e ".[s3]"`。
+如果是从仓库本地开发，再使用 `python3 -m pip install -e ".[postgres]"`、`python3 -m pip install -e ".[mysql]"` 或 `python3 -m pip install -e ".[s3]"`。
 
 ## 前 10 分钟
 
@@ -207,14 +208,17 @@ PYTHONPATH=src python3 -m agentledger migrate status
 PYTHONPATH=src python3 -m agentledger migrate ddl --dialect sqlite
 ```
 
-Postgres 是可选 experimental adapter：
+Postgres 和 MySQL 是可选 adapter boundary：
 
 ```bash
 AGENTLEDGER_POSTGRES_DSN=postgresql://user:password@localhost:15432/database \
 PYTHONPATH=src python3 -m agentledger migrate up --dialect postgres
+
+AGENTLEDGER_MYSQL_DSN=mysql://user:password@localhost:3306/database \
+PYTHONPATH=src python3 -m agentledger migrate up --dialect mysql
 ```
 
-不要把 conformance 或实验命令指向真实业务数据。
+不要把 conformance 或实验命令指向真实业务数据。`1.2.2` 的 MySQL 支持是官方 adapter boundary；生产使用仍需要真实服务并发、权限、备份和恢复验证。
 
 ## Media 和 Stream
 
@@ -236,10 +240,11 @@ PYTHONPATH=src python3 -m agentledger state conformance --backend sqlite
 PYTHONPATH=src python3 -m agentledger blob conformance --backend local
 PYTHONPATH=src python3 -m agentledger worker conformance --backend sqlite --concurrent
 PYTHONPATH=src python3 -m agentledger adapter conformance --kind langchain
-PYTHONPATH=src python3 -m agentledger adapter certify --kind postgres --adapter-version 1.2.1 --out ./postgres-certification.json
+PYTHONPATH=src python3 -m agentledger adapter certify --kind postgres --adapter-version 1.2.2 --out ./postgres-certification.json
+PYTHONPATH=src python3 -m agentledger adapter certify --kind mysql --adapter-version 1.2.2 --out ./mysql-certification.json
 ```
 
-`adapter certify` 会生成机器可读的 adapter certification bundle，包含 package metadata、conformance command、smoke command、required external services、security assumptions、known limitations，以及 production validation 是否仍然依赖真实基础设施。例如 Postgres/S3/Docker/Temporal 会标记为 `external-required`，直到在真实服务凭证、并发/负载、restore 或 rollback drill 下完成验证。
+`adapter certify` 会生成机器可读的 adapter certification bundle，包含 package metadata、conformance command、smoke command、required external services、security assumptions、known limitations，以及 production validation 是否仍然依赖真实基础设施。例如 Postgres/MySQL/S3/Docker/Temporal 会标记为 `external-required`，直到在真实服务凭证、并发/负载、restore 或 rollback drill 下完成验证。
 
 ## 下一步读什么
 

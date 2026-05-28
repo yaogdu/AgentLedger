@@ -44,7 +44,7 @@ This directory is the canonical documentation set for AgentLedger. English docs 
 - `POLICY_ENGINE.md`: policy request/decision contract, PEP/PDP split, evaluator registry, controls, and adapter boundary.
 - `RUNTIME_SPEC.md`: runtime concepts, state model, event schema, Tool Ledger semantics, evidence regression/replay/debug interfaces.
 - `EXTENSIBILITY.md`: adapter model for storage, tools, frameworks, protocols, observability, media, and sandbox.
-- `ADAPTER_PACKAGING.md`: optional adapter package layout, extras install model, compatibility shim strategy, and 1.2.1 packaging release gates.
+- `ADAPTER_PACKAGING.md`: optional adapter package layout, extras install model, compatibility shim strategy, and 1.2.x packaging release gates.
 - `STORAGE.md`: runtime metadata schema, migrations, StateStore and BlobStore extension contract.
 - `ADAPTER_CERTIFICATION.md`: compatibility checklist for storage, blob, framework, tool, sandbox, media/stream, and observability adapters.
 - `EXECUTION_BACKENDS.md`: Temporal/Ray/Kubernetes positioning and scheduler adapter boundary.
@@ -54,6 +54,7 @@ This directory is the canonical documentation set for AgentLedger. English docs 
 - `DISTRIBUTED_WORKERS.md`: worker pool recipe, leases, cancellation, and failure drills.
 - `BACKUP_RESTORE.md`: backup and restore expectations for StateStore and BlobStore recovery.
 - `POSTGRES.md`: optional Postgres StateStore setup and conformance guidance.
+- `MYSQL.md`: optional MySQL StateStore setup and conformance guidance.
 - `S3_MINIO.md`: optional S3/MinIO BlobStore setup and conformance guidance.
 - `SECURITY_ENTERPRISE.md`: security model, permission boundaries, sandbox, secrets, and high-risk tools.
 - `RELEASE_CHECKLIST.md`: local gates for tests, conformance, lint, contract export, examples, and evidence checks.

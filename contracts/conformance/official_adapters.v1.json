@@ -9,6 +9,11 @@
       "expected": {"dialect": "postgres", "latest_version": "0001", "records_schema_migration": true}
     },
     {
+      "name": "mysql_adapter_plans_and_applies_migrations_with_injected_client",
+      "requires": ["mysql_adapter", "injected_sql_client", "migrations_for"],
+      "expected": {"dialect": "mysql", "latest_version": "0001", "records_schema_migration": true}
+    },
+    {
       "name": "s3_blob_adapter_round_trips_json_with_injected_client",
       "requires": ["s3_blob_adapter", "injected_object_client", "content_address"],
       "expected": {"ref_prefix": "s3://agentledger-test/agentledger/blobs/sha256/", "content_type": "application/json"}
@@ -30,7 +35,7 @@
     }
   ],
   "non_goals": [
-    "This fixture does not require live Postgres, S3, Docker, or OTLP collector services.",
+    "This fixture does not require live Postgres, MySQL, S3, Docker, or OTLP collector services.",
     "Production credentials, cloud accounts, and daemon execution remain optional service-backed gates outside runtime-core CI."
   ]
 }

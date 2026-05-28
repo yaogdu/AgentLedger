@@ -16,6 +16,6 @@ The `1.2.x` package exports dependency-free OTLP JSON and POST helpers. Full Ope
 Certification:
 
 ```bash
-python3 -m agentledger adapter certify --kind otel --adapter-version 1.2.1
+python3 -m agentledger adapter certify --kind otel --adapter-version 1.2.2
 ```
 

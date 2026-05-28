@@ -236,6 +236,7 @@ export function timeTravelHTML(report: TimeTravelReport): string;
 export function optionalAdapterCapabilities(): Array<{ name: string; category: string; core_imports_heavy_sdks: boolean; adapter_is_optional: boolean; fail_closed_without_adapter: boolean; contract_surface: string[] }>;
 
 export class PostgresAdapter { constructor(client: any, options?: any); migrationPlan(): any[]; exec(sql: string, params?: any[]): Promise<any>; applyMigrations(): Promise<void>; }
+export class MySQLAdapter { constructor(client: any, options?: any); migrationPlan(): any[]; exec(sql: string, params?: any[]): Promise<any>; applyMigrations(): Promise<void>; }
 export class S3BlobStoreAdapter { constructor(client: any, options?: any); putObject(input: any): Promise<any>; getObject(bucket: string, key: string): Promise<any>; putJSON(value: any): Promise<{ digest: string; ref: string }>; getJSON(ref: string): Promise<any>; }
 export class OTLPTransport { constructor(client: any, options?: any); export(payload: any): Promise<any>; }
 export class DockerSandboxAdapter { constructor(options?: any); manifest(policy: any, command: string[]): any; }

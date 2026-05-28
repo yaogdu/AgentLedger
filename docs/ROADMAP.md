@@ -27,6 +27,24 @@ Adapter prioritization is documented in `ADAPTER_ROADMAP.md`: official adapters 
 
 This scope map is part of the release gate: a new feature should either fit runtime-core as a production execution reliability contract, land as an optional adapter, become a separate evidence consumer, or be documented as out of scope. The default choice is adapter or external consumer unless runtime-core is the only layer that can enforce the invariant.
 
+## v1.2.2 - MySQL Adapter Boundary Release
+
+Status: implemented as a storage adapter boundary release. It extends the `1.2.x` adapter packaging model without changing runtime-core semantics.
+
+Implemented:
+
+- added MySQL DDL/migration metadata to Python, Go, TypeScript, and Rust storage schema helpers
+- added Python `MySQLStore` / `MySQLStoreConfig` with optional `pymysql` dependency and CLI migration/status support
+- added `agentledger-mysql` Python package, TypeScript npm package boundary, Go `go/adapters/mysql`, and Rust `agentledger-mysql` crate boundary
+- added cross-language optional adapter and official adapter conformance tokens for MySQL
+- documented MySQL as an official optional adapter boundary, not a production-hardening claim
+
+Explicitly not in this version:
+
+- production-ready claims for MySQL without real-service evidence
+- live MySQL concurrency/load/backup/restore gates
+- native non-Python MySQL drivers in core; Go/TypeScript/Rust expose injected SQL adapter contracts
+
 ## v1.2.1 - Adapter Packaging Release
 
 Status: implemented on the `v1.2.1` branch as an adapter packaging and boundary release. It packages the existing adapter seams without changing the runtime-core semantics.

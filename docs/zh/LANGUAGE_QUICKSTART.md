@@ -2,7 +2,7 @@
 
 [English](../LANGUAGE_QUICKSTART.md) | [中文](LANGUAGE_QUICKSTART.md)
 
-AgentLedger 1.2.1 包含 Python reference runtime，以及 Go、TypeScript、Rust 的 native preview runtime-core baseline。共享承诺是 runtime-core 语义对齐：durable run、lease、Tool Ledger、evidence、replay、policy/approval/sandbox boundary、cost/failure attribution、conformance 和 official optional adapter contract。
+AgentLedger 1.2.2 包含 Python reference runtime，以及 Go、TypeScript、Rust 的 native preview runtime-core baseline。共享承诺是 runtime-core 语义对齐：durable run、lease、Tool Ledger、evidence、replay、policy/approval/sandbox boundary、cost/failure attribution、conformance 和 official optional adapter contract。
 
 非 Python package 是 native runtime package，不是 thin client：它们都能运行本地 native runtime loop，并报告共享 conformance checks。
 
@@ -44,13 +44,13 @@ PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m agentledger contract export
 
 ```bash
 go mod init your-module-name  # 如果项目还没有 go.mod 才需要
-go get github.com/yaogdu/AgentLedger/go@v1.2.1
+go get github.com/yaogdu/AgentLedger/go@v1.2.2
 ```
 
 安装可选 CLI 命令：
 
 ```bash
-go install github.com/yaogdu/AgentLedger/go/cmd/agentledger-go@v1.2.1
+go install github.com/yaogdu/AgentLedger/go/cmd/agentledger-go@v1.2.2
 agentledger-go --help
 agentledger-go doctor
 agentledger-go quickstart
@@ -64,7 +64,7 @@ go test . ./cmd/agentledger-go
 go run ./cmd/agentledger-go conformance
 ```
 
-注意：`go get` 必须在 Go module 内运行。`go install github.com/yaogdu/AgentLedger/go@v1.2.1` 会失败，因为 library package 不是 `package main`；安装 CLI 要使用 `/cmd/agentledger-go` 路径。
+注意：`go get` 必须在 Go module 内运行。`go install github.com/yaogdu/AgentLedger/go@v1.2.2` 会失败，因为 library package 不是 `package main`；安装 CLI 要使用 `/cmd/agentledger-go` 路径。
 
 最小 runtime：
 
@@ -94,6 +94,9 @@ Official optional adapter 形态：
 ```go
 pg := agentledger.NewPostgresAdapter("agentledger", injectedSQLClient)
 _ = pg.ApplyMigrations(context.Background())
+
+mysql := agentledger.NewMySQLAdapter("agentledger", injectedSQLClient)
+_ = mysql.ApplyMigrations(context.Background())
 
 s3 := agentledger.NewS3BlobStore("agentledger-test", "agentledger/blobs", injectedObjectClient)
 _, ref, _ := s3.PutJSON(context.Background(), agentledger.JSONObject{"answer": "ok"})
@@ -135,6 +138,7 @@ console.log(exportEvidence(rt.store, runId).run.run_id);
 Official optional adapter 形态：
 
 ```js
+await new MySQLAdapter(injectedSqlClient).applyMigrations();
 await new PostgresAdapter(injectedSqlClient).applyMigrations();
 const s3 = new S3BlobStoreAdapter(injectedObjectClient, { bucket: 'agentledger-test' });
 const { ref } = await s3.putJSON({ answer: 'ok' });
@@ -187,10 +191,13 @@ fn main() -> Result<()> {
 Official optional adapter 形态：
 
 ```rust
-use agentledger::{PostgresAdapter, S3BlobStoreAdapter};
+use agentledger::{MySQLAdapter, PostgresAdapter, S3BlobStoreAdapter};
 
 let mut pg = PostgresAdapter::new(injected_sql_client, "agentledger");
 pg.apply_migrations()?;
+
+let mut mysql = MySQLAdapter::new(injected_sql_client, "agentledger");
+mysql.apply_migrations()?;
 
 let mut s3 = S3BlobStoreAdapter::new(injected_object_client, "agentledger-test", "agentledger/blobs");
 let (_digest, reference) = s3.put_json(&value)?;
@@ -206,7 +213,7 @@ python3.11 scripts/audit_python_parity.py > /tmp/agentledger-python-parity-audit
 python3.11 scripts/check_language_parity.py --json-report /tmp/agentledger-language-parity.json
 ```
 
-1.2.1 期望：
+1.2.2 期望：
 
 ```text
 gap_count: 0
@@ -216,5 +223,5 @@ AgentLedger language parity checks passed
 ## 不要误解
 
 - Go/TypeScript/Rust 仍是 package surface，但 runtime-core 语义已 conformance-aligned。
-- 1.2.1 的 official adapter 使用 injected client 和 dry-run manifest；真实云 SDK 和 live service hardening 是后续 optional gate。
+- 1.2.2 的 official adapter 使用 injected client 和 dry-run manifest；真实云 SDK 和 live service hardening 是后续 optional gate。
 - AgentLedger 不替代 LangGraph、LangChain、LangSmith、Langfuse、Temporal、Ray、Kubernetes、vector DB 或 eval platform；它提供的是这些系统可以接入的 runtime safety/evidence layer。

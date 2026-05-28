@@ -8,6 +8,19 @@ This project follows semantic versioning for the stable runtime-core contract. O
 
 No unreleased changes yet.
 
+## 1.2.2
+
+### Added
+
+- Official MySQL storage adapter boundary across Python, Go, TypeScript, and Rust.
+- Python `agentledger-mysql`, TypeScript `agentledger-mysql`, Go `go/adapters/mysql`, and Rust `agentledger-mysql` package/crate boundaries.
+- MySQL DDL/migration metadata in shared storage schema helpers and conformance fixtures.
+- Injected-client MySQL adapter smoke coverage for Go, TypeScript, and Rust, plus Python CLI/package/export support.
+
+### Clarified
+
+- MySQL support in this release is an optional adapter boundary and migration/schema contract; production hardening still requires real-service concurrency, load, permission, backup, and restore validation.
+
 ## 1.2.1
 
 ### Added

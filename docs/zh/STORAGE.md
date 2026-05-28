@@ -57,6 +57,7 @@ PYTHONPATH=src python3 -m agentledger migrate status
 PYTHONPATH=src python3 -m agentledger migrate up
 PYTHONPATH=src python3 -m agentledger migrate ddl --dialect sqlite
 PYTHONPATH=src python3 -m agentledger migrate ddl --dialect postgres
+PYTHONPATH=src python3 -m agentledger migrate ddl --dialect mysql
 ```
 
 迁移状态记录在：
@@ -89,6 +90,27 @@ opt-in real-service test
 
 不要把 conformance 或实验迁移命令指向真实业务数据。
 
+## MySQL
+
+MySQL 是 optional StateStore adapter boundary，适合 production pilot 前的验证。
+
+```bash
+AGENTLEDGER_MYSQL_DSN=mysql://agentledger:secret@localhost:3306/agentledger \
+PYTHONPATH=src python3 -m agentledger migrate up --dialect mysql
+```
+
+MySQL adapter 支持：
+
+```text
+DDL catalog
+migration status/apply
+JSON runtime payload fields
+Python pymysql path
+Go/TypeScript/Rust injected SQL adapter contract
+```
+
+生产可用仍需要真实 MySQL 服务的并发/负载、权限、backup/restore 和 rollout 验证。
+
 ## StateStore Adapter 要求
 
 StateStore adapter 必须保留：
@@ -117,6 +139,13 @@ Postgres：
 AGENTLEDGER_POSTGRES_DSN=postgresql://agentledger:secret@localhost:5432/agentledger \
 AGENTLEDGER_POSTGRES_SCHEMA=agentledger \
 PYTHONPATH=src python3 -m agentledger state conformance --backend postgres
+```
+
+MySQL：
+
+```bash
+AGENTLEDGER_MYSQL_DSN=mysql://agentledger:secret@localhost:3306/agentledger \
+PYTHONPATH=src python3 -m agentledger state conformance --backend mysql
 ```
 
 ## Backup / Restore

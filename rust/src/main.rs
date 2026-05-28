@@ -8,7 +8,7 @@ use agentledger::{
     cost_attribution, ddl_for, debug_html, debug_summary, diff_evidence, diff_states,
     divergence_report, evaluate_evidence, evaluate_evidence_regression, export_evidence,
     failure_attribution, golden_regression, latest_schema_version, migrations_for, otlp_trace_json,
-    optional_adapter_capabilities, DockerSandboxAdapter, DockerSandboxExecutor, ObjectClient, OtlpClient, OtlpTransport, PostgresAdapter, S3BlobStoreAdapter, SqlExecutor, plan_retention, replay, run_failure_injection_suite, scan_boundary_source, shadow_report,
+    optional_adapter_capabilities, DockerSandboxAdapter, DockerSandboxExecutor, MySQLAdapter, ObjectClient, OtlpClient, OtlpTransport, PostgresAdapter, S3BlobStoreAdapter, SqlExecutor, plan_retention, replay, run_failure_injection_suite, scan_boundary_source, shadow_report,
     simple_run, time_travel, time_travel_html, trace_jsonl, trace_spans, AgentContext,
     BudgetLimits, FunctionAdapter, InMemoryMCPContextServer, InMemoryMCPToolServer, LocalBlobStore,
     LocalWorker, MCPContextAdapter, MCPToolAdapter, MemoryStore, MethodFrameworkAdapter, Runtime,
@@ -227,6 +227,7 @@ const FIXTURE_CHECKS: &[(&str, &[&str])] = &[
             "agentledger.conformance.optional_adapters.v1",
             "optional_backend_capabilities_are_discoverable",
             "postgres",
+            "mysql",
             "langgraph",
             "shadow-runner",
         ],
@@ -236,6 +237,7 @@ const FIXTURE_CHECKS: &[(&str, &[&str])] = &[
         &[
             "agentledger.conformance.official_adapters.v1",
             "postgres_adapter_plans_and_applies_migrations_with_injected_client",
+            "mysql_adapter_plans_and_applies_migrations_with_injected_client",
             "s3_blob_adapter_round_trips_json_with_injected_client",
             "otlp_transport_posts_json_with_injected_client",
             "docker_sandbox_adapter_builds_manifest_without_daemon",
@@ -255,8 +257,8 @@ fn run(args: Vec<String>) -> Result<(), Box<dyn Error>> {
     match args.as_slice() {
         [] => { print_help(); Ok(()) }
         [command] if command == "--help" || command == "help" => { print_help(); Ok(()) }
-        [command] if command == "version" => { println!("agentledger-rust 1.2.1"); Ok(()) }
-        [command] if command == "doctor" => { println!("{{\n  \"language\": \"rust\",\n  \"version\": \"1.2.1\",\n  \"status\": \"ok\",\n  \"runtime_core_parity\": true\n}}"); Ok(()) }
+        [command] if command == "version" => { println!("agentledger-rust 1.2.2"); Ok(()) }
+        [command] if command == "doctor" => { println!("{{\n  \"language\": \"rust\",\n  \"version\": \"1.2.2\",\n  \"status\": \"ok\",\n  \"runtime_core_parity\": true\n}}"); Ok(()) }
         [command] if command == "quickstart" => run_quickstart(),
         [command] if command == "conformance" => run_conformance(),
         [command, action] if command == "contract" && action == "validate" => validate_contract(),
@@ -269,7 +271,7 @@ fn run(args: Vec<String>) -> Result<(), Box<dyn Error>> {
 }
 
 fn print_help() {
-    println!("AgentLedger Rust Runtime 1.2.1\n\nUsage:\n  agentledger-rust doctor\n  agentledger-rust version\n  agentledger-rust quickstart\n  agentledger-rust conformance\n  agentledger-rust contract validate\n  agentledger-rust contract export\n\nProject: https://github.com/yaogdu/AgentLedger");
+    println!("AgentLedger Rust Runtime 1.2.2\n\nUsage:\n  agentledger-rust doctor\n  agentledger-rust version\n  agentledger-rust quickstart\n  agentledger-rust conformance\n  agentledger-rust contract validate\n  agentledger-rust contract export\n\nProject: https://github.com/yaogdu/AgentLedger");
 }
 
 fn run_quickstart() -> Result<(), Box<dyn Error>> {
@@ -921,7 +923,7 @@ fn run_ops_readiness_smoke() -> Result<(), Box<dyn Error>> {
 }
 
 fn run_storage_schema_smoke() -> Result<(), Box<dyn Error>> {
-    for dialect in ["sqlite", "postgres"] {
+    for dialect in ["sqlite", "postgres", "mysql"] {
         if latest_schema_version(dialect)? != Some("0001".to_string()) {
             return Err(format!("storage schema version mismatch for {dialect}").into());
         }
@@ -1555,7 +1557,7 @@ fn run_optional_adapters_smoke() -> Result<(), Box<dyn Error>> {
             return Err(format!("invalid optional adapter capability: {}", cap.name).into());
         }
     }
-    for name in ["postgres", "s3", "docker", "langgraph", "mcp-transport", "shadow-runner"] {
+    for name in ["postgres", "mysql", "s3", "docker", "langgraph", "mcp-transport", "shadow-runner"] {
         if !names.contains(name) {
             return Err(format!("missing optional adapter capability: {name}").into());
         }
@@ -1580,6 +1582,10 @@ fn run_official_adapters_smoke() -> Result<(), Box<dyn Error>> {
     if pg.migration_plan()?[0].dialect != "postgres" { return Err("postgres adapter plan failed".into()); }
     pg.apply_migrations()?;
     if pg.client.count < 2 { return Err("postgres adapter apply failed".into()); }
+    let mut mysql = MySQLAdapter::new(FakeSql::default(), "agentledger");
+    if mysql.migration_plan()?[0].dialect != "mysql" { return Err("mysql adapter plan failed".into()); }
+    mysql.apply_migrations()?;
+    if mysql.client.count < 2 { return Err("mysql adapter apply failed".into()); }
     let mut s3 = S3BlobStoreAdapter::new(FakeObjects::default(), "agentledger-test", "agentledger/blobs");
     let value = Value::Object(state(&[("answer", "ok".into())]));
     let (_digest, reference) = s3.put_json(&value)?;

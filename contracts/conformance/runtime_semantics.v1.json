@@ -250,6 +250,7 @@
       "fixture": "contracts/conformance/official_adapters.v1.json",
       "scenario_refs": [
         "postgres_adapter_plans_and_applies_migrations_with_injected_client",
+        "mysql_adapter_plans_and_applies_migrations_with_injected_client",
         "s3_blob_adapter_round_trips_json_with_injected_client",
         "otlp_transport_posts_json_with_injected_client",
         "docker_sandbox_adapter_builds_manifest_without_daemon"

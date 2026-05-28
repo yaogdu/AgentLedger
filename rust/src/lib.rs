@@ -4860,6 +4860,14 @@ pub fn migrations_for(dialect: &str) -> Result<Vec<Migration>> {
             sql: POSTGRES_INITIAL_DDL.to_string(),
         }]);
     }
+    if normalized == "mysql" {
+        return Ok(vec![Migration {
+            version: "0001".to_string(),
+            name: "initial_runtime_metadata".to_string(),
+            dialect: "mysql".to_string(),
+            sql: MYSQL_INITIAL_DDL.to_string(),
+        }]);
+    }
     Err(RuntimeError(format!(
         "unsupported storage dialect: {dialect}"
     )))
@@ -4875,6 +4883,8 @@ pub fn ddl_for(dialect: &str) -> Result<String> {
     let normalized = dialect.to_lowercase();
     let header = if normalized == "postgres" || normalized == "postgresql" {
         SCHEMA_MIGRATIONS_POSTGRES
+    } else if normalized == "mysql" {
+        SCHEMA_MIGRATIONS_MYSQL
     } else {
         SCHEMA_MIGRATIONS_SQLITE
     };
@@ -4887,8 +4897,10 @@ pub fn ddl_for(dialect: &str) -> Result<String> {
 
 const SCHEMA_MIGRATIONS_SQLITE: &str = "CREATE TABLE IF NOT EXISTS schema_migrations (\n    version TEXT PRIMARY KEY,\n    name TEXT NOT NULL,\n    checksum TEXT NOT NULL,\n    applied_at REAL NOT NULL\n);";
 const SCHEMA_MIGRATIONS_POSTGRES: &str = "CREATE TABLE IF NOT EXISTS schema_migrations (\n  version TEXT PRIMARY KEY,\n  name TEXT NOT NULL,\n  checksum TEXT NOT NULL,\n  applied_at DOUBLE PRECISION NOT NULL\n);";
+const SCHEMA_MIGRATIONS_MYSQL: &str = "CREATE TABLE IF NOT EXISTS schema_migrations (\n  version VARCHAR(32) PRIMARY KEY,\n  name VARCHAR(255) NOT NULL,\n  checksum VARCHAR(128) NOT NULL,\n  applied_at DOUBLE NOT NULL\n);";
 const SQLITE_INITIAL_DDL: &str = "CREATE TABLE IF NOT EXISTS runs (run_id TEXT PRIMARY KEY, session_id TEXT NOT NULL, status TEXT NOT NULL, state_json TEXT NOT NULL, state_version INTEGER NOT NULL, created_at REAL NOT NULL, updated_at REAL NOT NULL);\nCREATE TABLE IF NOT EXISTS steps (step_id TEXT PRIMARY KEY, run_id TEXT NOT NULL, session_id TEXT NOT NULL, status TEXT NOT NULL, owner TEXT, lease_token TEXT, lease_until REAL, attempt INTEGER NOT NULL, state_version INTEGER NOT NULL, checkpoint_id TEXT, created_at REAL NOT NULL, updated_at REAL NOT NULL);\nCREATE TABLE IF NOT EXISTS events (event_id TEXT PRIMARY KEY, run_id TEXT NOT NULL, session_id TEXT, step_id TEXT, seq INTEGER NOT NULL, type TEXT NOT NULL, timestamp REAL NOT NULL, agent_role TEXT, state_version INTEGER, causal_token TEXT, payload_hash TEXT, payload_ref TEXT);\nCREATE TABLE IF NOT EXISTS tool_ledger (ledger_id TEXT PRIMARY KEY, run_id TEXT NOT NULL, session_id TEXT, step_id TEXT NOT NULL, tool_name TEXT NOT NULL, tool_version TEXT NOT NULL, tool_call_id TEXT NOT NULL, idempotency_key TEXT NOT NULL UNIQUE, causal_token TEXT NOT NULL, request_hash TEXT NOT NULL, request_ref TEXT NOT NULL, status TEXT NOT NULL, external_id TEXT, response_hash TEXT, response_ref TEXT, error_type TEXT, created_at REAL NOT NULL, updated_at REAL NOT NULL);";
 const POSTGRES_INITIAL_DDL: &str = "CREATE TABLE IF NOT EXISTS runs (run_id TEXT PRIMARY KEY, session_id TEXT NOT NULL, status TEXT NOT NULL, state_json JSONB NOT NULL, state_version BIGINT NOT NULL, created_at DOUBLE PRECISION NOT NULL, updated_at DOUBLE PRECISION NOT NULL);\nCREATE TABLE IF NOT EXISTS steps (step_id TEXT PRIMARY KEY, run_id TEXT NOT NULL REFERENCES runs(run_id), session_id TEXT NOT NULL, status TEXT NOT NULL, owner TEXT, lease_token TEXT, lease_until DOUBLE PRECISION, attempt BIGINT NOT NULL, state_version BIGINT NOT NULL, checkpoint_id TEXT, created_at DOUBLE PRECISION NOT NULL, updated_at DOUBLE PRECISION NOT NULL);\nCREATE TABLE IF NOT EXISTS events (event_id TEXT PRIMARY KEY, run_id TEXT NOT NULL, session_id TEXT, step_id TEXT, seq BIGINT NOT NULL, type TEXT NOT NULL, timestamp DOUBLE PRECISION NOT NULL, agent_role TEXT, state_version BIGINT, causal_token TEXT, payload_hash TEXT, payload_ref TEXT, UNIQUE(run_id, seq));\nCREATE TABLE IF NOT EXISTS tool_ledger (ledger_id TEXT PRIMARY KEY, run_id TEXT NOT NULL, session_id TEXT, step_id TEXT NOT NULL, tool_name TEXT NOT NULL, tool_version TEXT NOT NULL, tool_call_id TEXT NOT NULL, idempotency_key TEXT NOT NULL UNIQUE, causal_token TEXT NOT NULL, request_hash TEXT NOT NULL, request_ref TEXT NOT NULL, status TEXT NOT NULL, external_id TEXT, response_hash TEXT, response_ref TEXT, error_type TEXT, created_at DOUBLE PRECISION NOT NULL, updated_at DOUBLE PRECISION NOT NULL);";
+const MYSQL_INITIAL_DDL: &str = "CREATE TABLE IF NOT EXISTS runs (run_id VARCHAR(128) PRIMARY KEY, session_id VARCHAR(128) NOT NULL, status VARCHAR(64) NOT NULL, state_json JSON NOT NULL, state_version BIGINT NOT NULL, created_at DOUBLE NOT NULL, updated_at DOUBLE NOT NULL);\nCREATE TABLE IF NOT EXISTS steps (step_id VARCHAR(128) PRIMARY KEY, run_id VARCHAR(128) NOT NULL, session_id VARCHAR(128) NOT NULL, status VARCHAR(64) NOT NULL, owner VARCHAR(255), lease_token VARCHAR(128), lease_until DOUBLE, attempt BIGINT NOT NULL, state_version BIGINT NOT NULL, checkpoint_id VARCHAR(255), created_at DOUBLE NOT NULL, updated_at DOUBLE NOT NULL, INDEX idx_steps_run_status (run_id, status));\nCREATE TABLE IF NOT EXISTS events (event_id VARCHAR(128) PRIMARY KEY, run_id VARCHAR(128) NOT NULL, session_id VARCHAR(128), step_id VARCHAR(128), seq BIGINT NOT NULL, type VARCHAR(255) NOT NULL, timestamp DOUBLE NOT NULL, agent_role VARCHAR(255), state_version BIGINT, causal_token TEXT, payload_hash VARCHAR(128), payload_ref TEXT, UNIQUE KEY idx_events_run_seq (run_id, seq));\nCREATE TABLE IF NOT EXISTS tool_ledger (ledger_id VARCHAR(128) PRIMARY KEY, run_id VARCHAR(128) NOT NULL, session_id VARCHAR(128), step_id VARCHAR(128) NOT NULL, tool_name VARCHAR(255) NOT NULL, tool_version VARCHAR(64) NOT NULL, tool_call_id VARCHAR(128) NOT NULL, idempotency_key VARCHAR(255) NOT NULL UNIQUE, causal_token TEXT NOT NULL, request_hash VARCHAR(128) NOT NULL, request_ref TEXT NOT NULL, status VARCHAR(64) NOT NULL, external_id VARCHAR(255), response_hash VARCHAR(128), response_ref TEXT, error_type VARCHAR(255), created_at DOUBLE NOT NULL, updated_at DOUBLE NOT NULL, INDEX idx_tool_ledger_run_tool (run_id, tool_name));";
 
 pub type MCPCall = fn(&str, State) -> Result<Value>;
 pub type MCPResourceRead = fn(&str) -> Result<Value>;
@@ -6127,6 +6139,7 @@ pub fn optional_adapter_capabilities() -> Vec<OptionalAdapterCapability> {
     }
     vec![
         item("postgres", "storage", &["ddl_for", "migrations_for", "state_store"]),
+        item("mysql", "storage", &["ddl_for", "migrations_for", "state_store"]),
         item("s3", "blobstore", &["put_json", "get_json", "content_address"]),
         item("docker", "sandbox", &["sandbox_policy", "sandbox_result", "tool_gateway"]),
         item("e2b", "sandbox", &["sandbox_policy", "sandbox_result", "tool_gateway"]),
@@ -6165,6 +6178,28 @@ impl<C: SqlExecutor> PostgresAdapter<C> {
         for migration in self.migration_plan()? {
             self.client.exec(
                 "INSERT INTO schema_migrations(version, name, checksum) VALUES ($1, $2, $3) ON CONFLICT (version) DO NOTHING",
+                &[Value::String(migration.version), Value::String(migration.name), Value::String(stable_hash(&migration.sql))],
+            )?;
+        }
+        Ok(())
+    }
+}
+
+pub struct MySQLAdapter<C: SqlExecutor> {
+    pub database: String,
+    pub client: C,
+}
+
+impl<C: SqlExecutor> MySQLAdapter<C> {
+    pub fn new(client: C, database: &str) -> Self {
+        Self { database: if database.is_empty() { "agentledger".to_string() } else { database.to_string() }, client }
+    }
+    pub fn migration_plan(&self) -> Result<Vec<Migration>> { migrations_for("mysql") }
+    pub fn apply_migrations(&mut self) -> Result<()> {
+        self.client.exec(&ddl_for("mysql")?, &[])?;
+        for migration in self.migration_plan()? {
+            self.client.exec(
+                "INSERT INTO schema_migrations(version, name, checksum, applied_at) VALUES (?, ?, ?, UNIX_TIMESTAMP()) ON DUPLICATE KEY UPDATE version=version",
                 &[Value::String(migration.version), Value::String(migration.name), Value::String(stable_hash(&migration.sql))],
             )?;
         }
@@ -6362,6 +6397,12 @@ pub mod adapters {
         pub const PACKAGE_NAME: &str = "agentledger-postgres";
         pub const FEATURE: &str = "adapter-postgres";
         pub use crate::{migrations_for, Migration, PostgresAdapter, SqlExecutor};
+    }
+
+    pub mod mysql {
+        pub const PACKAGE_NAME: &str = "agentledger-mysql";
+        pub const FEATURE: &str = "adapter-mysql";
+        pub use crate::{migrations_for, Migration, MySQLAdapter, SqlExecutor};
     }
 
     pub mod s3 {

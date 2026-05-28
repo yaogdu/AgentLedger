@@ -161,12 +161,14 @@ var fixtureChecks = []fixtureCheck{
 		"agentledger.conformance.optional_adapters.v1",
 		"optional_backend_capabilities_are_discoverable",
 		"postgres",
+		"mysql",
 		"langgraph",
 		"shadow-runner",
 	}},
 	{File: "official_adapters.v1.json", Tokens: []string{
 		"agentledger.conformance.official_adapters.v1",
 		"postgres_adapter_plans_and_applies_migrations_with_injected_client",
+		"mysql_adapter_plans_and_applies_migrations_with_injected_client",
 		"s3_blob_adapter_round_trips_json_with_injected_client",
 		"otlp_transport_posts_json_with_injected_client",
 		"docker_sandbox_adapter_builds_manifest_without_daemon",
@@ -187,11 +189,11 @@ func run(args []string) error {
 		return nil
 	}
 	if len(args) == 1 && args[0] == "version" {
-		fmt.Println("agentledger-go 1.2.1")
+		fmt.Println("agentledger-go 1.2.2")
 		return nil
 	}
 	if len(args) == 1 && args[0] == "doctor" {
-		fmt.Println(`{"language":"go","version":"1.2.1","status":"ok","runtime_core_parity":true}`)
+		fmt.Println(`{"language":"go","version":"1.2.2","status":"ok","runtime_core_parity":true}`)
 		return nil
 	}
 	if len(args) == 1 && args[0] == "quickstart" {
@@ -219,7 +221,7 @@ func run(args []string) error {
 }
 
 func printHelp() {
-	fmt.Println(`AgentLedger Go Runtime 1.2.1
+	fmt.Println(`AgentLedger Go Runtime 1.2.2
 
 Usage:
   agentledger-go doctor
@@ -874,7 +876,7 @@ func backupCheckExists(checks []agentledger.BackupCheck, name string) bool {
 }
 
 func runStorageSchemaSmoke() error {
-	for _, dialect := range []string{"sqlite", "postgres"} {
+	for _, dialect := range []string{"sqlite", "postgres", "mysql"} {
 		version, err := agentledger.LatestSchemaVersion(dialect)
 		if err != nil || version != "0001" {
 			return fmt.Errorf("storage schema version mismatch for %s", dialect)
@@ -1374,7 +1376,7 @@ func runOptionalAdaptersSmoke() error {
 		}
 		seen[cap.Name] = true
 	}
-	for _, name := range []string{"postgres", "s3", "docker", "langgraph", "mcp-transport", "shadow-runner"} {
+	for _, name := range []string{"postgres", "mysql", "s3", "docker", "langgraph", "mcp-transport", "shadow-runner"} {
 		if !seen[name] {
 			return fmt.Errorf("missing optional adapter capability: %s", name)
 		}
@@ -1421,6 +1423,15 @@ func runOfficialAdaptersSmoke() error {
 	}
 	if err := pg.ApplyMigrations(context.Background()); err != nil || sql.count < 2 {
 		return fmt.Errorf("postgres adapter apply failed: %v", err)
+	}
+	mySQLStart := sql.count
+	my := agentledger.NewMySQLAdapter("agentledger", sql)
+	myPlan, err := my.MigrationPlan()
+	if err != nil || len(myPlan) == 0 || myPlan[0].Dialect != "mysql" {
+		return fmt.Errorf("mysql adapter plan failed")
+	}
+	if err := my.ApplyMigrations(context.Background()); err != nil || sql.count < mySQLStart+2 {
+		return fmt.Errorf("mysql adapter apply failed: %v", err)
 	}
 	obj := &fakeObjectClient{}
 	s3 := agentledger.NewS3BlobStore("agentledger-test", "agentledger/blobs", obj)

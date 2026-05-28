@@ -376,6 +376,33 @@ func TestPostgresAdapterUsesInjectedSQLExecutor(t *testing.T) {
 	}
 }
 
+func TestMySQLAdapterUsesInjectedSQLExecutor(t *testing.T) {
+	client := &fakeSQLExecutor{}
+	adapter := NewMySQLAdapter("", client)
+	plan, err := adapter.MigrationPlan()
+	if err != nil {
+		t.Fatalf("migration plan failed: %v", err)
+	}
+	if len(plan) != 1 || plan[0].Dialect != "mysql" {
+		t.Fatalf("unexpected migration plan: %#v", plan)
+	}
+	if err := adapter.ApplyMigrations(context.Background()); err != nil {
+		t.Fatalf("apply migrations failed: %v", err)
+	}
+	if adapter.Database != "agentledger" {
+		t.Fatalf("expected default database, got %s", adapter.Database)
+	}
+	if len(client.queries) < 2 {
+		t.Fatalf("expected DDL plus migration insert queries, got %#v", client.queries)
+	}
+	if !strings.Contains(client.queries[0], "CREATE TABLE IF NOT EXISTS runs") {
+		t.Fatalf("expected mysql DDL first, got %s", client.queries[0])
+	}
+	if !strings.Contains(client.queries[1], "ON DUPLICATE KEY UPDATE") || len(client.args[1]) != 3 {
+		t.Fatalf("expected mysql migration insert with args, got query=%s args=%#v", client.queries[1], client.args[1])
+	}
+}
+
 type fakeObjectClient struct {
 	objects map[string][]byte
 	puts    []ObjectPutInput

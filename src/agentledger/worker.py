@@ -142,8 +142,8 @@ def build_worker_deployment_plan(
         ["agentledger", "--root", root, "doctor"],
         ["agentledger", "--root", root, "worker", "conformance", "--backend", backend],
     ]
-    if backend == "postgres":
-        readiness_checks.append(["agentledger", "--root", root, "migrate", "status", "--dialect", "postgres"])
+    if backend in {"postgres", "mysql"}:
+        readiness_checks.append(["agentledger", "--root", root, "migrate", "status", "--dialect", backend])
     else:
         readiness_checks.append(["agentledger", "--root", root, "migrate", "status"])
     return WorkerDeploymentPlan(

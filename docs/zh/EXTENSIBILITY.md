@@ -41,7 +41,7 @@ Optional production adapter
 
 | 领域 | Core contract | Built-in minimal implementation | Optional production adapter |
 |---|---|---|---|
-| Storage | `StateStoreProtocol`、migration、lease/fencing invariants | SQLite WAL + local blob store | Postgres、S3/MinIO、自定义 store |
+| Storage | `StateStoreProtocol`、migration、lease/fencing invariants | SQLite WAL + local blob store | Postgres、MySQL、S3/MinIO、自定义 store |
 | Sandbox | `SandboxPolicy`、`SandboxExecutor`、fail-closed routing、audit/evidence | fail-closed `none`、local executor、dry-run manifest | Docker、E2B、bubblewrap、Kubernetes/gVisor、Firecracker |
 | Observability | structured event、evidence link、trace span shape | JSONL 和 OTLP/JSON export | OpenTelemetry SDK、collector recipe、trace store |
 | Policy | `PolicyRequest` / `PolicyDecision`、capability check、approval、pre/postcondition hook | YAML/JSON role-capability policy 和 built-in evaluators | OPA、Cedar、内部 policy service、PII/injection/DLP evaluators |
@@ -56,7 +56,7 @@ Temporal、Ray、Kubernetes 这类系统是 execution backends。它们可以负
 
 | 层 | 接口 | 常见实现 |
 |---|---|---|
-| State | `StateStore` | SQLite WAL, Postgres, custom store |
+| State | `StateStore` | SQLite WAL, Postgres, MySQL, custom store |
 | Blob | `BlobStore` | local fs, S3, MinIO, object store |
 | Tools | `ToolExecutor` | local function, HTTP, MCP, sandbox executor |
 | Policy | `PolicyEngine`、`PolicyEvaluator`、`PolicyDecision` | YAML, RBAC, ABAC, OPA/Cedar adapter, semantic-risk evaluator adapter |

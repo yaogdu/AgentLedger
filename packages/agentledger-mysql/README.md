@@ -1,0 +1,25 @@
+# agentledger-mysql
+
+MySQL StateStore adapter package for AgentLedger.
+
+```bash
+pip install agentledger-mysql
+pip install "agentledger-runtime[mysql]"
+```
+
+```python
+from agentledger_mysql import MySQLStore, MySQLStoreConfig
+
+store = MySQLStore(MySQLStoreConfig.from_env())
+store.init()
+```
+
+This package keeps the runtime core dependency-light while making MySQL an explicit opt-in. It re-exports the adapter classes from `agentledger.storage_mysql` in the `1.2.x` line.
+
+Certification:
+
+```bash
+python3 -m agentledger adapter certify --kind mysql --adapter-version 1.2.2
+```
+
+Production hardening still requires real MySQL service validation, concurrency/load checks, backup/restore drills, and deployment-specific permission review.

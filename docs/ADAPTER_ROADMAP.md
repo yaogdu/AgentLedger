@@ -29,7 +29,7 @@ These should be first-class optional packages because they match common producti
 
 | Area | Adapter | Why it matters | Core contract already present | Expected package shape |
 | --- | --- | --- | --- | --- |
-| Storage | Postgres StateStore | Most enterprise pilots need server-side durable state, locking, migrations, and backup workflows. | `storage_schema.v1.json`, local persistence semantics, `optional_adapters.v1.json` | `agentledger-postgres` / language-native package |
+| Storage | Postgres / MySQL StateStore | Most enterprise pilots need server-side durable state, locking, migrations, and backup workflows. | `storage_schema.v1.json`, local persistence semantics, `optional_adapters.v1.json` | `agentledger-postgres`, `agentledger-mysql` / language-native package |
 | Blob store | S3 / MinIO BlobStore | Evidence bundles, media refs, stream checkpoints, and artifacts need cheap durable object storage. | `local_blob_store.v1.json`, content-addressed refs, `optional_adapters.v1.json` | `agentledger-s3` / language-native package |
 | Framework | LangGraph | High overlap with stateful agent workflows; AgentLedger adds Tool Ledger, evidence, replay, policy, and adapter certification. | `framework_adapters.v1.json`, checkpoint boundary, optional capability descriptor | `agentledger-langgraph` |
 | Tool/context protocol | MCP transport | MCP is a natural tool/context boundary for agents. Runtime should govern MCP tools without owning every tool server. | `mcp_adapters.v1.json`, `optional_adapters.v1.json` | `agentledger-mcp` / `agentledger-mcp-adapter` on npm |

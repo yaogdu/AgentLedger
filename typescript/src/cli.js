@@ -5,7 +5,7 @@ import { dirname, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
-import { FunctionAdapter, InMemoryMCPContextServer, InMemoryMCPToolServer, JSONStore, LocalBlobStore, LocalWorker, MCPContextAdapter, MCPToolAdapter, MethodFrameworkAdapter, RetryableAgentError, Runtime, RuntimeScheduler, WorkerService, checkBackupReadiness, costAttribution, debugHTML, ddlFor, debugSummary, diffEvidence, divergenceReport, exportEvidence, failureAttribution, latestSchemaVersion, migrationsFor, otlpTraceJSON, planRetention, replay, simpleRun, traceJSONL, traceSpans, scanBoundarySource, adversarialReview, evaluateEvidence, evaluateEvidenceRegression, runFailureInjectionSuite, diffStates, shadowReport, builtinGoldenNames, builtinGoldenEvidence, goldenRegression, timeTravel, timeTravelHTML, optionalAdapterCapabilities, PostgresAdapter, S3BlobStoreAdapter, OTLPTransport, DockerSandboxAdapter, DockerSandboxExecutor } from './index.js';
+import { FunctionAdapter, InMemoryMCPContextServer, InMemoryMCPToolServer, JSONStore, LocalBlobStore, LocalWorker, MCPContextAdapter, MCPToolAdapter, MethodFrameworkAdapter, RetryableAgentError, Runtime, RuntimeScheduler, WorkerService, checkBackupReadiness, costAttribution, debugHTML, ddlFor, debugSummary, diffEvidence, divergenceReport, exportEvidence, failureAttribution, latestSchemaVersion, migrationsFor, otlpTraceJSON, planRetention, replay, simpleRun, traceJSONL, traceSpans, scanBoundarySource, adversarialReview, evaluateEvidence, evaluateEvidenceRegression, runFailureInjectionSuite, diffStates, shadowReport, builtinGoldenNames, builtinGoldenEvidence, goldenRegression, timeTravel, timeTravelHTML, optionalAdapterCapabilities, PostgresAdapter, MySQLAdapter, S3BlobStoreAdapter, OTLPTransport, DockerSandboxAdapter, DockerSandboxExecutor } from './index.js';
 
 const FIXTURE_CHECKS = {
   'runtime_baseline.v1.json': [
@@ -145,12 +145,14 @@ const FIXTURE_CHECKS = {
     'agentledger.conformance.optional_adapters.v1',
     'optional_backend_capabilities_are_discoverable',
     'postgres',
+    'mysql',
     'langgraph',
     'shadow-runner',
   ],
   'official_adapters.v1.json': [
     'agentledger.conformance.official_adapters.v1',
     'postgres_adapter_plans_and_applies_migrations_with_injected_client',
+    'mysql_adapter_plans_and_applies_migrations_with_injected_client',
     's3_blob_adapter_round_trips_json_with_injected_client',
     'otlp_transport_posts_json_with_injected_client',
     'docker_sandbox_adapter_builds_manifest_without_daemon',
@@ -195,7 +197,7 @@ export function validateFixtures() {
 }
 
 function usage() {
-  return `AgentLedger TypeScript Runtime 1.2.1\n\nUsage:\n  agentledger-ts doctor\n  agentledger-ts version\n  agentledger-ts quickstart\n  agentledger-ts conformance\n  agentledger-ts contract validate\n  agentledger-ts contract export\n\nProject: https://github.com/yaogdu/AgentLedger`;
+  return `AgentLedger TypeScript Runtime 1.2.2\n\nUsage:\n  agentledger-ts doctor\n  agentledger-ts version\n  agentledger-ts quickstart\n  agentledger-ts conformance\n  agentledger-ts contract validate\n  agentledger-ts contract export\n\nProject: https://github.com/yaogdu/AgentLedger`;
 }
 
 export async function runRuntimeSmoke() {
@@ -578,11 +580,11 @@ export async function main(args = process.argv.slice(2)) {
     return 0;
   }
   if (args.length === 1 && args[0] === 'version') {
-    console.log('agentledger-ts 1.2.1');
+    console.log('agentledger-ts 1.2.2');
     return 0;
   }
   if (args.length === 1 && args[0] === 'doctor') {
-    console.log(JSON.stringify({ language: 'typescript', version: '1.2.1', status: 'ok', runtime_core_parity: true }, null, 2));
+    console.log(JSON.stringify({ language: 'typescript', version: '1.2.2', status: 'ok', runtime_core_parity: true }, null, 2));
     return 0;
   }
   if (args.length === 1 && args[0] === 'quickstart') {
@@ -720,7 +722,7 @@ function runOptionalAdaptersSmoke() {
   for (const cap of caps) {
     if (cap.core_imports_heavy_sdks || !cap.adapter_is_optional || !cap.fail_closed_without_adapter || !cap.contract_surface?.length) throw new Error(`invalid optional adapter capability: ${cap.name}`);
   }
-  for (const name of ['postgres', 's3', 'docker', 'langgraph', 'mcp-transport', 'shadow-runner']) {
+  for (const name of ['postgres', 'mysql', 's3', 'docker', 'langgraph', 'mcp-transport', 'shadow-runner']) {
     if (!seen.has(name)) throw new Error(`missing optional adapter capability: ${name}`);
   }
 }
@@ -731,6 +733,11 @@ async function runOfficialAdaptersSmoke() {
   if (pg.migrationPlan()[0].dialect !== 'postgres') throw new Error('postgres adapter plan failed');
   await pg.applyMigrations();
   if (sql.count < 2) throw new Error('postgres adapter apply failed');
+  const mysqlStart = sql.count;
+  const mysql = new MySQLAdapter(sql);
+  if (mysql.migrationPlan()[0].dialect !== 'mysql') throw new Error('mysql adapter plan failed');
+  await mysql.applyMigrations();
+  if (sql.count < mysqlStart + 2) throw new Error('mysql adapter apply failed');
   const objects = new Map();
   const s3 = new S3BlobStoreAdapter({ async putObject(input) { objects.set(`${input.Bucket}/${input.Key}`, input); }, async getObject(bucket, key) { return { Body: objects.get(`${bucket}/${key}`).Body }; } }, { bucket: 'agentledger-test' });
   const put = await s3.putJSON({ answer: 'ok' });

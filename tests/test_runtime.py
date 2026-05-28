@@ -46,6 +46,7 @@ from agentledger.runtime import Runtime, SimulatedCrash
 from agentledger.scheduler import RuntimeScheduler
 from agentledger.shadow import ShadowRunner
 from agentledger.storage_schema import ddl_for, latest_schema_version, migrations_for
+from agentledger.storage_mysql import MySQLStore, MySQLStoreConfig
 from agentledger.storage_postgres import PostgresStore, PostgresStoreConfig
 from agentledger.store import SQLiteStore
 from agentledger.trace import OTLPTraceExporter, TraceExporter
@@ -157,6 +158,8 @@ class RuntimeTests(unittest.TestCase):
             ["lint", "boundary", "./examples", "--rules", "examples/lint/boundary_rules.json", "--replace-defaults", "--no-fail"],
             ["migrate", "status"],
             ["migrate", "up", "--dialect", "postgres"],
+            ["migrate", "status", "--dialect", "mysql"],
+            ["migrate", "ddl", "--dialect", "mysql"],
             ["migrate", "ddl", "--dialect", "postgres"],
             ["contract", "export"],
             ["diff", "left-run", "right-run"],
@@ -185,6 +188,7 @@ class RuntimeTests(unittest.TestCase):
             ["worker-run", "examples/transient_retry"],
             ["postgres", "ddl"],
             ["postgres", "conformance"],
+            ["mysql", "ddl"],
             ["policy", "check", "examples/policy/local.policy.yaml", "ExecutorAgent", "github.create_issue", "medium"],
             ["tools", "manifest", "--format", "agentledger", "--example", "examples/docs"],
             ["--policy", "examples/policy/local.policy.yaml", "run", "examples/side_effect_idempotency"],
@@ -1714,6 +1718,24 @@ roles:
         self.assertIn("CREATE TABLE IF NOT EXISTS tool_ledger", ddl)
         self.assertIn("approval_requests", ddl)
         self.assertIn("JSONB", ddl)
+
+    def test_mysql_store_skeleton_exposes_schema_ddl_and_config(self) -> None:
+        ddl = MySQLStore.ddl()
+        self.assertIn("CREATE TABLE IF NOT EXISTS schema_migrations", ddl)
+        self.assertIn("CREATE TABLE IF NOT EXISTS runs", ddl)
+        self.assertIn("CREATE TABLE IF NOT EXISTS steps", ddl)
+        self.assertIn("CREATE TABLE IF NOT EXISTS tool_ledger", ddl)
+        self.assertIn("JSON", ddl)
+        config = MySQLStoreConfig.from_env(
+            {
+                "AGENTLEDGER_MYSQL_DSN": "mysql://agentledger:secret@localhost:3306/agentledger",
+                "AGENTLEDGER_MYSQL_DATABASE": "agentledger_test",
+            }
+        )
+        self.assertEqual(config.database, "agentledger_test")
+        self.assertEqual(config.to_dict()["dsn"], "mysql://agentledger:***@localhost:3306/agentledger")
+        with self.assertRaises(ValueError):
+            MySQLStoreConfig.from_env({})
 
     def test_postgres_store_connection_injection_passes_state_conformance(self) -> None:
         def factory() -> PostgresStore:

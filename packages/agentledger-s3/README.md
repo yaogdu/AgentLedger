@@ -18,6 +18,6 @@ This package supports AWS S3 and S3-compatible services such as MinIO through `e
 Certification:
 
 ```bash
-python3 -m agentledger adapter certify --kind s3 --adapter-version 1.2.1
+python3 -m agentledger adapter certify --kind s3 --adapter-version 1.2.2
 ```
 

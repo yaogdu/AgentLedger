@@ -22,6 +22,7 @@ class PythonAdapter:
 
 PYTHON_ADAPTERS = [
     PythonAdapter("agentledger-postgres", "agentledger_postgres", ("PostgresStore", "PostgresStoreConfig"), "psycopg"),
+    PythonAdapter("agentledger-mysql", "agentledger_mysql", ("MySQLStore", "MySQLStoreConfig"), "pymysql"),
     PythonAdapter("agentledger-s3", "agentledger_s3", ("S3BlobStore", "S3BlobStoreConfig"), "boto3"),
     PythonAdapter("agentledger-langgraph", "agentledger_langgraph", ("LangGraphCheckpointerAdapter", "LangGraphNodeAdapter")),
     PythonAdapter("agentledger-mcp", "agentledger_mcp", ("MCPToolAdapter", "MCPContextAdapter")),
@@ -31,6 +32,7 @@ PYTHON_ADAPTERS = [
 
 TYPESCRIPT_ADAPTERS = {
     "agentledger-postgres": "./postgres",
+    "agentledger-mysql": "./mysql",
     "agentledger-s3": "./s3",
     "agentledger-mcp-adapter": "./mcp",
     "agentledger-otel": "./otel",
@@ -44,6 +46,7 @@ TYPESCRIPT_PACKAGE_DIRS = {
 
 RUST_ADAPTERS = {
     "agentledger-postgres": "adapter-postgres",
+    "agentledger-mysql": "adapter-mysql",
     "agentledger-s3": "adapter-s3",
     "agentledger-mcp": "adapter-mcp",
     "agentledger-otel": "adapter-otel",
@@ -53,6 +56,7 @@ RUST_ADAPTERS = {
 
 GO_ADAPTER_DIRS = [
     "go/adapters/postgres/postgres.go",
+    "go/adapters/mysql/mysql.go",
     "go/adapters/s3/s3.go",
     "go/adapters/mcp/mcp.go",
     "go/adapters/otel/otel.go",
