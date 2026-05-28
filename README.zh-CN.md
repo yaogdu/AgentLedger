@@ -25,6 +25,7 @@ Python 仍然是 reference implementation；Go、TypeScript、Rust 已有 native
 | 安装并跑通第一个示例 | [docs/zh/GETTING_STARTED.md](docs/zh/GETTING_STARTED.md) |
 | 选择 Python / Go / TypeScript / Rust | [docs/zh/LANGUAGE_QUICKSTART.md](docs/zh/LANGUAGE_QUICKSTART.md) |
 | 找可运行示例 | [examples/README.md](examples/README.md)、[go/examples/README.md](go/examples/README.md)、[typescript/examples/README.md](typescript/examples/README.md)、[rust/examples/README.md](rust/examples/README.md) |
+| 理解 Harness stack 组合方式 | [docs/zh/HARNESS_STACK.md](docs/zh/HARNESS_STACK.md) |
 | 理解四语言哪些对齐、哪些不对齐 | [docs/zh/LANGUAGE_IMPLEMENTATION_COMPARISON.md](docs/zh/LANGUAGE_IMPLEMENTATION_COMPARISON.md) |
 | 安装 optional adapter packages | [docs/zh/ADAPTER_PACKAGING.md](docs/zh/ADAPTER_PACKAGING.md) |
 | 正确使用 Go | [go/README.md](go/README.md#install) |
@@ -77,6 +78,8 @@ Optional production adapter:
 ## Harness stack 组合方式
 
 AgentLedger 本身不是完整 Agent Harness。它的设计目标是和 Harness 生态里的其它系统组合：
+
+从本地最小 Harness 到 Temporal + LangGraph + observability 组合方式，见 [docs/zh/HARNESS_STACK.md](docs/zh/HARNESS_STACK.md)。
 
 | Harness 层 | 典型系统 | AgentLedger 角色 |
 | --- | --- | --- |

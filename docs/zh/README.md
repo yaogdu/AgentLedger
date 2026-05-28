@@ -15,6 +15,7 @@ AgentLedger 是面向 Agent Harness stack 的 runtime reliability layer。它不
 | 理解整体架构 | `ARCHITECTURE.md` | `../ARCHITECTURE.md` |
 | 理解 Policy Engine 控制闭环 | `POLICY_ENGINE.md` | `../POLICY_ENGINE.md` |
 | 对比相邻工具 | `COMPARISONS.md` | `../COMPARISONS.md` |
+| 理解 Harness stack 组合方式 | `HARNESS_STACK.md` | `../HARNESS_STACK.md` |
 | 理解 Agent Harness 定位 | `ROADMAP.md#agent-harness-定位` | `../ROADMAP.md#agent-harness-positioning` |
 | 理解设计与实现 | `DESIGN_AND_IMPLEMENTATION.md` | `../DESIGN_AND_IMPLEMENTATION.md` |
 | 查看正式 runtime 规范 | `../RUNTIME_SPEC.md` | `../RUNTIME_SPEC.md` |

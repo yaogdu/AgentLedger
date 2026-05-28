@@ -25,6 +25,7 @@ Python remains the reference implementation, and Go, TypeScript, and Rust now ha
 | Install and run the first example | [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md) |
 | Choose Python / Go / TypeScript / Rust | [docs/LANGUAGE_QUICKSTART.md](docs/LANGUAGE_QUICKSTART.md) |
 | Find runnable examples | [examples/README.md](examples/README.md), [go/examples/README.md](go/examples/README.md), [typescript/examples/README.md](typescript/examples/README.md), [rust/examples/README.md](rust/examples/README.md) |
+| Understand Harness stack composition | [docs/HARNESS_STACK.md](docs/HARNESS_STACK.md) |
 | Understand what is equal across languages | [docs/LANGUAGE_IMPLEMENTATION_COMPARISON.md](docs/LANGUAGE_IMPLEMENTATION_COMPARISON.md) |
 | Install optional adapter packages | [docs/ADAPTER_PACKAGING.md](docs/ADAPTER_PACKAGING.md) |
 | Use Go correctly | [go/README.md](go/README.md#install) |
@@ -76,6 +77,8 @@ For example, sandbox semantics are core, but sandbox infrastructure is not. Core
 ## Harness stack composition
 
 AgentLedger is not a full Agent Harness by itself. It is designed to compose with the rest of the harness ecosystem:
+
+For concrete stack patterns, from a minimal local harness to a Temporal + LangGraph + observability harness, see [docs/HARNESS_STACK.md](docs/HARNESS_STACK.md).
 
 | Harness layer | Typical systems | AgentLedger role |
 | --- | --- | --- |

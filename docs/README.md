@@ -22,6 +22,7 @@ AgentLedger is a runtime reliability layer for Agent Harness stacks. It is not a
 | Understand architecture | `ARCHITECTURE.md` | `zh/ARCHITECTURE.md` |
 | Understand the policy control loop | `POLICY_ENGINE.md` | `zh/POLICY_ENGINE.md` |
 | Compare with adjacent tools | `COMPARISONS.md` | `zh/COMPARISONS.md` |
+| Compose an Agent Harness stack | `HARNESS_STACK.md` | `zh/HARNESS_STACK.md` |
 | Understand Agent Harness positioning | `ROADMAP.md#agent-harness-positioning` | `zh/ROADMAP.md#agent-harness-定位` |
 | Read design and implementation notes | `DESIGN_AND_IMPLEMENTATION.md` | `zh/DESIGN_AND_IMPLEMENTATION.md` |
 | Check current status | `IMPLEMENTATION_STATUS.md` | `zh/IMPLEMENTATION_STATUS.md` |
@@ -43,6 +44,7 @@ AgentLedger is a runtime reliability layer for Agent Harness stacks. It is not a
 
 - `ARCHITECTURE.md`: runtime layers, SVG architecture diagram, module map, invariants, adapter boundaries.
 - `COMPARISONS.md`: overlap and boundary guide for agent frameworks, workflow backends, observability/eval tools, RAG, and sandbox infrastructure.
+- `HARNESS_STACK.md`: concrete stack patterns that combine AgentLedger with LangGraph, Temporal, Langfuse/LangSmith/OTel, MCP, model gateways, storage, and sandbox infrastructure.
 - `DESIGN_AND_IMPLEMENTATION.md`: state machine, tool governance, replay, evidence, worker, sandbox, storage, media/stream implementation notes.
 - `POLICY_ENGINE.md`: policy request/decision contract, PEP/PDP split, evaluator registry, controls, and adapter boundary.
 - `RUNTIME_SPEC.md`: runtime concepts, state model, event schema, Tool Ledger semantics, evidence regression/replay/debug interfaces.
