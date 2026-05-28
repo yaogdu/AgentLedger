@@ -2,7 +2,7 @@
 name = "agentledger-runtime"
 version = "1.2.2"
 edition = "2021"
-description = "Dependency-free Rust runtime for AgentLedger"
+description = "Runtime reliability layer for Agent Harness stacks"
 license = "Apache-2.0"
 repository = "https://github.com/yaogdu/AgentLedger"
 homepage = "https://github.com/yaogdu/AgentLedger"

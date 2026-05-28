@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1350" viewBox="0 0 1080 1350" role="img" aria-labelledby="title desc">
   <title id="title">AgentLedger Runtime Architecture</title>
-  <desc id="desc">AgentLedger production AI agent reliability runtime architecture poster.</desc>
+  <desc id="desc">AgentLedger runtime reliability layer for Agent Harness stacks architecture poster.</desc>
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#fff7ed"/>

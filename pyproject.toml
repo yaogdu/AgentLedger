@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "agentledger-runtime"
 version = "1.2.2"
-description = "Durable execution and reliability runtime for production-grade AI agents"
+description = "Runtime reliability layer for Agent Harness stacks"
 readme = "README.md"
 requires-python = ">=3.11"
 license = {text = "Apache-2.0"}

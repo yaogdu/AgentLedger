@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1400" height="920" viewBox="0 0 1400 920" role="img" aria-labelledby="title desc">
   <title id="title">LangGraph and AgentLedger relationship</title>
-  <desc id="desc">A comparison diagram showing overlap and differences between LangGraph and AgentLedger, and how AgentLedger can sit beneath LangGraph as a reliability runtime layer.</desc>
+  <desc id="desc">A comparison diagram showing overlap and differences between LangGraph and AgentLedger, and how AgentLedger can sit beneath LangGraph as a runtime reliability layer for Agent Harness stacks.</desc>
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#f7f3e7"/>

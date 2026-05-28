@@ -10,9 +10,11 @@
 ![Replay Evidence](https://img.shields.io/badge/Replay-evidence%20driven-7c3aed)
 ![Tool Ledger](https://img.shields.io/badge/Tools-ledger%20guarded-d97706)
 
-AgentLedger `1.2.2` is an agent execution safety, evidence, and reliability layer. It does not try to teach agents how to reason; it makes agent runs durable, auditable, replayable, policy-governed, and recoverable when workers crash, tools fail, or prompts change.
+AgentLedger `1.2.2` is a runtime reliability layer for Agent Harness stacks. It does not try to teach agents how to reason or replace the surrounding harness ecosystem; it makes agent runs durable, auditable, replayable, policy-governed, and recoverable when workers crash, tools fail, or prompts change.
 
 Most agent frameworks focus on planning, reasoning, and workflow logic. AgentLedger sits underneath or beside LangChain, LangGraph, CrewAI, AutoGen, OpenAI Agents SDK, LlamaIndex, Semantic Kernel, or custom agents to provide runtime guarantees around state, tools, evidence, replay, and recovery.
+
+In a full harness stack, systems such as LangGraph, Temporal, Langfuse, MCP, model routers, storage backends, and sandbox providers can each own the layer they are good at. AgentLedger owns the reliability substrate between them: durable execution, tool/model governance, evidence, replay, policy/sandbox boundaries, cost/failure attribution, and adapter contracts.
 
 Python remains the reference implementation, and Go, TypeScript, and Rust now have native runtime-core baselines aligned to the same language-neutral runtime contract. Provider-specific drivers and framework-native adapters intentionally vary by ecosystem. See `docs/LANGUAGE_IMPLEMENTATION_COMPARISON.md` for the exact four-language comparison and adapter boundary.
 
@@ -70,6 +72,21 @@ Optional production adapter:
 ```
 
 For example, sandbox semantics are core, but sandbox infrastructure is not. Core owns `SandboxPolicy`, fail-closed routing, audit/evidence records, and replay safety; Docker, E2B, bubblewrap, Kubernetes/gVisor, Firecracker, or custom executors are adapters.
+
+## Harness stack composition
+
+AgentLedger is not a full Agent Harness by itself. It is designed to compose with the rest of the harness ecosystem:
+
+| Harness layer | Typical systems | AgentLedger role |
+| --- | --- | --- |
+| Agent workflow / planning | LangGraph, LangChain, CrewAI, AutoGen, OpenAI Agents SDK, custom code | wrap nodes and tools with durable state, policy, Tool Ledger, evidence, and replay guarantees |
+| Durable orchestration | Temporal, Ray, Kubernetes workers | provide agent-specific leases, fencing, checkpoints, cancellation, cost/failure attribution, and replay semantics inside the worker step |
+| Observability / eval UI | Langfuse, LangSmith, OpenTelemetry, custom dashboards | export structured runtime events, evidence bundles, trace/cost/failure data, and correlation IDs |
+| Tool and context protocols | MCP, internal tool servers, provider SDK tools | enforce schema, permissions, approval, sandbox, idempotency, and audit before side effects happen |
+| Model providers / routers | OpenAI, Anthropic, Gemini, Bedrock, Ollama, LiteLLM, enterprise gateways | provide the runtime model-call contract, archived responses, budget/fallback/replay semantics, and optional provider adapters |
+| Storage / artifacts | SQLite, Postgres, MySQL, S3/MinIO, internal stores | keep runtime metadata, state versions, migrations, blob refs, and evidence refs durable and conformance-tested |
+
+The intended production shape is therefore not `AgentLedger instead of LangGraph/Temporal/Langfuse`. It is `AgentLedger with LangGraph/Temporal/Langfuse` where AgentLedger governs the model/tool/state boundary that those systems otherwise cannot enforce by themselves.
 
 ## What AgentLedger is for
 

@@ -10,9 +10,11 @@
 ![Replay Evidence](https://img.shields.io/badge/Replay-evidence%20driven-7c3aed)
 ![Tool Ledger](https://img.shields.io/badge/Tools-ledger%20guarded-d97706)
 
-AgentLedger `1.2.2` 是一个面向 AI Agent 的 agent execution safety、evidence 与 reliability layer。它不负责让 Agent 更会“思考”，而是让 Agent run 在 worker 崩溃、工具失败、prompt 变更和长任务恢复时，仍然具备持久化、可审计、可重放、可治理和可恢复能力。
+AgentLedger `1.2.2` 是面向 Agent Harness stack 的 runtime reliability layer。它不负责让 Agent 更会“思考”，也不替代完整 Harness 生态；它负责让 Agent run 在 worker 崩溃、工具失败、prompt 变更和长任务恢复时，仍然具备持久化、可审计、可重放、可治理和可恢复能力。
 
 大多数 Agent 框架关注 planning、reasoning 和 workflow logic。AgentLedger 放在 LangChain、LangGraph、CrewAI、AutoGen、OpenAI Agents SDK、LlamaIndex、Semantic Kernel 或自定义 Agent 的下方或旁边，提供 state、tool、evidence、replay、recovery 相关的 runtime guarantees。
+
+在完整 Harness stack 里，LangGraph、Temporal、Langfuse、MCP、model router、storage backend、sandbox provider 等系统可以各自负责擅长的层。AgentLedger 负责它们之间的 reliability substrate：durable execution、tool/model governance、evidence、replay、policy/sandbox boundary、cost/failure attribution 和 adapter contracts。
 
 Python 仍然是 reference implementation；Go、TypeScript、Rust 已有 native runtime-core baseline，并对齐同一份 language-neutral runtime contract。provider-specific driver 和 framework-native adapter 会按各语言生态差异处理。四语言实现对比和 adapter 边界见 `docs/zh/LANGUAGE_IMPLEMENTATION_COMPARISON.md`。
 
@@ -71,6 +73,21 @@ Optional production adapter:
 ```
 
 例如 sandbox semantics 属于 core，但 sandbox infrastructure 不属于 core。core 负责 `SandboxPolicy`、fail-closed routing、audit/evidence record 和 replay safety；Docker、E2B、bubblewrap、Kubernetes/gVisor、Firecracker 或自定义 executor 都是 adapter。
+
+## Harness stack 组合方式
+
+AgentLedger 本身不是完整 Agent Harness。它的设计目标是和 Harness 生态里的其它系统组合：
+
+| Harness 层 | 典型系统 | AgentLedger 角色 |
+| --- | --- | --- |
+| Agent workflow / planning | LangGraph、LangChain、CrewAI、AutoGen、OpenAI Agents SDK、自定义代码 | 用 durable state、policy、Tool Ledger、evidence 和 replay guarantees 包住 node 和 tool |
+| Durable orchestration | Temporal、Ray、Kubernetes workers | 在 worker step 内提供 agent-specific lease、fencing、checkpoint、cancellation、cost/failure attribution 和 replay semantics |
+| Observability / eval UI | Langfuse、LangSmith、OpenTelemetry、自定义 dashboard | 导出 structured runtime events、evidence bundle、trace/cost/failure data 和 correlation IDs |
+| Tool and context protocols | MCP、internal tool servers、provider SDK tools | 在副作用发生前强制执行 schema、permission、approval、sandbox、idempotency 和 audit |
+| Model providers / routers | OpenAI、Anthropic、Gemini、Bedrock、Ollama、LiteLLM、企业 gateway | 提供 runtime model-call contract、archived responses、budget/fallback/replay semantics 和 optional provider adapters |
+| Storage / artifacts | SQLite、Postgres、MySQL、S3/MinIO、内部存储 | 持久化 runtime metadata、state version、migration、blob ref 和 evidence ref，并通过 conformance 验证 |
+
+所以推荐的生产形态不是 `AgentLedger instead of LangGraph/Temporal/Langfuse`，而是 `AgentLedger with LangGraph/Temporal/Langfuse`：AgentLedger 负责治理这些系统自身难以强制保证的 model/tool/state boundary。
 
 ## 适合什么场景
 

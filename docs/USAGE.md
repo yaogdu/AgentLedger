@@ -1,6 +1,6 @@
 # Usage Guide
 
-This guide shows how to use AgentLedger as a framework-neutral reliability runtime. It focuses on the stable runtime-core and dependency-free local usage. For release gates, see `RELEASE_CHECKLIST.md`.
+This guide shows how to use AgentLedger as a runtime reliability layer for Agent Harness stacks. It focuses on the stable runtime-core and dependency-free local usage. For release gates, see `RELEASE_CHECKLIST.md`.
 
 ## Install or Run from Source
 

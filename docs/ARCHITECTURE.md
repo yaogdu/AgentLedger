@@ -1,8 +1,10 @@
 # Architecture
 
-AgentLedger is an agent execution safety and evidence layer. It is not an agent framework, model SDK, workflow engine, eval system, observability suite, RAG system, or sandbox infrastructure provider.
+AgentLedger is a runtime reliability layer for Agent Harness stacks. It is not an agent framework, model SDK, workflow engine, eval system, observability suite, RAG system, or sandbox infrastructure provider.
 
 The architecture keeps runtime core thin but hard to replace: it only owns guarantees that must be enforced at the boundary between agent logic and external effects. Mature systems integrate through adapters and conformance tests instead of being rebuilt inside core.
+
+In a complete harness stack, AgentLedger is the reliability substrate under or beside systems such as LangGraph, Temporal, Langfuse, MCP, model providers, storage backends, and sandbox providers.
 
 The practical split is:
 

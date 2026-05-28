@@ -2,7 +2,7 @@
   "name": "agentledger-runtime",
   "version": "1.2.2",
   "private": false,
-  "description": "Dependency-free Node/TypeScript-compatible runtime for AgentLedger.",
+  "description": "Runtime reliability layer for Agent Harness stacks.",
   "type": "module",
   "main": "src/index.js",
   "types": "src/index.d.ts",

@@ -2,6 +2,8 @@
 
 这是 AgentLedger 的中文文档入口。英文文档入口见 `../README.md`。
 
+AgentLedger 是面向 Agent Harness stack 的 runtime reliability layer。它不是完整 Harness 产品，而是提供 durable execution、tool/model governance、evidence、replay、policy/sandbox、cost/failure attribution 和 adapter contracts，用来组合 LangGraph、Temporal、Langfuse、MCP、model provider、storage backend 和 sandbox infrastructure 等系统。
+
 ## 推荐阅读路径
 
 | 目标 | 中文文档 | 英文文档 |
@@ -13,6 +15,7 @@
 | 理解整体架构 | `ARCHITECTURE.md` | `../ARCHITECTURE.md` |
 | 理解 Policy Engine 控制闭环 | `POLICY_ENGINE.md` | `../POLICY_ENGINE.md` |
 | 对比相邻工具 | `COMPARISONS.md` | `../COMPARISONS.md` |
+| 理解 Agent Harness 定位 | `ROADMAP.md#agent-harness-定位` | `../ROADMAP.md#agent-harness-positioning` |
 | 理解设计与实现 | `DESIGN_AND_IMPLEMENTATION.md` | `../DESIGN_AND_IMPLEMENTATION.md` |
 | 查看正式 runtime 规范 | `../RUNTIME_SPEC.md` | `../RUNTIME_SPEC.md` |
 | 查看扩展/adapter 模型 | `EXTENSIBILITY.md` | `../EXTENSIBILITY.md` |
@@ -35,7 +38,7 @@
 
 ## 项目定位
 
-AgentLedger 不是新的 Agent 框架，而是一个 framework-neutral runtime reliability layer。
+AgentLedger 不是新的 Agent 框架，也不是完整 Agent Harness 平台，而是面向 Agent Harness stacks 的 framework-neutral runtime reliability layer。
 
 ```text
 Agent 框架负责 planning / workflow / reasoning。

@@ -1,8 +1,10 @@
 # 架构说明
 
-AgentLedger 是 AI Agent 的 agent execution safety and evidence layer。它不是 Agent 框架、模型 SDK、workflow engine、eval 系统、observability 套件、RAG 系统或 sandbox infrastructure provider。
+AgentLedger 是面向 Agent Harness stack 的 runtime reliability layer。它不是 Agent 框架、模型 SDK、workflow engine、eval 系统、observability 套件、RAG 系统或 sandbox infrastructure provider。
 
 核心架构目标是把 Agent 业务逻辑和 runtime reliability 机制分开，同时让 runtime core 保持“薄但不可替代”：只负责必须在 Agent 逻辑与外部副作用边界上强制保证的语义。成熟系统通过 adapter 和 conformance test 接入，而不是被重做进 core。
+
+在完整 Harness stack 里，AgentLedger 是位于 LangGraph、Temporal、Langfuse、MCP、model provider、storage backend 和 sandbox provider 下方或旁边的 reliability substrate。
 
 实际分层是：
 

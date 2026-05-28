@@ -2,6 +2,8 @@
 
 This directory is the canonical documentation set for AgentLedger. English docs are maintained in `docs/`; Chinese counterparts for the primary reader path are maintained in `docs/zh/`.
 
+AgentLedger is a runtime reliability layer for Agent Harness stacks. It is not a complete harness product; it provides the durable execution, tool/model governance, evidence, replay, policy/sandbox, cost/failure attribution, and adapter contracts needed to compose systems such as LangGraph, Temporal, Langfuse, MCP, model providers, storage backends, and sandbox infrastructure.
+
 ## Language
 
 | Language | Entry |
@@ -20,6 +22,7 @@ This directory is the canonical documentation set for AgentLedger. English docs 
 | Understand architecture | `ARCHITECTURE.md` | `zh/ARCHITECTURE.md` |
 | Understand the policy control loop | `POLICY_ENGINE.md` | `zh/POLICY_ENGINE.md` |
 | Compare with adjacent tools | `COMPARISONS.md` | `zh/COMPARISONS.md` |
+| Understand Agent Harness positioning | `ROADMAP.md#agent-harness-positioning` | `zh/ROADMAP.md#agent-harness-定位` |
 | Read design and implementation notes | `DESIGN_AND_IMPLEMENTATION.md` | `zh/DESIGN_AND_IMPLEMENTATION.md` |
 | Check current status | `IMPLEMENTATION_STATUS.md` | `zh/IMPLEMENTATION_STATUS.md` |
 | Prepare a release | `RELEASE_CHECKLIST.md` | `zh/RELEASE_CHECKLIST.md` |

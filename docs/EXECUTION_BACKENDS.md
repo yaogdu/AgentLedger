@@ -160,7 +160,7 @@ LangGraph
   agent graph / workflow logic / multi-agent orchestration
 
 AgentLedger
-  inner agent execution safety, evidence, and tool governance layer
+  inner runtime reliability, evidence, and tool/model governance layer
 ```
 
 A typical stack:
