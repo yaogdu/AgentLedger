@@ -20,6 +20,8 @@ Most capabilities should be evaluated in three layers: core contract, built-in m
 | Memory | session memory, short-term durable state, versioned memory refs, shared findings, replayable memory events | vector stores, semantic retrieval, RAG, long-term knowledge stores | full knowledge base or semantic retrieval system |
 | Session / HITL | run/session/step state machine, approval request lifecycle, audit events | external human review queues, chat/app integrations | business review backend or workflow back office |
 | FinOps / Cost Control | token/call/cost records, budget enforcement hooks, cost attribution reports | provider price catalogs, finance exports, alerts | invoice or payment system |
+| Inspector / Dashboard | stable read models, evidence export, static HTML debug export, redaction hooks, schema/version metadata | separate read-only local or internal web inspector package | hosted SaaS, multi-tenant app platform, write/control plane in runtime-core |
+| Model Gateway / Router | model-call boundary, request/response archival, replay skipping, token/cost attribution, budget/fallback semantics | provider adapters, LiteLLM-style router adapters, policy packs, price catalogs | bundling every model SDK, becoming a full model gateway product, replacing provider SDKs |
 
 Execution backend positioning is documented in `EXECUTION_BACKENDS.md`: Temporal, Ray, and Kubernetes are backend adapters for generic distributed execution, while AgentLedger keeps agent-specific runtime invariants.
 
@@ -104,8 +106,11 @@ Follow-up versions:
 ```text
 1.2.x  adapter packaging fixes, framework-native smoke, and package docs polish
 1.3.0  reliability harness expansion: richer divergence, golden corpus UX, cost/failure regression, shadow comparisons
+1.3.x  optional read-only inspector/dashboard package for run timeline, state diff, Tool Ledger, cost/failure, and evidence browsing
 1.4.0  sub-agent/multi-agent runtime semantics: parent-child runs, spawn/join, cancellation/failure/cost attribution
 1.5.0  media adapter release: frame/audio/video refs, transcription/embedding adapters, stream transports
+1.6.0  ModelGateway/ModelRouter contract: ctx.call_model, model events, provider injection, fallback/budget/replay semantics
+1.6.x  optional model provider/router adapters, kept outside runtime-core
 ```
 
 ## v1.1.0 - Adapter Certification And Reliability Gate Upgrade
@@ -288,6 +293,119 @@ Exit criteria:
 - replay divergence is reported at event/state/artifact level
 - media pipeline replay can reuse captured frame/segment artifacts instead of reprocessing raw media
 - regression and external eval results link back to evidence bundles
+
+## Post-v1 - Inspector Dashboard
+
+Status: roadmap. This should be a separate optional package, not runtime-core and not a hosted SaaS product.
+
+Working package names:
+
+```text
+agentledger-inspector
+agentledger-dashboard
+agentledger-web
+```
+
+Preferred positioning:
+
+```text
+read-only local/internal web inspector
+debug and audit UI for AgentLedger-owned runtime metadata
+consumer of StateStore, BlobStore, evidence bundles, and static debug exports
+```
+
+Goals:
+
+```text
+make AgentLedger run history inspectable without reading raw database rows
+visualize the same evidence that replay/debug/cost/failure commands already expose
+keep runtime-core free of web framework dependencies
+avoid write/control-plane features until permissions and safety are mature
+```
+
+Planned first version:
+
+- read-only connection to SQLite, Postgres, and MySQL AgentLedger metadata tables
+- run/session list with status, timestamps, cost summary, and failure summary
+- run timeline for steps, events, model calls, tool calls, approvals, artifacts, and checkpoints
+- state diff and state-version view
+- Tool Ledger view with idempotency key, causal token, side-effect status, request/response refs, and unknown-state handling
+- artifact/evidence browser with payload refs, blob hashes, media refs, and stream checkpoint refs
+- cost and failure attribution panels
+- static HTML export integration for shareable offline debugging
+- configurable redaction for secrets, credentials, prompts, payload fields, and large blobs
+- schema/version compatibility checks before reading a database
+
+Explicit non-goals:
+
+- hosted SaaS, multi-tenant product, billing, user management, or organization admin
+- mutating runtime state, approving/denying requests, canceling runs, or editing ledger rows in the first version
+- replacing LangSmith, Langfuse, OpenTelemetry backends, or eval platforms
+- bypassing the evidence/replay/export contracts by reading undocumented internals only
+
+Exit criteria:
+
+- a developer can point the inspector at a local `.agentledger/state.db` and inspect run timeline, state diff, Tool Ledger, cost, failures, and artifacts
+- the same package can read Postgres/MySQL through documented schema/version checks
+- the UI is useful as a local/internal debug tool without requiring a server-side platform
+- all sensitive fields are redacted by default or explicitly configurable
+
+## Post-v1 - Model Gateway And Router
+
+Status: roadmap. This is a runtime boundary capability, but concrete model providers and routing engines should remain optional adapters.
+
+Why it belongs at the runtime boundary:
+
+```text
+model calls affect cost, latency, replay, evidence, determinism, and policy
+runtime is the layer that can record the selected provider/model and skip real calls during replay
+budget enforcement and fallback semantics need to be visible before and after the model call
+```
+
+Core contract goals:
+
+- `ctx.call_model(...)` or equivalent language-native API for runtime-managed model invocation
+- `ModelGateway` contract for request validation, provider selection, execution, archival, and replay
+- `ModelRouterPolicy` contract for rule-based routing by task, model family, cost, latency, context size, data policy, and allowed providers
+- model-call events such as `model_call_requested`, `model_route_selected`, `model_call_completed`, `model_call_failed`, and `model_call_replayed`
+- request/response refs in evidence bundles, with redaction and payload hashing
+- token/cost attribution by run, step, agent role, provider, and model
+- in-flight budget enforcement before expensive model calls
+- fallback semantics and failure taxonomy for timeout, rate limit, policy denial, budget exceeded, provider failure, and malformed output
+- replay semantics that reuse archived model responses instead of calling providers again
+- shadow model comparison hooks that can compare provider/model output without producing tool side effects
+
+Planned adapter layer:
+
+- provider adapters for OpenAI, Anthropic, Gemini, Bedrock, Azure OpenAI, Ollama, and local/inference-server APIs where ecosystem demand exists
+- optional LiteLLM-style adapter for users who already centralize provider routing elsewhere
+- provider price catalog adapters, kept outside runtime-core
+- policy adapters for org-specific model allowlists, region/data rules, and high-risk model approvals
+
+Minimal first implementation:
+
+```text
+dependency-free ModelGateway interface
+injected provider client for tests and application wiring
+rule-based YAML/JSON router policy
+model-call event/evidence/cost records
+replay that returns archived model output
+no mandatory provider SDK dependency in runtime-core
+```
+
+Explicit non-goals:
+
+- bundling every model provider SDK into runtime-core
+- replacing OpenAI, Anthropic, Gemini, Bedrock, Ollama, LiteLLM, or enterprise model gateways
+- building a full model marketplace, billing system, prompt management platform, or hosted router
+- claiming deterministic model behavior beyond archived-response replay
+
+Exit criteria:
+
+- agent code can call a model through the runtime boundary and produce replayable model evidence
+- budget/cost attribution records the provider/model selected for each call
+- replay can skip real model calls and return archived responses
+- provider routing is configurable without making runtime-core depend on provider SDKs
 
 ## Post-v1 - Sub-agent And Multi-agent Runtime Semantics
 

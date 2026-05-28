@@ -20,6 +20,8 @@
 | Memory | session memory、short-term durable state、versioned memory refs、shared findings、replayable memory events | vector store、semantic retrieval、RAG、long-term knowledge store | 完整知识库或语义检索系统 |
 | Session / HITL | run/session/step 状态机、approval request lifecycle、audit events | 外部人工 review 队列、chat/app integrations | 业务 review 后台或流程后台 |
 | FinOps / Cost Control | token/call/cost records、budget enforcement hooks、cost attribution reports | provider price catalogs、finance exports、alerts | 发票或支付系统 |
+| Inspector / Dashboard | stable read models、evidence export、static HTML debug export、redaction hooks、schema/version metadata | 独立 read-only 本地/内网 Web inspector package | hosted SaaS、多租户应用平台、runtime-core 中的写入/控制平面 |
+| Model Gateway / Router | model-call boundary、request/response archival、replay skipping、token/cost attribution、budget/fallback semantics | provider adapter、LiteLLM-style router adapter、policy packs、price catalogs | 打包所有 model SDK、变成完整 model gateway 产品、替代 provider SDK |
 
 Execution backend 定位见 `EXECUTION_BACKENDS.md`：Temporal、Ray、Kubernetes 是通用分布式执行 backend adapters，AgentLedger 保留 agent-specific runtime invariants。
 
@@ -110,8 +112,11 @@ complete core parity/package dry-run script
 ```text
 1.2.x  adapter packaging fixes、framework-native smoke、package docs polish
 1.3.0  reliability harness expansion：richer divergence、golden corpus UX、cost/failure regression、shadow comparison
+1.3.x  optional read-only inspector/dashboard package：run timeline、state diff、Tool Ledger、cost/failure、evidence browsing
 1.4.0  sub-agent/multi-agent runtime semantics：parent-child runs、spawn/join、cancellation/failure/cost attribution
 1.5.0  media adapter release：frame/audio/video refs、transcription/embedding adapters、stream transports
+1.6.0  ModelGateway/ModelRouter contract：ctx.call_model、model events、provider injection、fallback/budget/replay semantics
+1.6.x  optional model provider/router adapters，继续保持在 runtime-core 之外
 ```
 
 ## v1.1.0 - Adapter Certification And Reliability Gate Upgrade
@@ -323,6 +328,129 @@ child run creation、cancellation、failure propagation、replay-safe join 的 c
 - replay parent run 不会重复创建 child run 或重复 child side effects
 
 Adapter 优先级见 `ADAPTER_ROADMAP.md`：生态成熟且边界能保持 AgentLedger invariant 时进入官方 adapter；否则保持 experimental 或 community-owned。
+
+## Post-v1 - Inspector Dashboard
+
+状态：roadmap。它应该是独立 optional package，不进入 runtime-core，也不是 hosted SaaS 产品。
+
+候选包名：
+
+```text
+agentledger-inspector
+agentledger-dashboard
+agentledger-web
+```
+
+推荐定位：
+
+```text
+read-only local/internal web inspector
+AgentLedger runtime metadata 的 debug / audit UI
+StateStore、BlobStore、evidence bundle、static debug export 的消费者
+```
+
+目标：
+
+```text
+不用直接读数据库行，也能检查 AgentLedger run history
+把 replay/debug/cost/failure 命令已经暴露的 evidence 可视化
+runtime-core 不引入 Web framework 依赖
+权限和安全成熟前，不做写操作或控制平面
+```
+
+第一版计划：
+
+```text
+read-only 连接 SQLite / Postgres / MySQL 的 AgentLedger metadata tables
+run/session list：status、timestamp、cost summary、failure summary
+单个 run timeline：step、event、model call、tool call、approval、artifact、checkpoint
+state diff 和 state-version view
+Tool Ledger view：idempotency key、causal token、side-effect status、request/response refs、unknown-state handling
+artifact/evidence browser：payload refs、blob hashes、media refs、stream checkpoint refs
+cost / failure attribution panels
+static HTML export integration
+secret、credential、prompt、payload field、大 blob 的 redaction 配置
+读取数据库前做 schema/version compatibility check
+```
+
+明确非目标：
+
+```text
+hosted SaaS、多租户产品、billing、user management、organization admin
+第一版不修改 runtime state、不做 approval/deny、不 cancel run、不编辑 ledger rows
+不替代 LangSmith、Langfuse、OpenTelemetry backend 或 eval platform
+不绕过 evidence/replay/export contracts，只依赖未文档化内部实现
+```
+
+退出标准：
+
+- 开发者可以把 inspector 指向本地 `.agentledger/state.db`，查看 run timeline、state diff、Tool Ledger、cost、failure 和 artifacts
+- 同一个 package 可以通过文档化 schema/version check 读取 Postgres/MySQL
+- UI 作为本地/内网 debug 工具可用，不需要 server-side platform
+- 敏感字段默认脱敏，或可以显式配置脱敏策略
+
+## Post-v1 - Model Gateway 与 Router
+
+状态：roadmap。它属于 runtime boundary 能力，但具体 model provider 和 routing engine 应该保持为 optional adapters。
+
+为什么属于 runtime boundary：
+
+```text
+model call 会影响 cost、latency、replay、evidence、determinism 和 policy
+runtime 是能记录 selected provider/model，并在 replay 时跳过真实 model call 的层
+budget enforcement 和 fallback semantics 需要在 model call 前后都可见
+```
+
+Core contract 目标：
+
+```text
+ctx.call_model(...) 或各语言等价 API
+ModelGateway contract：request validation、provider selection、execution、archival、replay
+ModelRouterPolicy contract：按 task、model family、cost、latency、context size、data policy、allowed providers rule-based routing
+model_call_requested / model_route_selected / model_call_completed / model_call_failed / model_call_replayed events
+evidence bundle 中记录 request/response refs，并支持 redaction 和 payload hashing
+按 run、step、agent role、provider、model 做 token/cost attribution
+昂贵 model call 前做 in-flight budget enforcement
+timeout、rate limit、policy denial、budget exceeded、provider failure、malformed output 的 fallback/failure taxonomy
+replay 时复用 archived model response，不再次调用 provider
+shadow model comparison hook，可以比较 model/provider 输出，但不产生 tool side effect
+```
+
+Adapter 层计划：
+
+```text
+OpenAI、Anthropic、Gemini、Bedrock、Azure OpenAI、Ollama、本地 inference server provider adapters
+LiteLLM-style adapter，用于已经集中管理 provider routing 的团队
+provider price catalog adapters，放在 runtime-core 外
+org-specific model allowlist、region/data rules、high-risk model approval policy adapters
+```
+
+最小第一版：
+
+```text
+dependency-free ModelGateway interface
+injected provider client，用于测试和用户应用接线
+rule-based YAML/JSON router policy
+model-call event/evidence/cost records
+replay 返回 archived model output
+runtime-core 不强依赖 provider SDK
+```
+
+明确非目标：
+
+```text
+把所有 model provider SDK 打包进 runtime-core
+替代 OpenAI、Anthropic、Gemini、Bedrock、Ollama、LiteLLM 或企业 model gateway
+做完整 model marketplace、billing system、prompt management platform 或 hosted router
+声明模型行为本身 deterministic；runtime 只能保证 archived-response replay
+```
+
+退出标准：
+
+- agent code 可以通过 runtime boundary 调 model，并产生 replayable model evidence
+- budget/cost attribution 能记录每次调用选择的 provider/model
+- replay 可以跳过真实 model call，返回 archived response
+- provider routing 可配置，同时 runtime-core 不依赖 provider SDK
 
 ## v1.0 - Stable Runtime Contract
 
