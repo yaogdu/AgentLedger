@@ -11,4 +11,4 @@ keywords = ["agent", "runtime", "langfuse", "tracing"]
 categories = ["development-tools"]
 
 [dependencies]
-agentledger = { package = "agentledger-runtime", version = ">=1.2, <2", path = "../.." }
+agentledger = { package = "agentledger-runtime", version = ">=1.2.3, <2", path = "../.." }
