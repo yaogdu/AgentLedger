@@ -19,6 +19,7 @@ AgentLedger is a runtime reliability layer for Agent Harness stacks. It is not a
 | Understand the project | `../README.md` | `../README.zh-CN.md` |
 | Use the runtime | `USAGE.md`, `LANGUAGE_QUICKSTART.md` | `zh/USAGE.md`, `zh/LANGUAGE_QUICKSTART.md` |
 | Find examples | `../examples/README.md`, `../go/examples/README.md`, `../typescript/examples/README.md`, `../rust/examples/README.md` | same paths plus `zh/GETTING_STARTED.md` |
+| Query runtime tables | `QUERY_EXAMPLES.md` | `zh/QUERY_EXAMPLES.md` |
 | Understand architecture | `ARCHITECTURE.md` | `zh/ARCHITECTURE.md` |
 | Understand the policy control loop | `POLICY_ENGINE.md` | `zh/POLICY_ENGINE.md` |
 | Compare with adjacent tools | `COMPARISONS.md` | `zh/COMPARISONS.md` |
@@ -51,6 +52,7 @@ AgentLedger is a runtime reliability layer for Agent Harness stacks. It is not a
 - `EXTENSIBILITY.md`: adapter model for storage, tools, frameworks, protocols, observability, media, and sandbox.
 - `ADAPTER_PACKAGING.md`: optional adapter package layout, extras install model, compatibility shim strategy, and 1.2.x packaging release gates.
 - `STORAGE.md`: runtime metadata schema, migrations, StateStore and BlobStore extension contract.
+- `QUERY_EXAMPLES.md`: single-table and multi-table SQL examples for runtime metadata, including large business-schema integration patterns.
 - `ADAPTER_CERTIFICATION.md`: compatibility checklist for storage, blob, framework, tool, sandbox, media/stream, and observability adapters.
 - `EXECUTION_BACKENDS.md`: Temporal/Ray/Kubernetes positioning and scheduler adapter boundary.
 

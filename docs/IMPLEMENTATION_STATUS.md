@@ -6,7 +6,7 @@ This document tracks what is implemented in runtime-core, what remains planned f
 
 ## Current Baseline
 
-AgentLedger 1.2.2 is a stable runtime-core line with Python as the reference implementation and Go/TypeScript/Rust covered by shared runtime-core parity gates. The 1.2.x line adds adapter packaging boundaries across the supported language ecosystems and now includes the official MySQL storage adapter boundary while keeping selected preview/experimental concrete adapter paths explicit. It is suitable for:
+AgentLedger 1.2.3 is a stable runtime-core line with Python as the reference implementation and Go/TypeScript/Rust covered by shared runtime-core parity gates. The 1.2.x line adds adapter packaging boundaries across the supported language ecosystems and now includes the official MySQL storage adapter boundary plus a dependency-free Langfuse export adapter boundary while keeping selected preview/experimental concrete adapter paths explicit. It is suitable for:
 
 - local use
 - runtime design review
@@ -15,7 +15,7 @@ AgentLedger 1.2.2 is a stable runtime-core line with Python as the reference imp
 - reliability semantics validation
 - production pilot preparation with explicit adapter boundaries
 
-Release-scope note: 1.2.2 completes the MySQL adapter boundary in the same packaging model, not production adapter hardening. It adds Python adapter packages, TypeScript subpath exports and npm adapter packages, Go adapter subpackages, Rust adapter features/crate packages, bilingual adapter packaging docs, and adapter package checks. Real-service production claims still require external validation.
+Release-scope note: 1.2.3 is a small documentation and observability-adapter release. It adds SQL query examples and `agentledger-langfuse` package boundaries without changing runtime-core semantics. MySQL remains the 1.2.2 storage adapter boundary; real-service production claims still require external validation.
 
 The runtime-core contract is stable. Optional production adapters, external infrastructure hardening, and full eval systems remain outside the stable core boundary; non-Python runtime-core baselines are verified by the shared parity gates.
 

@@ -1,6 +1,6 @@
 # Adapter Packaging
 
-AgentLedger `1.2.1` 引入 adapter packaging model，`1.2.2` 在这个模型上补充官方 MySQL storage adapter boundary。runtime-core 保持小而稳定，具体生态集成进入 optional adapter packages，用户可以通过 extras 或直接安装 adapter 包启用。
+AgentLedger `1.2.1` 引入 adapter packaging model，`1.2.2` 在这个模型上补充官方 MySQL storage adapter boundary，`1.2.3` 增加 dependency-free Langfuse evidence/trace export boundary。runtime-core 保持小而稳定，具体生态集成进入 optional adapter packages，用户可以通过 extras 或直接安装 adapter 包启用。
 
 ## 为什么拆包
 
@@ -48,6 +48,7 @@ pip install "agentledger-runtime[s3]"
 pip install "agentledger-runtime[langgraph]"
 pip install "agentledger-runtime[mcp]"
 pip install "agentledger-runtime[otel]"
+pip install "agentledger-runtime[langfuse]"
 pip install "agentledger-runtime[docker]"
 pip install "agentledger-runtime[all]"
 ```
@@ -61,6 +62,7 @@ pip install agentledger-s3
 pip install agentledger-langgraph
 pip install agentledger-mcp
 pip install agentledger-otel
+pip install agentledger-langfuse
 pip install agentledger-sandbox-docker
 ```
 
@@ -85,6 +87,7 @@ agentledger-runtime/
     agentledger-langgraph/
     agentledger-mcp/
     agentledger-otel/
+    agentledger-langfuse/
     agentledger-sandbox-docker/
   typescript/
     src/adapters/                        # runtime subpath exports
@@ -95,6 +98,7 @@ agentledger-runtime/
       agentledger-langgraph/
       agentledger-mcp/                   # npm package name: agentledger-mcp-adapter
       agentledger-otel/
+      agentledger-langfuse/
       agentledger-sandbox-docker/
   go/adapters/
     postgres/
@@ -102,6 +106,7 @@ agentledger-runtime/
     s3/
     mcp/
     otel/
+    langfuse/
     sandbox/docker/
     framework/
   rust/
@@ -111,6 +116,7 @@ agentledger-runtime/
       agentledger-s3/
       agentledger-mcp/
       agentledger-otel/
+      agentledger-langfuse/
       agentledger-sandbox-docker/
       agentledger-framework/
 ```
@@ -134,6 +140,7 @@ agentledger-runtime/
 | `agentledger-langgraph` | 基于 dependency-free facade 的 LangGraph checkpointer/node wrapper | core facade 不引入重依赖；optional native SDK 使用放在 package extras 或后续 smoke matrix 中。 |
 | `agentledger-mcp` / npm 上使用 `agentledger-mcp-adapter` | MCP-style tool/context mapping package boundary | 当前 package 保持 dependency-light；exact MCP SDK client/server transport 是后续 adapter hardening。 |
 | `agentledger-otel` | 围绕 AgentLedger spans 的 OTLP JSON/export package boundary | 当前 package 保持 dependency-light；hardened OpenTelemetry SDK wiring 是后续工作。 |
+| `agentledger-langfuse` | Langfuse-style evidence/trace payload export | 当前 package 保持 dependency-light；Langfuse SDK/server ingestion 行为由应用和部署验证。 |
 | `agentledger-sandbox-docker` | Docker sandbox executor package 和本地/团队 recipe | 当前边界支持 Docker CLI/manifest 语义；daemon hardening、network policy、resource validation 属于外部。 |
 
 这里要尊重语言生态。`agentledger-langgraph` 对 Python 和 TypeScript/Node 是一等 adapter，因为这两个生态有 LangGraph 包；Go 和 Rust 不强行假装有原生 LangGraph 生态，而是提供通用 `framework` adapter boundary。
@@ -194,6 +201,7 @@ s3 = ["agentledger-s3>=1.2,<2"]
 langgraph = ["agentledger-langgraph>=1.2,<2"]
 mcp = ["agentledger-mcp>=1.2,<2"]
 otel = ["agentledger-otel>=1.2,<2"]
+langfuse = ["agentledger-langfuse>=1.2,<2"]
 docker = ["agentledger-sandbox-docker>=1.2,<2"]
 all = [
   "agentledger-postgres>=1.2,<2",
@@ -202,6 +210,7 @@ all = [
   "agentledger-langgraph>=1.2,<2",
   "agentledger-mcp>=1.2,<2",
   "agentledger-otel>=1.2,<2",
+  "agentledger-langfuse>=1.2,<2",
   "agentledger-sandbox-docker>=1.2,<2",
 ]
 ```
@@ -214,8 +223,8 @@ monorepo 本地开发时，测试可以从 `packages/*` 路径安装；发布后
 
 ```bash
 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m unittest discover -s tests -q
-PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m agentledger adapter certify --kind postgres --adapter-version 1.2.2
-PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m agentledger adapter certify --kind mysql --adapter-version 1.2.2
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m agentledger adapter certify --kind postgres --adapter-version 1.2.3
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m agentledger adapter certify --kind mysql --adapter-version 1.2.3
 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 scripts/check_adapter_packages.py
 go test ./...
 cd typescript && npm test

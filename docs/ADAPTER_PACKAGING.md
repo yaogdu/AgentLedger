@@ -1,6 +1,6 @@
 # Adapter Packaging
 
-AgentLedger `1.2.1` introduced the adapter packaging model, and `1.2.2` extends that model with the official MySQL storage adapter boundary. Runtime-core stays small and dependency-light; concrete integrations move into optional adapter packages that can be installed through extras or directly.
+AgentLedger `1.2.1` introduced the adapter packaging model, `1.2.2` extended it with the official MySQL storage adapter boundary, and `1.2.3` adds a dependency-free Langfuse evidence/trace export boundary. Runtime-core stays small and dependency-light; concrete integrations move into optional adapter packages that can be installed through extras or directly.
 
 ## Why Split Adapters
 
@@ -48,6 +48,7 @@ pip install "agentledger-runtime[s3]"
 pip install "agentledger-runtime[langgraph]"
 pip install "agentledger-runtime[mcp]"
 pip install "agentledger-runtime[otel]"
+pip install "agentledger-runtime[langfuse]"
 pip install "agentledger-runtime[docker]"
 pip install "agentledger-runtime[all]"
 ```
@@ -61,6 +62,7 @@ pip install agentledger-s3
 pip install agentledger-langgraph
 pip install agentledger-mcp
 pip install agentledger-otel
+pip install agentledger-langfuse
 pip install agentledger-sandbox-docker
 ```
 
@@ -85,6 +87,7 @@ agentledger-runtime/
     agentledger-langgraph/
     agentledger-mcp/
     agentledger-otel/
+    agentledger-langfuse/
     agentledger-sandbox-docker/
   typescript/
     src/adapters/                        # runtime subpath exports
@@ -95,6 +98,7 @@ agentledger-runtime/
       agentledger-langgraph/
       agentledger-mcp/                   # npm package name: agentledger-mcp-adapter
       agentledger-otel/
+      agentledger-langfuse/
       agentledger-sandbox-docker/
   go/adapters/
     postgres/
@@ -102,6 +106,7 @@ agentledger-runtime/
     s3/
     mcp/
     otel/
+    langfuse/
     sandbox/docker/
     framework/
   rust/
@@ -111,6 +116,7 @@ agentledger-runtime/
       agentledger-s3/
       agentledger-mcp/
       agentledger-otel/
+      agentledger-langfuse/
       agentledger-sandbox-docker/
       agentledger-framework/
 ```
@@ -134,6 +140,7 @@ Each adapter package should provide:
 | `agentledger-langgraph` | LangGraph checkpointer/node wrappers around the dependency-free facade | Core facade is dependency-free; optional native SDK use belongs behind package extras or follow-up smoke matrices. |
 | `agentledger-mcp` / `agentledger-mcp-adapter` on npm | MCP-style tool/context mapping package boundary | Current package is dependency-light; exact MCP SDK client/server transport is a follow-up adapter hardening item. |
 | `agentledger-otel` | OTLP JSON/export package boundary around AgentLedger spans | Current package is dependency-light; hardened OpenTelemetry SDK wiring is follow-up work. |
+| `agentledger-langfuse` | Langfuse-style evidence/trace payload export | Current package is dependency-light; Langfuse SDK/server ingestion behavior remains application/deployment validation. |
 | `agentledger-sandbox-docker` | Docker sandbox executor package and local/team recipes | Current boundary can use Docker CLI/manifest semantics; daemon hardening, network policy, and resource validation are external. |
 
 Language fit matters. `agentledger-langgraph` is first-class for Python and TypeScript/Node because those ecosystems have LangGraph packages. Go and Rust expose a generic `framework` adapter boundary instead of pretending a native LangGraph ecosystem exists there.
@@ -194,6 +201,7 @@ s3 = ["agentledger-s3>=1.2,<2"]
 langgraph = ["agentledger-langgraph>=1.2,<2"]
 mcp = ["agentledger-mcp>=1.2,<2"]
 otel = ["agentledger-otel>=1.2,<2"]
+langfuse = ["agentledger-langfuse>=1.2,<2"]
 docker = ["agentledger-sandbox-docker>=1.2,<2"]
 all = [
   "agentledger-postgres>=1.2,<2",
@@ -202,6 +210,7 @@ all = [
   "agentledger-langgraph>=1.2,<2",
   "agentledger-mcp>=1.2,<2",
   "agentledger-otel>=1.2,<2",
+  "agentledger-langfuse>=1.2,<2",
   "agentledger-sandbox-docker>=1.2,<2",
 ]
 ```
@@ -214,8 +223,8 @@ The `1.2.x` packaging release is expected to pass:
 
 ```bash
 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m unittest discover -s tests -q
-PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m agentledger adapter certify --kind postgres --adapter-version 1.2.2
-PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m agentledger adapter certify --kind mysql --adapter-version 1.2.2
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m agentledger adapter certify --kind postgres --adapter-version 1.2.3
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m agentledger adapter certify --kind mysql --adapter-version 1.2.3
 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 scripts/check_adapter_packages.py
 go test ./...
 cd typescript && npm test

@@ -16,6 +16,6 @@ This package uses the Docker CLI boundary already defined by runtime-core. It re
 Certification:
 
 ```bash
-python3 -m agentledger adapter certify --kind docker --adapter-version 1.2.2
+python3 -m agentledger adapter certify --kind docker --adapter-version 1.2.3
 ```
 

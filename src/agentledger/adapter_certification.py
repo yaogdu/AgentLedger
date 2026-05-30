@@ -173,6 +173,25 @@ _PROFILES: dict[str, dict[str, Any]] = {
             "file/JSON export is dependency-free; collector delivery needs deployment-specific verification",
         ],
     },
+    "langfuse": {
+        "adapter": "langfuse",
+        "adapter_type": "observability",
+        "package_name": "agentledger-langfuse",
+        "conformance_commands": [
+            "PYTHONPATH=src python3 -m agentledger evidence export <run_id> --out ./evidence",
+        ],
+        "smoke_commands": [
+            "python3 -c 'from agentledger_langfuse import LangfuseTraceExporter; print(LangfuseTraceExporter.__name__)'",
+        ],
+        "required_external_services": ["optional-langfuse-endpoint"],
+        "security_assumptions": [
+            "Langfuse receives exported runtime evidence and traces; AgentLedger remains the execution-path enforcement layer",
+            "project keys, auth headers, and endpoint routing are user deployment configuration",
+        ],
+        "known_limitations": [
+            "adapter is a dependency-free payload/export boundary; Langfuse SDK and server-specific ingestion behavior must be validated by the application",
+        ],
+    },
     "langgraph": {
         "adapter": "langgraph",
         "adapter_type": "framework",

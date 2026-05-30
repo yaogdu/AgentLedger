@@ -1,4 +1,6 @@
 .agentledger/
+go/.agentledger-go/
+rust/.agentledger-rust/
 *.db
 *.sqlite
 *.sqlite3

@@ -1,6 +1,6 @@
 # MySQL Adapter
 
-AgentLedger `1.2.2` adds MySQL as an official optional StateStore adapter boundary.
+AgentLedger `1.2.2+` includes MySQL as an official optional StateStore adapter boundary.
 
 This is not a runtime-core dependency. Install it only when the application wants MySQL-backed durable state:
 

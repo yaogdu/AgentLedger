@@ -1,0 +1,23 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "agentledger-langfuse"
+version = "1.2.3"
+description = "Langfuse evidence and trace export adapter package for AgentLedger"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "Apache-2.0"}
+authors = [{name = "AgentLedger Contributors"}]
+keywords = ["agents", "runtime", "langfuse", "tracing", "evidence"]
+dependencies = ["agentledger-runtime>=1.2,<2"]
+
+[project.urls]
+Homepage = "https://github.com/yaogdu/AgentLedger"
+Repository = "https://github.com/yaogdu/AgentLedger"
+Documentation = "https://github.com/yaogdu/AgentLedger/tree/main/docs"
+Issues = "https://github.com/yaogdu/AgentLedger/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/agentledger_langfuse"]

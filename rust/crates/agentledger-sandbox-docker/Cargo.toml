@@ -1,6 +1,6 @@
 [package]
 name = "agentledger-sandbox-docker"
-version = "1.2.2"
+version = "1.2.3"
 edition = "2021"
 description = "Docker sandbox adapter crate for AgentLedger Runtime"
 license = "Apache-2.0"

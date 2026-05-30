@@ -30,6 +30,7 @@ func OptionalAdapterCapabilities() []OptionalAdapterCapability {
 		{Name: "llamaindex", Category: "framework", AdapterIsOptional: true, FailClosedWithout: true, ContractSurface: []string{"framework_adapter"}},
 		{Name: "semantic-kernel", Category: "framework", AdapterIsOptional: true, FailClosedWithout: true, ContractSurface: []string{"framework_adapter"}},
 		{Name: "mcp-transport", Category: "mcp", AdapterIsOptional: true, FailClosedWithout: true, ContractSurface: []string{"mcp_tool_descriptor", "mcp_resource_descriptor"}},
+		{Name: "langfuse", Category: "observability", AdapterIsOptional: true, FailClosedWithout: true, ContractSurface: []string{"evidence_bundle", "trace_payload", "correlation_ids"}},
 		{Name: "shadow-runner", Category: "shadow", AdapterIsOptional: true, FailClosedWithout: true, ContractSurface: []string{"evidence_bundle", "tool_ledger", "state_diff"}},
 	}
 }

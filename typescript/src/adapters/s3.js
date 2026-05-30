@@ -3,7 +3,7 @@ export { S3BlobStoreAdapter } from '../index.js';
 export const adapterPackage = {
   name: 'agentledger-s3',
   runtimePackage: 'agentledger-runtime',
-  version: '1.2.2',
+  version: '1.2.3',
   category: 'blobstore',
 };
 

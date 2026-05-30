@@ -129,6 +129,24 @@ tool marketplace or app store
 5. Add a Temporal bridge that makes the boundary explicit: Temporal owns workflow lifecycle; AgentLedger owns node-internal tool/model/runtime safety.
 6. Continue hardening storage, sandbox, MCP, tool, and framework adapters with real-service conformance, permission boundaries, backup/restore, and failure semantics.
 
+## v1.2.3 - Query Documentation And Langfuse Adapter Boundary
+
+Status: implemented as a small adapter/documentation release without changing runtime-core semantics.
+
+Implemented:
+
+- added SQL query examples for single-table runtime inspection, multi-table timelines, approvals, costs, artifacts, and large business-schema integration patterns
+- added `agentledger-langfuse` as an official optional observability adapter boundary
+- added TypeScript subpath/package, Go adapter boundary, and Rust crate/feature boundary for Langfuse-style evidence/trace payload export
+- updated adapter packaging, certification, optional-adapter conformance, and documentation entrypoints
+- removed tracked local runtime state from the repository
+
+Explicitly not in this version:
+
+- replacing Langfuse or implementing a full observability backend
+- binding runtime-core to the Langfuse SDK
+- production validation of a specific Langfuse server ingestion endpoint
+
 ## v1.2.2 - MySQL Adapter Boundary Release
 
 Status: implemented as a storage adapter boundary release. It extends the `1.2.x` adapter packaging model without changing runtime-core semantics.

@@ -44,9 +44,10 @@ Optional adapters:
 python3 -m pip install "agentledger-runtime[postgres]"
 python3 -m pip install "agentledger-runtime[mysql]"
 python3 -m pip install "agentledger-runtime[s3]"
+python3 -m pip install "agentledger-runtime[langfuse]"
 ```
 
-For local development from the repository, use `python3 -m pip install -e ".[postgres]"`, `python3 -m pip install -e ".[mysql]"`, or `python3 -m pip install -e ".[s3]"`.
+For local development from the repository, use extras such as `python3 -m pip install -e ".[postgres]"`, `python3 -m pip install -e ".[mysql]"`, `python3 -m pip install -e ".[s3]"`, or `python3 -m pip install -e ".[langfuse]"`.
 
 ## First 10 Minutes
 
@@ -227,7 +228,7 @@ AGENTLEDGER_MYSQL_DSN=mysql://user:password@localhost:3306/database \
 PYTHONPATH=src python3 -m agentledger migrate up --dialect mysql
 ```
 
-Do not run adapter conformance against real application data. Use temporary test services. MySQL support in `1.2.2` is an official adapter boundary; production use still requires real-service concurrency, permission, backup, and restore validation.
+Do not run adapter conformance against real application data. Use temporary test services. MySQL support in `1.2.3` is an official adapter boundary; production use still requires real-service concurrency, permission, backup, and restore validation.
 
 ## Media and Streams
 
@@ -249,8 +250,8 @@ PYTHONPATH=src python3 -m agentledger state conformance --backend sqlite
 PYTHONPATH=src python3 -m agentledger blob conformance --backend local
 PYTHONPATH=src python3 -m agentledger worker conformance --backend sqlite --concurrent
 PYTHONPATH=src python3 -m agentledger adapter conformance --kind langchain
-PYTHONPATH=src python3 -m agentledger adapter certify --kind postgres --adapter-version 1.2.2 --out ./postgres-certification.json
-PYTHONPATH=src python3 -m agentledger adapter certify --kind mysql --adapter-version 1.2.2 --out ./mysql-certification.json
+PYTHONPATH=src python3 -m agentledger adapter certify --kind postgres --adapter-version 1.2.3 --out ./postgres-certification.json
+PYTHONPATH=src python3 -m agentledger adapter certify --kind mysql --adapter-version 1.2.3 --out ./mysql-certification.json
 ```
 
 `adapter certify` emits a machine-readable adapter certification bundle. It records package metadata, conformance commands, smoke commands, required external services, security assumptions, known limitations, and whether production validation still requires real infrastructure. For example, Postgres/MySQL/S3/Docker/Temporal bundles are marked `external-required` until they have real service credentials, concurrency/load checks, and restore or rollback drills.

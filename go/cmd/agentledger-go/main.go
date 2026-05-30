@@ -163,6 +163,7 @@ var fixtureChecks = []fixtureCheck{
 		"postgres",
 		"mysql",
 		"langgraph",
+		"langfuse",
 		"shadow-runner",
 	}},
 	{File: "official_adapters.v1.json", Tokens: []string{
@@ -189,11 +190,11 @@ func run(args []string) error {
 		return nil
 	}
 	if len(args) == 1 && args[0] == "version" {
-		fmt.Println("agentledger-go 1.2.2")
+		fmt.Println("agentledger-go 1.2.3")
 		return nil
 	}
 	if len(args) == 1 && args[0] == "doctor" {
-		fmt.Println(`{"language":"go","version":"1.2.2","status":"ok","runtime_core_parity":true}`)
+		fmt.Println(`{"language":"go","version":"1.2.3","status":"ok","runtime_core_parity":true}`)
 		return nil
 	}
 	if len(args) == 1 && args[0] == "quickstart" {
@@ -221,7 +222,7 @@ func run(args []string) error {
 }
 
 func printHelp() {
-	fmt.Println(`AgentLedger Go Runtime 1.2.2
+	fmt.Println(`AgentLedger Go Runtime 1.2.3
 
 Usage:
   agentledger-go doctor
@@ -1376,7 +1377,7 @@ func runOptionalAdaptersSmoke() error {
 		}
 		seen[cap.Name] = true
 	}
-	for _, name := range []string{"postgres", "mysql", "s3", "docker", "langgraph", "mcp-transport", "shadow-runner"} {
+	for _, name := range []string{"postgres", "mysql", "s3", "docker", "langgraph", "mcp-transport", "langfuse", "shadow-runner"} {
 		if !seen[name] {
 			return fmt.Errorf("missing optional adapter capability: %s", name)
 		}

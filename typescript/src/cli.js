@@ -147,6 +147,7 @@ const FIXTURE_CHECKS = {
     'postgres',
     'mysql',
     'langgraph',
+    'langfuse',
     'shadow-runner',
   ],
   'official_adapters.v1.json': [
@@ -197,7 +198,7 @@ export function validateFixtures() {
 }
 
 function usage() {
-  return `AgentLedger TypeScript Runtime 1.2.2\n\nUsage:\n  agentledger-ts doctor\n  agentledger-ts version\n  agentledger-ts quickstart\n  agentledger-ts conformance\n  agentledger-ts contract validate\n  agentledger-ts contract export\n\nProject: https://github.com/yaogdu/AgentLedger`;
+  return `AgentLedger TypeScript Runtime 1.2.3\n\nUsage:\n  agentledger-ts doctor\n  agentledger-ts version\n  agentledger-ts quickstart\n  agentledger-ts conformance\n  agentledger-ts contract validate\n  agentledger-ts contract export\n\nProject: https://github.com/yaogdu/AgentLedger`;
 }
 
 export async function runRuntimeSmoke() {
@@ -580,11 +581,11 @@ export async function main(args = process.argv.slice(2)) {
     return 0;
   }
   if (args.length === 1 && args[0] === 'version') {
-    console.log('agentledger-ts 1.2.2');
+    console.log('agentledger-ts 1.2.3');
     return 0;
   }
   if (args.length === 1 && args[0] === 'doctor') {
-    console.log(JSON.stringify({ language: 'typescript', version: '1.2.2', status: 'ok', runtime_core_parity: true }, null, 2));
+    console.log(JSON.stringify({ language: 'typescript', version: '1.2.3', status: 'ok', runtime_core_parity: true }, null, 2));
     return 0;
   }
   if (args.length === 1 && args[0] === 'quickstart') {
@@ -722,7 +723,7 @@ function runOptionalAdaptersSmoke() {
   for (const cap of caps) {
     if (cap.core_imports_heavy_sdks || !cap.adapter_is_optional || !cap.fail_closed_without_adapter || !cap.contract_surface?.length) throw new Error(`invalid optional adapter capability: ${cap.name}`);
   }
-  for (const name of ['postgres', 'mysql', 's3', 'docker', 'langgraph', 'mcp-transport', 'shadow-runner']) {
+  for (const name of ['postgres', 'mysql', 's3', 'docker', 'langgraph', 'mcp-transport', 'langfuse', 'shadow-runner']) {
     if (!seen.has(name)) throw new Error(`missing optional adapter capability: ${name}`);
   }
 }

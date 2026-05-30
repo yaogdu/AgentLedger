@@ -27,6 +27,7 @@ PYTHON_ADAPTERS = [
     PythonAdapter("agentledger-langgraph", "agentledger_langgraph", ("LangGraphCheckpointerAdapter", "LangGraphNodeAdapter")),
     PythonAdapter("agentledger-mcp", "agentledger_mcp", ("MCPToolAdapter", "MCPContextAdapter")),
     PythonAdapter("agentledger-otel", "agentledger_otel", ("OTLPTraceExporter", "OTLPResource")),
+    PythonAdapter("agentledger-langfuse", "agentledger_langfuse", ("LangfuseTraceExporter", "LangfuseProject")),
     PythonAdapter("agentledger-sandbox-docker", "agentledger_sandbox_docker", ("DockerSandboxExecutor", "SandboxPolicy")),
 ]
 
@@ -36,6 +37,7 @@ TYPESCRIPT_ADAPTERS = {
     "agentledger-s3": "./s3",
     "agentledger-mcp-adapter": "./mcp",
     "agentledger-otel": "./otel",
+    "agentledger-langfuse": "./langfuse",
     "agentledger-sandbox-docker": "./sandbox/docker",
     "agentledger-langgraph": "./langgraph",
 }
@@ -51,6 +53,7 @@ RUST_ADAPTERS = {
     "agentledger-mcp": "adapter-mcp",
     "agentledger-otel": "adapter-otel",
     "agentledger-sandbox-docker": "adapter-docker",
+    "agentledger-langfuse": "adapter-langfuse",
     "agentledger-framework": "adapter-framework",
 }
 
@@ -60,6 +63,7 @@ GO_ADAPTER_DIRS = [
     "go/adapters/s3/s3.go",
     "go/adapters/mcp/mcp.go",
     "go/adapters/otel/otel.go",
+    "go/adapters/langfuse/langfuse.go",
     "go/adapters/sandbox/docker/docker.go",
     "go/adapters/framework/framework.go",
 ]

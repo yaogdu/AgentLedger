@@ -1761,6 +1761,7 @@ export function optionalAdapterCapabilities() {
     item('llamaindex', 'framework', ['framework_adapter']),
     item('semantic-kernel', 'framework', ['framework_adapter']),
     item('mcp-transport', 'mcp', ['mcp_tool_descriptor', 'mcp_resource_descriptor']),
+    item('langfuse', 'observability', ['evidence_bundle', 'trace_payload', 'correlation_ids']),
     item('shadow-runner', 'shadow', ['evidence_bundle', 'tool_ledger', 'state_diff']),
   ];
 }

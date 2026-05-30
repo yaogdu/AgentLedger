@@ -63,7 +63,7 @@ Temporal、Ray、Kubernetes 这类系统是 execution backends。它们可以负
 | Sandbox | `SandboxExecutor` | none, local, Docker, bubblewrap, Kubernetes/gVisor, Firecracker, E2B |
 | Framework | `FrameworkAdapter` | LangGraph, CrewAI, AutoGen, LangChain, custom |
 | Worker | `WorkerProtocol` | Python SDK, TS client, JSON-RPC, gRPC, HTTP |
-| Observability | `TraceExporter` | JSONL, OpenTelemetry, custom trace store |
+| Observability | `TraceExporter` | JSONL, OpenTelemetry, Langfuse-style payload, custom trace store |
 | Media/Stream | `MediaArtifact`, `EventStreamCheckpoint` | audio/video/frame refs, stream chunk refs |
 
 ## 多语言支持

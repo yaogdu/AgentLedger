@@ -1,6 +1,6 @@
 {
   "name": "agentledger-runtime",
-  "version": "1.2.2",
+  "version": "1.2.3",
   "private": false,
   "description": "Runtime reliability layer for Agent Harness stacks.",
   "type": "module",
@@ -30,6 +30,10 @@
     "./otel": {
       "types": "./src/adapters/otel.d.ts",
       "import": "./src/adapters/otel.js"
+    },
+    "./langfuse": {
+      "types": "./src/adapters/langfuse.d.ts",
+      "import": "./src/adapters/langfuse.js"
     },
     "./sandbox/docker": {
       "types": "./src/adapters/sandbox-docker.d.ts",

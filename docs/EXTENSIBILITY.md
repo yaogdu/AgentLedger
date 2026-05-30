@@ -364,7 +364,7 @@ Blob adapters should implement `BlobStoreProtocol` and pass `BlobStoreConformanc
 
 ## Observability Adapter Boundary
 
-`TraceExporter` emits dependency-free JSONL spans from evidence events. `OTLPTraceExporter` translates the same spans into OTLP/JSON without importing OpenTelemetry SDKs and can optionally POST that JSON to a configured collector. Observability adapters should preserve this format for OpenTelemetry collectors, LangSmith-style backends, or custom trace stores without changing runtime-core event semantics.
+`TraceExporter` emits dependency-free JSONL spans from evidence events. `OTLPTraceExporter` translates the same spans into OTLP/JSON without importing OpenTelemetry SDKs and can optionally POST that JSON to a configured collector. `agentledger-langfuse` converts the same evidence spans into a Langfuse-style ingestion payload. Observability adapters should preserve this format for OpenTelemetry collectors, Langfuse/LangSmith-style backends, or custom trace stores without changing runtime-core event semantics.
 
 `TimeTravelDebugger` is also event-log based. It reconstructs committed state by applying initial state and committed JSON merge patches in event sequence order. Debugging adapters or UIs should preserve this read-only, side-effect-free model.
 

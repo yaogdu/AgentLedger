@@ -3,14 +3,14 @@
 [English](README.md) | [中文](README.zh-CN.md)
 
 ![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)
-![Version 1.2.2 stable](https://img.shields.io/badge/Version-1.2.2--stable-111827)
+![Version 1.2.3 stable](https://img.shields.io/badge/Version-1.2.3--stable-111827)
 ![License Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-0f766e)
 ![Runtime Durable](https://img.shields.io/badge/Runtime-durable%20execution-1f6feb)
 ![Storage SQLite/Postgres/MySQL](https://img.shields.io/badge/Storage-SQLite%20%7C%20Postgres%20%7C%20MySQL-b45309)
 ![Replay Evidence](https://img.shields.io/badge/Replay-evidence%20driven-7c3aed)
 ![Tool Ledger](https://img.shields.io/badge/Tools-ledger%20guarded-d97706)
 
-AgentLedger `1.2.2` 是面向 Agent Harness stack 的 runtime reliability layer。它不负责让 Agent 更会“思考”，也不替代完整 Harness 生态；它负责让 Agent run 在 worker 崩溃、工具失败、prompt 变更和长任务恢复时，仍然具备持久化、可审计、可重放、可治理和可恢复能力。
+AgentLedger `1.2.3` 是面向 Agent Harness stack 的 runtime reliability layer。它不负责让 Agent 更会“思考”，也不替代完整 Harness 生态；它负责让 Agent run 在 worker 崩溃、工具失败、prompt 变更和长任务恢复时，仍然具备持久化、可审计、可重放、可治理和可恢复能力。
 
 大多数 Agent 框架关注 planning、reasoning 和 workflow logic。AgentLedger 放在 LangChain、LangGraph、CrewAI、AutoGen、OpenAI Agents SDK、LlamaIndex、Semantic Kernel 或自定义 Agent 的下方或旁边，提供 state、tool、evidence、replay、recovery 相关的 runtime guarantees。
 
@@ -25,6 +25,7 @@ Python 仍然是 reference implementation；Go、TypeScript、Rust 已有 native
 | 安装并跑通第一个示例 | [docs/zh/GETTING_STARTED.md](docs/zh/GETTING_STARTED.md) |
 | 选择 Python / Go / TypeScript / Rust | [docs/zh/LANGUAGE_QUICKSTART.md](docs/zh/LANGUAGE_QUICKSTART.md) |
 | 找可运行示例 | [examples/README.md](examples/README.md)、[go/examples/README.md](go/examples/README.md)、[typescript/examples/README.md](typescript/examples/README.md)、[rust/examples/README.md](rust/examples/README.md) |
+| 查询 runtime 表 | [docs/zh/QUERY_EXAMPLES.md](docs/zh/QUERY_EXAMPLES.md) |
 | 理解 Harness stack 组合方式 | [docs/zh/HARNESS_STACK.md](docs/zh/HARNESS_STACK.md) |
 | 理解四语言哪些对齐、哪些不对齐 | [docs/zh/LANGUAGE_IMPLEMENTATION_COMPARISON.md](docs/zh/LANGUAGE_IMPLEMENTATION_COMPARISON.md) |
 | 安装 optional adapter packages | [docs/zh/ADAPTER_PACKAGING.md](docs/zh/ADAPTER_PACKAGING.md) |

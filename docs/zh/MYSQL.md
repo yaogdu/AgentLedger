@@ -1,6 +1,6 @@
 # MySQL Adapter
 
-AgentLedger `1.2.2` 增加了官方可选 MySQL StateStore adapter boundary。
+AgentLedger `1.2.2+` 包含官方可选 MySQL StateStore adapter boundary。
 
 这不是 runtime-core 依赖。只有应用需要把 durable state 放到 MySQL 时再安装：
 

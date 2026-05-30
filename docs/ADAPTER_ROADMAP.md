@@ -34,6 +34,7 @@ These should be first-class optional packages because they match common producti
 | Framework | LangGraph | High overlap with stateful agent workflows; AgentLedger adds Tool Ledger, evidence, replay, policy, and adapter certification. | `framework_adapters.v1.json`, checkpoint boundary, optional capability descriptor | `agentledger-langgraph` |
 | Tool/context protocol | MCP transport | MCP is a natural tool/context boundary for agents. Runtime should govern MCP tools without owning every tool server. | `mcp_adapters.v1.json`, `optional_adapters.v1.json` | `agentledger-mcp` / `agentledger-mcp-adapter` on npm |
 | Observability | OpenTelemetry exporter/transport | Enterprises need traces in existing observability stacks. | `otlp_trace_export.v1.json` | `agentledger-otel` |
+| Observability | Langfuse exporter | Langfuse is a common LLM observability surface; AgentLedger should export evidence and trace payloads without replacing Langfuse. | evidence/trace export, correlation IDs | `agentledger-langfuse` |
 | Sandbox | Docker sandbox | Common local/team isolation backend; useful before Kubernetes/gVisor/Firecracker. | `policy_approval_sandbox.v1.json`, sandbox policy/result boundary | `agentledger-sandbox-docker` |
 | Scheduler/backend | Temporal bridge | Temporal can own durable workflow orchestration while AgentLedger owns agent-specific evidence/tool/state semantics. | `scheduler.v1.json`, execution backend boundary | `agentledger-temporal` |
 

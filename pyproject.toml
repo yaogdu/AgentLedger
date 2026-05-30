@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "agentledger-runtime"
-version = "1.2.2"
+version = "1.2.3"
 description = "Runtime reliability layer for Agent Harness stacks"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -37,6 +37,7 @@ s3 = ["agentledger-s3>=1.2,<2"]
 langgraph = ["agentledger-langgraph>=1.2,<2"]
 mcp = ["agentledger-mcp>=1.2,<2"]
 otel = ["agentledger-otel>=1.2,<2"]
+langfuse = ["agentledger-langfuse>=1.2,<2"]
 docker = ["agentledger-sandbox-docker>=1.2,<2"]
 all = [
   "agentledger-postgres>=1.2,<2",
@@ -45,6 +46,7 @@ all = [
   "agentledger-langgraph>=1.2,<2",
   "agentledger-mcp>=1.2,<2",
   "agentledger-otel>=1.2,<2",
+  "agentledger-langfuse>=1.2,<2",
   "agentledger-sandbox-docker>=1.2,<2",
 ]
 

@@ -6155,6 +6155,7 @@ pub fn optional_adapter_capabilities() -> Vec<OptionalAdapterCapability> {
         item("llamaindex", "framework", &["framework_adapter"]),
         item("semantic-kernel", "framework", &["framework_adapter"]),
         item("mcp-transport", "mcp", &["mcp_tool_descriptor", "mcp_resource_descriptor"]),
+        item("langfuse", "observability", &["evidence_bundle", "trace_payload", "correlation_ids"]),
         item("shadow-runner", "shadow", &["evidence_bundle", "tool_ledger", "state_diff"]),
     ]
 }
@@ -6424,6 +6425,12 @@ pub mod adapters {
         pub const PACKAGE_NAME: &str = "agentledger-otel";
         pub const FEATURE: &str = "adapter-otel";
         pub use crate::{OtlpClient, OtlpTransport};
+    }
+
+    pub mod langfuse {
+        pub const PACKAGE_NAME: &str = "agentledger-langfuse";
+        pub const FEATURE: &str = "adapter-langfuse";
+        pub const CATEGORY: &str = "observability";
     }
 
     pub mod docker {

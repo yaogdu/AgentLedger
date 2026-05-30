@@ -129,6 +129,24 @@ tool marketplace or app store
 5. 增加 Temporal bridge，并明确边界：Temporal 管 workflow lifecycle；AgentLedger 管 node 内部 tool/model/runtime safety。
 6. 继续 harden storage、sandbox、MCP、tool 和 framework adapters：真实服务 conformance、权限边界、backup/restore 和 failure semantics。
 
+## v1.2.3 - Query Documentation And Langfuse Adapter Boundary
+
+状态：已作为小型 adapter/documentation release 实现，不改变 runtime-core 语义。
+
+已实现：
+
+- 增加 SQL 查询示例，覆盖单表 runtime inspection、多表 timeline、approval、cost、artifact，以及大规模业务 schema 的关联方式
+- 增加 `agentledger-langfuse` 作为官方可选 observability adapter boundary
+- 为 Langfuse-style evidence/trace payload export 增加 TypeScript subpath/package、Go adapter boundary、Rust crate/feature boundary
+- 更新 adapter packaging、certification、optional-adapter conformance 和文档入口
+- 将本地 runtime state 文件移出版本控制
+
+明确不包含：
+
+- 替代 Langfuse 或实现完整 observability backend
+- 让 runtime-core 绑定 Langfuse SDK
+- 对某个 Langfuse server ingestion endpoint 做生产验证
+
 ## v1.2.2 - MySQL Adapter Boundary Release
 
 状态：已实现，定位为 storage adapter boundary release。本版本延续 `1.2.x` adapter packaging 模型，不改变 runtime-core 语义。
