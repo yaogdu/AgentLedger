@@ -27,6 +27,8 @@ Python remains the reference implementation, and Go, TypeScript, and Rust now ha
 | Find runnable examples | [examples/README.md](examples/README.md), [go/examples/README.md](go/examples/README.md), [typescript/examples/README.md](typescript/examples/README.md), [rust/examples/README.md](rust/examples/README.md) |
 | Query runtime tables | [docs/QUERY_EXAMPLES.md](docs/QUERY_EXAMPLES.md) |
 | Understand Harness stack composition | [docs/HARNESS_STACK.md](docs/HARNESS_STACK.md) |
+| Understand open-source impact | [docs/OPEN_SOURCE_IMPACT.md](docs/OPEN_SOURCE_IMPACT.md) |
+| Understand maintainer responsibilities | [docs/MAINTAINER_NOTES.md](docs/MAINTAINER_NOTES.md) |
 | Understand what is equal across languages | [docs/LANGUAGE_IMPLEMENTATION_COMPARISON.md](docs/LANGUAGE_IMPLEMENTATION_COMPARISON.md) |
 | Install optional adapter packages | [docs/ADAPTER_PACKAGING.md](docs/ADAPTER_PACKAGING.md) |
 | Use Go correctly | [go/README.md](go/README.md#install) |

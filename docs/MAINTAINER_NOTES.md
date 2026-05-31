@@ -1,0 +1,88 @@
+# Maintainer Notes
+
+This document explains how AgentLedger is maintained and what kinds of work belong in the project. It is written for contributors, reviewers, and open-source program reviewers who need to understand the maintenance surface.
+
+## Maintainer Role
+
+The project owner and primary maintainer is responsible for:
+
+- runtime architecture and scope decisions
+- runtime-core contract design and compatibility
+- roadmap planning and release management
+- implementation of core reliability features
+- review of issues, pull requests, and adapter proposals
+- documentation, examples, and migration notes
+- conformance fixtures and cross-language parity gates
+- adapter certification boundaries and maturity labels
+- security posture around tools, approvals, sandbox routing, and evidence handling
+
+## Maintenance Principles
+
+AgentLedger should remain a runtime reliability layer, not a catch-all agent platform.
+
+- Keep runtime-core small, explicit, and dependency-light.
+- Put framework, storage, observability, sandbox, and provider integrations behind adapters.
+- Prefer contracts and conformance fixtures over undocumented behavior.
+- Treat tool side effects as auditable runtime-managed operations.
+- Record evidence for failure paths, not only successful runs.
+- Keep replay and shadow execution side-effect safe.
+- Mark maturity honestly: stable, preview, experimental, external-required, or out-of-scope.
+- Do not claim production hardening for an adapter until real-service validation exists.
+
+## Active Maintenance Areas
+
+Current maintenance work is grouped around these tracks:
+
+| Track | Maintainer work |
+| --- | --- |
+| Runtime contract | keep `contracts/agentledger.runtime.v1.json`, runtime events, wire objects, and invariants stable |
+| Reliability semantics | maintain leases, fencing, cancellation, checkpoint/resume, replay, shadow, and failure attribution behavior |
+| Tool governance | maintain Tool Ledger, policy decisions, approval gates, sandbox routing, idempotency, and audit evidence |
+| Storage and evidence | maintain StateStore, BlobStore, migrations, evidence bundles, static debug export, and query documentation |
+| Adapter boundaries | keep optional adapters installable without adding heavy dependencies to core |
+| Language parity | keep Python reference behavior aligned with Go, TypeScript, and Rust conformance gates |
+| Documentation | keep usage, architecture, maturity, comparison, release, and roadmap docs accurate |
+| Release quality | run release checks, package checks, language parity checks, and package publishing verification |
+
+## Review Checklist
+
+Maintainers should ask these questions during review:
+
+- Does this change preserve the runtime boundary?
+- Does it add hidden state or bypass runtime-managed tool calls?
+- Does it change event ordering, state versioning, or replay behavior?
+- Does it introduce a dependency that belongs in an adapter instead of runtime-core?
+- Does it handle cancellation, retry, timeout, and unknown side-effect status?
+- Does it record enough evidence for debugging and audit?
+- Does it update conformance fixtures when semantics change?
+- Does it update docs when public behavior changes?
+
+## Use Of Coding Agents
+
+Coding agents can help maintain AgentLedger, but generated changes still need normal engineering review. Useful tasks include:
+
+- issue triage and reproduction notes
+- adapter skeletons and conformance fixture updates
+- documentation consistency checks
+- changelog and release checklist preparation
+- regression test generation for failure paths
+- cross-language parity audits
+- examples that show approval, replay, evidence export, and sandbox behavior
+
+Coding agents should not be used to bypass review for security-sensitive changes, release signing, secrets, package publishing credentials, or destructive data operations.
+
+## Current Open Source Status
+
+AgentLedger is early-stage but actively maintained. It should be described as infrastructure with a stable runtime-core contract and evolving optional adapters, not as a mature hosted product or a widely deployed platform.
+
+The strongest public maintenance signals are:
+
+- versioned releases and changelog entries
+- formal runtime and adapter documentation
+- multiple language implementations
+- conformance checks across Python, Go, TypeScript, and Rust
+- examples and query/debugging documentation
+- explicit maturity and roadmap documents
+
+Future maintenance should strengthen real-world evidence: user examples, issues, discussions, integration guides, adapter hardening reports, and external service validation.
+

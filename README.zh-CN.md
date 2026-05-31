@@ -27,6 +27,8 @@ Python 仍然是 reference implementation；Go、TypeScript、Rust 已有 native
 | 找可运行示例 | [examples/README.md](examples/README.md)、[go/examples/README.md](go/examples/README.md)、[typescript/examples/README.md](typescript/examples/README.md)、[rust/examples/README.md](rust/examples/README.md) |
 | 查询 runtime 表 | [docs/zh/QUERY_EXAMPLES.md](docs/zh/QUERY_EXAMPLES.md) |
 | 理解 Harness stack 组合方式 | [docs/zh/HARNESS_STACK.md](docs/zh/HARNESS_STACK.md) |
+| 理解开源生态价值 | [docs/zh/OPEN_SOURCE_IMPACT.md](docs/zh/OPEN_SOURCE_IMPACT.md) |
+| 理解维护者职责 | [docs/zh/MAINTAINER_NOTES.md](docs/zh/MAINTAINER_NOTES.md) |
 | 理解四语言哪些对齐、哪些不对齐 | [docs/zh/LANGUAGE_IMPLEMENTATION_COMPARISON.md](docs/zh/LANGUAGE_IMPLEMENTATION_COMPARISON.md) |
 | 安装 optional adapter packages | [docs/zh/ADAPTER_PACKAGING.md](docs/zh/ADAPTER_PACKAGING.md) |
 | 正确使用 Go | [go/README.md](go/README.md#install) |

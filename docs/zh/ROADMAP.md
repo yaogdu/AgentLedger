@@ -129,6 +129,39 @@ tool marketplace or app store
 5. 增加 Temporal bridge，并明确边界：Temporal 管 workflow lifecycle；AgentLedger 管 node 内部 tool/model/runtime safety。
 6. 继续 harden storage、sandbox、MCP、tool 和 framework adapters：真实服务 conformance、权限边界、backup/restore 和 failure semantics。
 
+## Open Source Adoption And Maintainer Workflow
+
+这条路线不是新的 runtime feature line，也不改变 `1.2.3` runtime contract。它的目标是让项目更容易被评估、采用、维护，并且更清晰地接入 Agent 生态。
+
+定位：
+
+```text
+AgentLedger 是面向生产级 AI Agent 的早期开源 reliability and governance runtime layer。
+
+它应该通过清晰 example、adapter contract、conformance check 和维护证据证明基础设施价值，
+而不是过度宣称已有大规模生产采用。
+```
+
+推荐工作：
+
+1. 增加聚焦的 OpenAI Agents SDK example，展示 runtime-managed tool call、approval gate、Tool Ledger record、evidence export 和 replay-safe debugging flow。
+2. 增加 MCP governance example，展示 MCP-style tools 的 schema validation、permission check、approval-required tools、sandbox-required tools 和 audit evidence。
+3. 增加 Temporal bridge example，说明推荐边界：Temporal 管 workflow lifecycle 和 retry；AgentLedger 管 node 内部 tool/model/state reliability。
+4. 增加 Codex-assisted maintainer workflow 文档或脚本，用于 issue triage、release checklist 准备、adapter conformance check、文档一致性和 changelog 草稿。
+5. 持续维护 `OPEN_SOURCE_IMPACT.md` 和 `MAINTAINER_NOTES.md`，作为公开解释生态价值和维护职责的入口。
+6. 收集真实使用证据，但不夸大：examples、discussions、issues、integration notes、package downloads、external demos 和 real-service hardening reports。
+
+这里提到 OpenAI Agents SDK，含义是计划中的生态 example 和 adapter target；不代表 OpenAI 官方 partnership、endorsement、certification，也不代表已经完成 production integration。除非后续 release 明确记录了对应证据，否则不能这样宣传。
+
+这条路线明确不做：
+
+```text
+没有证据前，不把 AgentLedger 描述成成熟大规模采用项目
+不增加没有 example 或 conformance 支撑的 marketing-only claim
+不把 repo 做成 hosted SaaS、完整 harness product 或 eval platform
+不把 secret、私有客户信息或公司内部实现细节写进公开文档
+```
+
 ## v1.2.3 - Query Documentation And Langfuse Adapter Boundary
 
 状态：已作为小型 adapter/documentation release 实现，不改变 runtime-core 语义。

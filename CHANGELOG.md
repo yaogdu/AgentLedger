@@ -6,7 +6,14 @@ This project follows semantic versioning for the stable runtime-core contract. O
 
 ## Unreleased
 
-No unreleased changes yet.
+### Added
+
+- Open-source impact documentation for AgentLedger's early-stage agent reliability and governance infrastructure positioning.
+- Maintainer notes documenting project ownership, review principles, release responsibilities, coding-agent usage, and maintenance signals.
+
+### Clarified
+
+- Roadmap guidance for open-source adoption, OpenAI Agents SDK/MCP examples, Codex-assisted maintainer workflows, and public usage evidence without changing runtime-core semantics.
 
 ## 1.2.2
 

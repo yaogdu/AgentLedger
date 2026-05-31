@@ -13,6 +13,8 @@ AgentLedger 是面向 Agent Harness stack 的 runtime reliability layer。它不
 | 学会使用 runtime | `USAGE.md`, `LANGUAGE_QUICKSTART.md` | `../USAGE.md`, `../LANGUAGE_QUICKSTART.md` |
 | 查找示例 | `../../examples/README.md`, `../../go/examples/README.md`, `../../typescript/examples/README.md`, `../../rust/examples/README.md` | same paths |
 | 查询 runtime 表 | `QUERY_EXAMPLES.md` | `../QUERY_EXAMPLES.md` |
+| 理解开源生态价值 | `OPEN_SOURCE_IMPACT.md` | `../OPEN_SOURCE_IMPACT.md` |
+| 理解维护者职责 | `MAINTAINER_NOTES.md` | `../MAINTAINER_NOTES.md` |
 | 理解整体架构 | `ARCHITECTURE.md` | `../ARCHITECTURE.md` |
 | 理解 Policy Engine 控制闭环 | `POLICY_ENGINE.md` | `../POLICY_ENGINE.md` |
 | 对比相邻工具 | `COMPARISONS.md` | `../COMPARISONS.md` |

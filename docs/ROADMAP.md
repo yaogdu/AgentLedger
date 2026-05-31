@@ -129,6 +129,41 @@ tool marketplace or app store
 5. Add a Temporal bridge that makes the boundary explicit: Temporal owns workflow lifecycle; AgentLedger owns node-internal tool/model/runtime safety.
 6. Continue hardening storage, sandbox, MCP, tool, and framework adapters with real-service conformance, permission boundaries, backup/restore, and failure semantics.
 
+## Open Source Adoption And Maintainer Workflow
+
+This track is not a separate runtime feature line and does not change the `1.2.3` runtime contract. It exists to make the project easier to evaluate, adopt, maintain, and integrate with the wider agent ecosystem.
+
+Positioning:
+
+```text
+AgentLedger is an early-stage reliability and governance runtime layer
+for production AI agents.
+
+It should demonstrate infrastructure value through clear examples,
+adapter contracts, conformance checks, and maintenance evidence rather
+than overclaiming broad production adoption.
+```
+
+Recommended work:
+
+1. Add a focused OpenAI Agents SDK example that shows a runtime-managed tool call, approval gate, Tool Ledger record, evidence export, and replay-safe debugging flow.
+2. Add an MCP governance example that shows schema validation, permission checks, approval-required tools, sandbox-required tools, and audit evidence for MCP-style tools.
+3. Add a Temporal bridge example that demonstrates the intended boundary: Temporal owns workflow lifecycle and retries; AgentLedger owns node-internal tool/model/state reliability.
+4. Add a Codex-assisted maintainer workflow document or script that helps with issue triage, release checklist preparation, adapter conformance checks, documentation consistency, and changelog drafting.
+5. Keep `OPEN_SOURCE_IMPACT.md` and `MAINTAINER_NOTES.md` current as the public explanation of ecosystem value and maintenance responsibility.
+6. Collect real usage evidence without inflating claims: examples, discussions, issues, integration notes, package downloads, external demos, and real-service hardening reports.
+
+Mentioning OpenAI Agents SDK here means a planned ecosystem example and adapter target. It does not imply official OpenAI partnership, endorsement, certification, or completed production integration unless a later release explicitly documents that evidence.
+
+Explicit non-goals for this track:
+
+```text
+do not describe AgentLedger as a mature large-adoption project until evidence exists
+do not add marketing-only claims that are not backed by examples or conformance
+do not turn the repo into a hosted SaaS, full harness product, or eval platform
+do not put secrets, private customer details, or private company implementation notes into public docs
+```
+
 ## v1.2.3 - Query Documentation And Langfuse Adapter Boundary
 
 Status: implemented as a small adapter/documentation release without changing runtime-core semantics.
