@@ -151,6 +151,27 @@ AgentLedger 是面向生产级 AI Agent 的早期开源 reliability and governan
 5. 持续维护 `OPEN_SOURCE_IMPACT.md` 和 `MAINTAINER_NOTES.md`，作为公开解释生态价值和维护职责的入口。
 6. 收集真实使用证据，但不夸大：examples、discussions、issues、integration notes、package downloads、external demos 和 real-service hardening reports。
 
+Adoption evidence 工作：
+
+1. 做一个 3-minute demo，命名为 "Prevent duplicate tool side effects in AI agents"：约 30 行代码加一个简短 README，展示 agent 失败重试时，由于 Tool Ledger 拥有 idempotency record，不会重复执行外部副作用。预期输出要展示 run id、一次外部副作用、一条 Tool Ledger 记录，以及 replay/evidence 命令。
+2. 录一个短 GIF 或 terminal screencast，展示 runtime path：`run -> tool call -> approval -> crash -> resume -> replay evidence`。
+3. 写一篇技术文章，主题可以是 "Agents Need a Runtime, Not More Retries" 或 "Making AI Agents Durable, Auditable, and Replayable"。
+4. README 开头继续聚焦用户痛点："Your agent called a tool. Did it happen? Can you retry safely? Can you prove it later?"
+5. 创建公开 issue 或 discussion，覆盖后续 adoption tasks：OpenAI Agents SDK approval/replay example、MCP tool governance example、Inspector prototype、Temporal bridge example、tool-injection risk scanner。
+6. 发布一到两个真实 integration note 或 case study，例如用 AgentLedger 审计 legal agent 的 tool calls，但不包含私有数据。
+
+Companion product 方向：
+
+| 方向 | 为什么重要 | package boundary |
+|---|---|---|
+| AgentLedger Inspector | 通过 timeline、Tool Ledger、approval、replay diff、artifact、cost、failure attribution 让 run 可见 | 独立 read-only 本地/内网工具，不进入 runtime-core UI |
+| Tool Governance / MCP Gateway | 在工具副作用发生前强制执行 schema、permission、approval、sandbox、audit、idempotency | optional gateway package 或 reference service |
+| Replay / Regression Lab | 让团队基于历史 evidence 测试 prompt、model、tool-schema、agent-logic 变更，且不重复副作用 | 基于 evidence bundle 的 CLI 和 CI companion |
+| Production Harness Blueprint | 展示 AgentLedger 如何和 LangGraph/OpenAI Agents SDK、Temporal、Langfuse/OTel、MCP、Postgres/S3、Docker sandbox 组合 | examples、templates、deployment recipes |
+| Agent Security Scanner | 检测 tool boundary bypass、危险 tool schema、缺失 approval/sandbox、secret exposure 和敏感 evidence artifacts | optional scanner command 或独立 package |
+
+adoption 目标不是直接追 star，而是让项目在几分钟内可理解、可验证：没有 AgentLedger，用户很难在 agent 失败后判断发生了什么；有 AgentLedger，用户可以 inspect、resume、replay，并治理 tool side effects。
+
 这里提到 OpenAI Agents SDK，含义是计划中的生态 example 和 adapter target；不代表 OpenAI 官方 partnership、endorsement、certification，也不代表已经完成 production integration。除非后续 release 明确记录了对应证据，否则不能这样宣传。
 
 这条路线明确不做：

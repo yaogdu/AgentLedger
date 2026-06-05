@@ -153,6 +153,27 @@ Recommended work:
 5. Keep `OPEN_SOURCE_IMPACT.md` and `MAINTAINER_NOTES.md` current as the public explanation of ecosystem value and maintenance responsibility.
 6. Collect real usage evidence without inflating claims: examples, discussions, issues, integration notes, package downloads, external demos, and real-service hardening reports.
 
+Adoption evidence work:
+
+1. Build a 3-minute demo named "Prevent duplicate tool side effects in AI agents": roughly 30 lines of code plus a short README, showing a failed retry that does not duplicate an external action because Tool Ledger owns the idempotency record. The expected output should show the run id, one external side effect, one Tool Ledger entry, and replay/evidence commands.
+2. Record a short GIF or terminal screencast showing the runtime path: `run -> tool call -> approval -> crash -> resume -> replay evidence`.
+3. Write one technical article with a clear thesis, for example "Agents Need a Runtime, Not More Retries" or "Making AI Agents Durable, Auditable, and Replayable".
+4. Keep the README opening focused on the user pain: "Your agent called a tool. Did it happen? Can you retry safely? Can you prove it later?"
+5. Create public issues or discussions for the next adoption tasks: OpenAI Agents SDK approval/replay example, MCP tool governance example, Inspector prototype, Temporal bridge example, and tool-injection risk scanner.
+6. Publish one or two real integration notes or case studies, such as using AgentLedger to audit tool calls in a legal agent, without including private data.
+
+Companion product directions:
+
+| Direction | Why it matters | Packaging boundary |
+|---|---|---|
+| AgentLedger Inspector | makes runs visible through timeline, Tool Ledger, approvals, replay diff, artifacts, cost, and failure attribution | separate read-only local/internal tool, not runtime-core UI |
+| Tool Governance / MCP Gateway | enforces schema, permission, approval, sandbox, audit, and idempotency before tool side effects | optional gateway package or reference service |
+| Replay / Regression Lab | lets teams test prompt, model, tool-schema, or agent-logic changes against historical evidence without repeating side effects | CLI and CI companion over evidence bundles |
+| Production Harness Blueprint | shows how AgentLedger composes with LangGraph/OpenAI Agents SDK, Temporal, Langfuse/OTel, MCP, Postgres/S3, and Docker sandbox | examples, templates, and deployment recipes |
+| Agent Security Scanner | detects tool boundary bypass, risky tool schemas, missing approval/sandbox, secret exposure, and sensitive evidence artifacts | optional scanner command or separate package |
+
+The adoption goal is not to chase stars directly. It is to make the project understandable and verifiable within a few minutes: without AgentLedger, users often cannot tell what happened after an agent failure; with AgentLedger, they can inspect, resume, replay, and govern tool side effects.
+
 Mentioning OpenAI Agents SDK here means a planned ecosystem example and adapter target. It does not imply official OpenAI partnership, endorsement, certification, or completed production integration unless a later release explicitly documents that evidence.
 
 Explicit non-goals for this track:
