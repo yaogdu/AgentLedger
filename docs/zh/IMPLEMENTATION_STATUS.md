@@ -1,12 +1,12 @@
 # 实现状态
 
-更新日期：2026-05-27
+更新日期：2026-06-05
 
 本文是 `../IMPLEMENTATION_STATUS.md` 的中文主路径版本，用来说明 runtime-core 已实现什么、哪些属于可选 adapter 或后续阶段、哪些不应该进入 runtime-core。
 
 ## 当前基线
 
-AgentLedger 1.2.3 是 stable runtime-core line，Python 是 reference implementation，Go/TypeScript/Rust 已通过共享 runtime-core parity gate 覆盖；1.2.x 增加的是跨语言生态的 adapter packaging boundary，并且现在包含官方 MySQL storage adapter boundary 和 dependency-free Langfuse export adapter boundary，同时继续明确 concrete adapter path 中的 preview/experimental 边界。它适合：
+AgentLedger 1.2.4 是 stable runtime-core line，Python 是 reference implementation，Go/TypeScript/Rust 已通过共享 runtime-core parity gate 覆盖；1.2.x 增加的是跨语言生态的 adapter packaging boundary，并且现在包含官方 MySQL storage adapter boundary 和 dependency-free Langfuse export adapter boundary，同时继续明确 concrete adapter path 中的 preview/experimental 边界。它适合：
 
 - 本地使用
 - runtime 设计评审
@@ -15,7 +15,7 @@ AgentLedger 1.2.3 是 stable runtime-core line，Python 是 reference implementa
 - reliability semantics 验证
 - 在明确 adapter 边界下做 production pilot 准备
 
-版本范围说明：1.2.3 是小型 documentation 和 observability-adapter release。它增加 SQL 查询示例和 `agentledger-langfuse` package boundary，不改变 runtime-core 语义。MySQL 仍是 1.2.2 的 storage adapter boundary；真实服务生产级声明仍需要外部验证。
+版本范围说明：1.2.4 是 adoption 和 example-focused release。它增加四语言 3-minute side-effect safety demo、四语言 MCP governance example、adoption 文档、公开 issue/discussion 候选清单和 legal-agent case-study 模板，不改变 runtime-core 语义。MySQL 仍是 1.2.2 的 storage adapter boundary，Langfuse 仍是 1.2.3 的 observability adapter boundary；真实服务生产级声明仍需要外部验证。
 
 runtime-core contract 已稳定。optional production adapter、外部基础设施加固和完整 eval 系统都不属于 stable core 边界；非 Python runtime-core baseline 由共享 parity gate 验证。
 

@@ -1,0 +1,33 @@
+# MCP Tool Governance Demo
+
+This dependency-free example shows how an MCP-style tool can enter AgentLedger's runtime boundary before side effects happen.
+
+```text
+MCP-style tool descriptor
+  -> MCPToolAdapter
+  -> AgentLedger ToolGateway
+  -> policy / approval / sandbox metadata / Tool Ledger / evidence
+  -> MCP tool handler
+```
+
+Run from the repository root:
+
+```bash
+PYTHONPATH=src python3 examples/mcp_governance/demo.py
+```
+
+The demo registers a high-risk `mcp.github.create_pr` tool with annotations:
+
+- `side_effect: external_write`
+- `risk_level: high`
+- `idempotency_required: true`
+- `approval_required: true`
+- `sandbox_required: true`
+
+Expected behavior:
+
+- the first run pauses for approval before executing the tool
+- after approval, the second run executes once
+- the final output shows the approval record, tool manifest, final state, and exactly one external action
+
+This is an ecosystem example, not an official MCP SDK binding. The point is the boundary: MCP tools should be governed by schema, policy, approval, sandbox metadata, idempotency, and audit evidence before side effects occur.

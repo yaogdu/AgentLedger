@@ -3,14 +3,16 @@
 [English](README.md) | [中文](README.zh-CN.md)
 
 ![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)
-![Version 1.2.3 stable](https://img.shields.io/badge/Version-1.2.3--stable-111827)
+![Version 1.2.4 stable](https://img.shields.io/badge/Version-1.2.4--stable-111827)
 ![License Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-0f766e)
 ![Runtime Durable](https://img.shields.io/badge/Runtime-durable%20execution-1f6feb)
 ![Storage SQLite/Postgres/MySQL](https://img.shields.io/badge/Storage-SQLite%20%7C%20Postgres%20%7C%20MySQL-b45309)
 ![Replay Evidence](https://img.shields.io/badge/Replay-evidence%20driven-7c3aed)
 ![Tool Ledger](https://img.shields.io/badge/Tools-ledger%20guarded-d97706)
 
-AgentLedger `1.2.3` 是面向 Agent Harness stack 的 runtime reliability layer。它不负责让 Agent 更会“思考”，也不替代完整 Harness 生态；它负责让 Agent run 在 worker 崩溃、工具失败、prompt 变更和长任务恢复时，仍然具备持久化、可审计、可重放、可治理和可恢复能力。
+你的 Agent 调用了一个工具。它真的执行了吗？可以安全重试吗？之后能证明发生过什么吗？
+
+AgentLedger `1.2.4` 是面向 Agent Harness stack 的 runtime reliability layer。它不负责让 Agent 更会“思考”，也不替代完整 Harness 生态；它负责让 Agent run 在 worker 崩溃、工具失败、prompt 变更和长任务恢复时，仍然具备持久化、可审计、可重放、可治理和可恢复能力。
 
 大多数 Agent 框架关注 planning、reasoning 和 workflow logic。AgentLedger 放在 LangChain、LangGraph、CrewAI、AutoGen、OpenAI Agents SDK、LlamaIndex、Semantic Kernel 或自定义 Agent 的下方或旁边，提供 state、tool、evidence、replay、recovery 相关的 runtime guarantees。
 
@@ -29,6 +31,7 @@ Python 仍然是 reference implementation；Go、TypeScript、Rust 已有 native
 | 理解 Harness stack 组合方式 | [docs/zh/HARNESS_STACK.md](docs/zh/HARNESS_STACK.md) |
 | 理解开源生态价值 | [docs/zh/OPEN_SOURCE_IMPACT.md](docs/zh/OPEN_SOURCE_IMPACT.md) |
 | 理解维护者职责 | [docs/zh/MAINTAINER_NOTES.md](docs/zh/MAINTAINER_NOTES.md) |
+| 规划 adoption 工作 | [docs/zh/ADOPTION.md](docs/zh/ADOPTION.md) |
 | 理解四语言哪些对齐、哪些不对齐 | [docs/zh/LANGUAGE_IMPLEMENTATION_COMPARISON.md](docs/zh/LANGUAGE_IMPLEMENTATION_COMPARISON.md) |
 | 安装 optional adapter packages | [docs/zh/ADAPTER_PACKAGING.md](docs/zh/ADAPTER_PACKAGING.md) |
 | 正确使用 Go | [go/README.md](go/README.md#install) |
@@ -118,10 +121,12 @@ AgentLedger 本身不是完整 Agent Harness。它的设计目标是和 Harness 
 
 ## 示例
 
-仓库里既有最小 quickstart，也有一个更完整的多语言 Travel Assistant demo，用来展示 Python、Go、Rust、TypeScript 下相同的 runtime 思路。
+仓库里包含四语言 3-minute side-effect safety demo、MCP governance demo、最小 quickstart，以及一个更完整的多语言 Travel Assistant demo，用来展示 Python、Go、Rust、TypeScript 下相同的 runtime 思路。
 
-| 语言 | Demo | 运行方式 |
+| 目标 | Demo | 运行方式 |
 | --- | --- | --- |
+| 3 分钟副作用安全 demo | Python / Go / Rust / TypeScript | `PYTHONPATH=src python3 examples/three_minute_demo/demo.py`; `cd go && go run ./examples/three_minute_demo`; `cd rust && cargo run --example three_minute_demo`; `cd typescript && node examples/three_minute_demo/three_minute_demo.js` |
+| MCP tool governance | Python / Go / Rust / TypeScript | `PYTHONPATH=src python3 examples/mcp_governance/demo.py`; `cd go && go run ./examples/mcp_governance`; `cd rust && cargo run --example mcp_governance`; `cd typescript && node examples/mcp_governance/mcp_governance.js` |
 | Python | `examples/travel_assistant/demo.py` | `python3 examples/travel_assistant/demo.py` |
 | Go | `go/examples/travel_assistant/main.go` | `cd go && go run examples/travel_assistant/main.go` |
 | Rust | `rust/examples/travel_assistant.rs` | `cd rust && cargo run --example travel_assistant` |
@@ -276,7 +281,7 @@ AgentLedger 也不是新的 LLM SDK，不是 workflow engine，不是通用 obse
 
 ## 当前成熟度
 
-AgentLedger 1.2.3 是 stable runtime-core release，Python 是 reference implementation，Go、TypeScript、Rust 已由共享 runtime-core parity gate 覆盖；适合本地使用、framework adapter integration、reliability semantics 验证，以及在明确 adapter 边界下做 production pilot 准备。
+AgentLedger 1.2.4 是 stable runtime-core release，Python 是 reference implementation，Go、TypeScript、Rust 已由共享 runtime-core parity gate 覆盖；适合本地使用、framework adapter integration、reliability semantics 验证，以及在明确 adapter 边界下做 production pilot 准备。
 
 runtime-core contract 已稳定；optional production adapter 和外部基础设施加固仍按独立阶段推进。详见 [docs/MATURITY_MODEL.md](docs/MATURITY_MODEL.md)、[docs/zh/IMPLEMENTATION_STATUS.md](docs/zh/IMPLEMENTATION_STATUS.md) 和 [docs/zh/ROADMAP.md](docs/zh/ROADMAP.md)。
 

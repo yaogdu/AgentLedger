@@ -6,14 +6,44 @@ This project follows semantic versioning for the stable runtime-core contract. O
 
 ## Unreleased
 
+No unreleased changes yet.
+
+## 1.2.4
+
 ### Added
 
 - Open-source impact documentation for AgentLedger's early-stage agent reliability and governance infrastructure positioning.
 - Maintainer notes documenting project ownership, review principles, release responsibilities, coding-agent usage, and maintenance signals.
+- Cross-language 3-minute side-effect safety demos showing crash/retry without duplicate external writes.
+- Cross-language MCP governance examples showing descriptor annotations for side effects, approval, sandbox metadata, idempotency, and audit evidence.
+- Adoption plan, public issue/discussion candidates, and a legal-agent case study template.
+
+### Changed
+
+- README first screen now leads with the tool side-effect safety problem before describing architecture.
+- MCP tool adapter now maps governance annotations such as `approval_required`, `sandbox_required`, `sandbox_executor`, and `sandbox_policy`.
 
 ### Clarified
 
 - Roadmap guidance for open-source adoption, OpenAI Agents SDK/MCP examples, Codex-assisted maintainer workflows, and public usage evidence without changing runtime-core semantics.
+- 1.2.4 does not change runtime-core semantics; it is an adoption and example-focused release.
+
+## 1.2.3
+
+### Added
+
+- SQL query examples for runtime inspection, multi-table timelines, approvals, costs, artifacts, and large business-schema integration patterns.
+- `agentledger-langfuse` as an official optional observability adapter boundary.
+- TypeScript subpath/package, Go adapter boundary, and Rust crate/feature boundary for Langfuse-style evidence/trace payload export.
+
+### Changed
+
+- Updated adapter packaging, certification, optional-adapter conformance, and documentation entrypoints for the Langfuse adapter boundary.
+- Removed tracked local runtime state from the repository.
+
+### Clarified
+
+- Langfuse support is an adapter/export boundary, not a replacement for Langfuse or a binding to the Langfuse SDK.
 
 ## 1.2.2
 

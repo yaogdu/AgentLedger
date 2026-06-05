@@ -1,6 +1,6 @@
 [package]
 name = "agentledger-otel"
-version = "1.2.3"
+version = "1.2.4"
 edition = "2021"
 description = "OTLP adapter crate for AgentLedger Runtime"
 license = "Apache-2.0"

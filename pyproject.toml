@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "agentledger-runtime"
-version = "1.2.3"
+version = "1.2.4"
 description = "Runtime reliability layer for Agent Harness stacks"
 readme = "README.md"
 requires-python = ">=3.11"

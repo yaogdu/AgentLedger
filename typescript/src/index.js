@@ -1529,8 +1529,12 @@ export class MCPToolAdapter {
     const sideEffect = annotations.side_effect ?? 'none';
     const riskLevel = annotations.risk_level ?? 'low';
     const idempotencyRequired = annotations.idempotency_required ?? sideEffect !== 'none';
+    const approvalRequired = annotations.approval_required ?? false;
+    const sandboxRequired = annotations.sandbox_required ?? false;
+    const sandboxExecutor = annotations.sandbox_executor ?? null;
+    const sandboxPolicy = annotations.sandbox_policy ?? {};
     const name = descriptor.name;
-    return { name, version: String(descriptor.version ?? 'v1'), inputSchema: descriptor.inputSchema ?? descriptor.input_schema ?? {}, outputSchema: descriptor.outputSchema ?? descriptor.output_schema ?? {}, sideEffect, riskLevel, idempotencyRequired, func: (args) => this.clientCall(name, args) };
+    return { name, version: String(descriptor.version ?? 'v1'), inputSchema: descriptor.inputSchema ?? descriptor.input_schema ?? {}, outputSchema: descriptor.outputSchema ?? descriptor.output_schema ?? {}, sideEffect, riskLevel, idempotencyRequired, approvalRequired, sandboxRequired, sandboxExecutor, sandboxPolicy, func: (args) => this.clientCall(name, args) };
   }
 }
 

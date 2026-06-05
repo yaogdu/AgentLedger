@@ -19,7 +19,7 @@ This package keeps the runtime core dependency-light while making MySQL an expli
 Certification:
 
 ```bash
-python3 -m agentledger adapter certify --kind mysql --adapter-version 1.2.3
+python3 -m agentledger adapter certify --kind mysql --adapter-version 1.2.4
 ```
 
 Production hardening still requires real MySQL service validation, concurrency/load checks, backup/restore drills, and deployment-specific permission review.

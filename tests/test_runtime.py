@@ -663,6 +663,29 @@ roles:
             self.assertEqual(calls, [("mcp.docs.write", {"path": "README.md", "_logical_operation": "write-doc"})])
             self.assertEqual(rt.store.ledger(run_id)[0]["status"], "SUCCEEDED")
 
+    def test_mcp_tool_adapter_maps_governance_annotations(self) -> None:
+        descriptor = {
+            "name": "mcp.github.create_pr",
+            "inputSchema": {"type": "object", "required": ["title"]},
+            "annotations": {
+                "side_effect": "external_write",
+                "risk_level": "high",
+                "idempotency_required": True,
+                "approval_required": True,
+                "sandbox_required": True,
+                "sandbox_executor": "docker",
+                "sandbox_policy": {"network": "deny", "filesystem": "read-only"},
+            },
+        }
+        spec = MCPToolAdapter(lambda _name, _args: {"ok": True}).tool_spec_from_descriptor(descriptor)
+        self.assertEqual(spec.side_effect, "external_write")
+        self.assertEqual(spec.risk_level, "high")
+        self.assertTrue(spec.idempotency_required)
+        self.assertTrue(spec.approval_required)
+        self.assertTrue(spec.sandbox_required)
+        self.assertEqual(spec.sandbox_executor, "docker")
+        self.assertEqual(spec.sandbox_policy["network"], "deny")
+
     def test_mcp_context_adapter_routes_resource_reads_through_tool_gateway(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             rt = Runtime.local(Path(tmp) / ".agentledger")

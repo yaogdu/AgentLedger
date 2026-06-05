@@ -1,6 +1,6 @@
 # AgentLedger Go Runtime
 
-This directory contains the native Go runtime-core baseline for AgentLedger 1.2.3.
+This directory contains the native Go runtime-core baseline for AgentLedger 1.2.4.
 
 The package is dependency-free and runs a real local runtime loop. It participates in the shared Python/Go/TypeScript/Rust conformance gate and should be treated as runtime-core aligned; concrete production adapters are shipped separately as they mature.
 
@@ -35,7 +35,7 @@ Use AgentLedger as a Go library inside an existing Go module:
 
 ```bash
 go mod init your-module-name  # only if your project does not have go.mod yet
-go get github.com/yaogdu/AgentLedger/go@v1.2.3
+go get github.com/yaogdu/AgentLedger/go@v1.2.4
 ```
 
 Import it with:
@@ -47,13 +47,13 @@ import agentledger "github.com/yaogdu/AgentLedger/go"
 Install the optional CLI command with the `cmd` package path:
 
 ```bash
-go install github.com/yaogdu/AgentLedger/go/cmd/agentledger-go@v1.2.3
+go install github.com/yaogdu/AgentLedger/go/cmd/agentledger-go@v1.2.4
 agentledger-go --help
 agentledger-go doctor
 agentledger-go quickstart
 ```
 
-`go get github.com/yaogdu/AgentLedger/go@v1.2.3` must run inside a Go module. `go install github.com/yaogdu/AgentLedger/go@v1.2.3` is not valid because the library package is not a `package main`; use `/cmd/agentledger-go` for the CLI.
+`go get github.com/yaogdu/AgentLedger/go@v1.2.4` must run inside a Go module. `go install github.com/yaogdu/AgentLedger/go@v1.2.4` is not valid because the library package is not a `package main`; use `/cmd/agentledger-go` for the CLI.
 
 ## Quickstart
 

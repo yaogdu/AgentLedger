@@ -6,6 +6,7 @@ Run Python examples from the repository root with `PYTHONPATH=src` unless the ex
 
 | Goal | Path | Command / note |
 |---|---|---|
+| 3-minute side-effect safety demo | `three_minute_demo/README.md` | Shows crash/retry without duplicate external writes. Cross-language commands are listed below. |
 | Smallest hello-world run | `hello_world/hello.py` | `PYTHONPATH=src python3 examples/hello_world/hello.py` |
 | Idempotent side effects | `side_effect_idempotency/README.md` | Demonstrates Tool Ledger retry behavior. |
 | Transient retry | `transient_retry/README.md` | Demonstrates retryable errors and recovery. |
@@ -18,6 +19,7 @@ Run Python examples from the repository root with `PYTHONPATH=src` unless the ex
 | LlamaIndex adapter | `llamaindex/basic_query.py` | Python-only ecosystem adapter. |
 | Semantic Kernel adapter | `semantic_kernel/basic_kernel.py` | Python-only ecosystem adapter. |
 | MCP tool/context | `mcp_tool/basic_tool.py`, `mcp_context/basic_context_server.py` | Dependency-free MCP-style examples. |
+| MCP governance | `mcp_governance/README.md` | Shows approval, sandbox metadata, idempotency, and audit for MCP-style tools. Cross-language commands are listed below. |
 | Tool catalog | `tool_catalog/basic_catalog.py` | Tool registry/catalog shape. |
 | Sandbox tool | `sandbox/command_tool.py` | Uses `sandbox/sandbox.yaml`. |
 | Boundary lint | `lint/boundary_rules.json` | Example lint rules. |
@@ -30,6 +32,16 @@ Other language examples:
 - Rust: `../rust/examples/README.md`
 
 Start from `../docs/GETTING_STARTED.md` if you want a guided path.
+
+
+## Cross-language Adoption Demos
+
+These small demos are part of the adoption path, not Python-only examples.
+
+| Goal | Python | Go | TypeScript | Rust |
+|---|---|---|---|---|
+| 3-minute side-effect safety | `PYTHONPATH=src python3 examples/three_minute_demo/demo.py` | `cd go && go run ./examples/three_minute_demo` | `cd typescript && node examples/three_minute_demo/three_minute_demo.js` | `cd rust && cargo run --example three_minute_demo` |
+| MCP governance | `PYTHONPATH=src python3 examples/mcp_governance/demo.py` | `cd go && go run ./examples/mcp_governance` | `cd typescript && node examples/mcp_governance/mcp_governance.js` | `cd rust && cargo run --example mcp_governance` |
 
 
 ## Multi-language Travel Assistant Demo

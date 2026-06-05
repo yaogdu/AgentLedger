@@ -131,7 +131,7 @@ tool marketplace or app store
 
 ## Open Source Adoption And Maintainer Workflow
 
-This track is not a separate runtime feature line and does not change the `1.2.3` runtime contract. It exists to make the project easier to evaluate, adopt, maintain, and integrate with the wider agent ecosystem.
+This track is not a separate runtime feature line and does not change the stable v1.x runtime-core contract. It exists to make the project easier to evaluate, adopt, maintain, and integrate with the wider agent ecosystem.
 
 Positioning:
 
@@ -184,6 +184,25 @@ do not add marketing-only claims that are not backed by examples or conformance
 do not turn the repo into a hosted SaaS, full harness product, or eval platform
 do not put secrets, private customer details, or private company implementation notes into public docs
 ```
+
+## v1.2.4 - Adoption And Short Demo Release
+
+Status: implemented as an adoption/example release without changing runtime-core semantics.
+
+Implemented:
+
+- added cross-language 3-minute side-effect safety demos that show crash/retry without duplicate external writes
+- added cross-language MCP governance examples that map descriptor annotations into policy, approval, sandbox metadata, idempotency, and audit evidence
+- strengthened the README first screen around the tool side-effect safety problem
+- added adoption planning docs, public issue/discussion candidates, and legal-agent case-study templates
+- updated package metadata and current install examples to the 1.2.4 release train
+
+Explicitly not in this version:
+
+- changing the stable runtime-core contract
+- claiming official OpenAI Agents SDK or MCP endorsement
+- building the Inspector, Replay Lab, or Security Scanner companion products
+- making production-hardening claims for optional adapters without real-service evidence
 
 ## v1.2.3 - Query Documentation And Langfuse Adapter Boundary
 

@@ -22,6 +22,7 @@ AgentLedger is a runtime reliability layer for Agent Harness stacks. It is not a
 | Query runtime tables | `QUERY_EXAMPLES.md` | `zh/QUERY_EXAMPLES.md` |
 | Understand open-source impact | `OPEN_SOURCE_IMPACT.md` | `zh/OPEN_SOURCE_IMPACT.md` |
 | Understand maintainer responsibilities | `MAINTAINER_NOTES.md` | `zh/MAINTAINER_NOTES.md` |
+| Plan adoption work | `ADOPTION.md` | `zh/ADOPTION.md` |
 | Understand architecture | `ARCHITECTURE.md` | `zh/ARCHITECTURE.md` |
 | Understand the policy control loop | `POLICY_ENGINE.md` | `zh/POLICY_ENGINE.md` |
 | Compare with adjacent tools | `COMPARISONS.md` | `zh/COMPARISONS.md` |
@@ -50,6 +51,7 @@ AgentLedger is a runtime reliability layer for Agent Harness stacks. It is not a
 - `HARNESS_STACK.md`: concrete stack patterns that combine AgentLedger with LangGraph, Temporal, Langfuse/LangSmith/OTel, MCP, model gateways, storage, and sandbox infrastructure.
 - `OPEN_SOURCE_IMPACT.md`: open-source ecosystem value and early-stage infrastructure positioning.
 - `MAINTAINER_NOTES.md`: maintainer responsibilities, review principles, coding-agent usage, and maintenance signals.
+- `ADOPTION.md`: short demos, public issue/discussion candidates, and case-study rules for adoption work.
 - `DESIGN_AND_IMPLEMENTATION.md`: state machine, tool governance, replay, evidence, worker, sandbox, storage, media/stream implementation notes.
 - `POLICY_ENGINE.md`: policy request/decision contract, PEP/PDP split, evaluator registry, controls, and adapter boundary.
 - `RUNTIME_SPEC.md`: runtime concepts, state model, event schema, Tool Ledger semantics, evidence regression/replay/debug interfaces.
@@ -79,6 +81,7 @@ AgentLedger is a runtime reliability layer for Agent Harness stacks. It is not a
 - `VERSIONING.md`: v1 compatibility, schema migration, and evidence-versioning policy.
 - `MULTI_LANGUAGE.md`: contract-first plan for Python, Go, TypeScript, and Rust native runtime parity.
 - `GETTING_STARTED.md`: install commands, language choices, example map, and first validation commands.
+- `case-studies/legal-agent.md`: public-safe case study template for legal-agent tool audit scenarios.
 - `LANGUAGE_PARITY_MATRIX.md`: capability matrix and runtime-ready gates for each language.
 - `LANGUAGE_IMPLEMENTATION_COMPARISON.md`: side-by-side four-language implementation table, including core parity, portable adapters, provider differences, ecosystem-specific framework adapters, and directory-layout decisions.
 

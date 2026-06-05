@@ -10,13 +10,23 @@ go run ./go/examples/quickstart
 
 Source: `quickstart/main.go`
 
+## Adoption Demos
+
+```bash
+cd go
+go run ./examples/three_minute_demo
+go run ./examples/mcp_governance
+```
+
+The 3-minute demo shows crash/retry without duplicate external writes. The MCP governance demo shows descriptor annotations flowing into approval, sandbox metadata, idempotency, and audit evidence.
+
 ## Library Install Smoke
 
 Use AgentLedger inside a Go module:
 
 ```bash
 go mod init your-module-name  # only if your project does not have go.mod yet
-go get github.com/yaogdu/AgentLedger/go@v1.2.3
+go get github.com/yaogdu/AgentLedger/go@v1.2.4
 ```
 
 Import:
@@ -28,11 +38,11 @@ import agentledger "github.com/yaogdu/AgentLedger/go"
 ## CLI Install
 
 ```bash
-go install github.com/yaogdu/AgentLedger/go/cmd/agentledger-go@v1.2.3
+go install github.com/yaogdu/AgentLedger/go/cmd/agentledger-go@v1.2.4
 agentledger-go quickstart
 ```
 
-Do not run `go install github.com/yaogdu/AgentLedger/go@v1.2.3`; that path is the library package and is not `package main`.
+Do not run `go install github.com/yaogdu/AgentLedger/go@v1.2.4`; that path is the library package and is not `package main`.
 
 ## Travel Assistant
 

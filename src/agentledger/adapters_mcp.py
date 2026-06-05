@@ -80,6 +80,10 @@ class MCPToolAdapter:
         side_effect = annotations.get("side_effect", "none")
         risk_level = annotations.get("risk_level", "low")
         idempotency_required = bool(annotations.get("idempotency_required", side_effect != "none"))
+        approval_required = bool(annotations.get("approval_required", False))
+        sandbox_required = bool(annotations.get("sandbox_required", False))
+        sandbox_policy = dict(annotations.get("sandbox_policy") or {})
+        sandbox_executor = annotations.get("sandbox_executor")
 
         async def call(args: dict[str, Any]) -> Any:
             result = self.client_call(tool_name, args)
@@ -96,6 +100,10 @@ class MCPToolAdapter:
             side_effect=side_effect,
             risk_level=risk_level,
             idempotency_required=idempotency_required,
+            approval_required=approval_required,
+            sandbox_required=sandbox_required,
+            sandbox_executor=str(sandbox_executor) if sandbox_executor is not None else None,
+            sandbox_policy=sandbox_policy,
         )
 
     def register(self, registry: ToolRegistry, descriptor: dict[str, Any]) -> ToolSpec:

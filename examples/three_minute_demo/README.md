@@ -1,0 +1,50 @@
+# 3-Minute Demo: Prevent Duplicate Tool Side Effects
+
+This demo shows the core AgentLedger value in one short run:
+
+```text
+An agent calls a tool.
+The tool succeeds and changes the outside world.
+The worker crashes before state is committed.
+The retry resumes safely without duplicating the side effect.
+Replay validates evidence without calling the tool again.
+```
+
+Run from the repository root:
+
+```bash
+PYTHONPATH=src python3 examples/three_minute_demo/demo.py
+```
+
+Expected output includes:
+
+- `first_attempt_ok: false`
+- `second_attempt_ok: true`
+- `external_ticket_count: 1`
+- `actual_tool_executions: 1`
+- one `Tool Ledger` entry with status `SUCCEEDED`
+- a replay summary with `safe: true`
+- a `demo_root` and `evidence_dir` path under your system temp directory
+
+Why it matters:
+
+```text
+Without AgentLedger:
+  retrying after a crash can duplicate external writes.
+
+With AgentLedger:
+  the Tool Ledger records the causal request and idempotency key, so the retry
+  reuses the completed side effect instead of creating another ticket.
+```
+
+Inspect the generated evidence:
+
+```bash
+ls <evidence_dir-from-output>
+```
+
+To choose the output directory yourself:
+
+```bash
+AGENTLEDGER_DEMO_ROOT=/tmp/agentledger-three-minute PYTHONPATH=src python3 examples/three_minute_demo/demo.py
+```

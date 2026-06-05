@@ -132,6 +132,15 @@ func (a MCPToolAdapter) ToolSpecFromDescriptor(descriptor JSONObject) ToolSpec {
 	if !ok {
 		idem = sideEffect != "none"
 	}
+	approvalRequired, _ := annotations["approval_required"].(bool)
+	sandboxRequired, _ := annotations["sandbox_required"].(bool)
+	sandboxExecutor, _ := annotations["sandbox_executor"].(string)
+	sandboxPolicy := JSONObject{}
+	if policy, ok := annotations["sandbox_policy"].(JSONObject); ok {
+		sandboxPolicy = policy
+	} else if policy, ok := annotations["sandbox_policy"].(map[string]any); ok {
+		sandboxPolicy = JSONObject(policy)
+	}
 	input, _ := descriptor["inputSchema"].(JSONObject)
 	if input == nil {
 		input, _ = descriptor["input_schema"].(JSONObject)
@@ -140,7 +149,7 @@ func (a MCPToolAdapter) ToolSpecFromDescriptor(descriptor JSONObject) ToolSpec {
 	if output == nil {
 		output, _ = descriptor["output_schema"].(JSONObject)
 	}
-	return ToolSpec{Name: name, Version: firstNonEmpty(version, "v1"), InputSchema: input, OutputSchema: output, SideEffect: sideEffect, RiskLevel: riskLevel, IdempotencyRequired: idem, Func: func(ctx context.Context, args JSONObject) (any, error) {
+	return ToolSpec{Name: name, Version: firstNonEmpty(version, "v1"), InputSchema: input, OutputSchema: output, SideEffect: sideEffect, RiskLevel: riskLevel, IdempotencyRequired: idem, ApprovalRequired: approvalRequired, SandboxRequired: sandboxRequired, SandboxExecutor: sandboxExecutor, SandboxPolicy: sandboxPolicy, Func: func(ctx context.Context, args JSONObject) (any, error) {
 		return a.ClientCall(name, args)
 	}}
 }

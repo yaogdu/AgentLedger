@@ -15,6 +15,7 @@ AgentLedger 是面向 Agent Harness stack 的 runtime reliability layer。它不
 | 查询 runtime 表 | `QUERY_EXAMPLES.md` | `../QUERY_EXAMPLES.md` |
 | 理解开源生态价值 | `OPEN_SOURCE_IMPACT.md` | `../OPEN_SOURCE_IMPACT.md` |
 | 理解维护者职责 | `MAINTAINER_NOTES.md` | `../MAINTAINER_NOTES.md` |
+| 规划 adoption 工作 | `ADOPTION.md` | `../ADOPTION.md` |
 | 理解整体架构 | `ARCHITECTURE.md` | `../ARCHITECTURE.md` |
 | 理解 Policy Engine 控制闭环 | `POLICY_ENGINE.md` | `../POLICY_ENGINE.md` |
 | 对比相邻工具 | `COMPARISONS.md` | `../COMPARISONS.md` |

@@ -3782,6 +3782,60 @@ mod tests {
     }
 
     #[test]
+    fn mcp_tool_adapter_maps_governance_annotations() {
+        fn call(_name: &str, _args: State) -> Result<Value> {
+            Ok(Value::Object(state(&[("ok", true.into())])))
+        }
+        let adapter = MCPToolAdapter { client_call: call };
+        let spec = adapter.tool_spec_from_descriptor(&state(&[
+            ("name", "mcp.github.create_pr".into()),
+            (
+                "inputSchema",
+                Value::Object(state(&[
+                    ("type", "object".into()),
+                    (
+                        "required",
+                        Value::Array(vec![Value::String("title".to_string())]),
+                    ),
+                ])),
+            ),
+            (
+                "annotations",
+                Value::Object(state(&[
+                    ("side_effect", "external_write".into()),
+                    ("risk_level", "high".into()),
+                    ("idempotency_required", true.into()),
+                    ("approval_required", true.into()),
+                    ("sandbox_required", true.into()),
+                    ("sandbox_executor", "docker".into()),
+                    (
+                        "sandbox_policy",
+                        Value::Object(state(&[
+                            ("network", "deny".into()),
+                            ("filesystem", "read-only".into()),
+                        ])),
+                    ),
+                ])),
+            ),
+        ]));
+        assert_eq!(spec.side_effect, "external_write");
+        assert_eq!(spec.risk_level, "high");
+        assert!(spec.idempotency_required);
+        assert!(spec.approval_required);
+        assert!(spec.sandbox_required);
+        assert_eq!(spec.sandbox_executor, "docker");
+        assert_eq!(
+            spec.sandbox_policy.get("network"),
+            Some(&Value::String("deny".to_string()))
+        );
+        assert_eq!(
+            spec.sandbox_policy.get("filesystem"),
+            Some(&Value::String("read-only".to_string()))
+        );
+        assert!(spec.input_schema.is_some());
+    }
+
+    #[test]
     fn sandbox_required_tool_fails_closed() {
         let mut runtime = Runtime::new();
         runtime.register_tool(
@@ -5024,6 +5078,19 @@ impl MCPToolAdapter {
             Some(Value::Bool(value)) => *value,
             _ => side_effect != "none",
         };
+        let approval_required = match annotations.get("approval_required") {
+            Some(Value::Bool(value)) => *value,
+            _ => false,
+        };
+        let sandbox_required = match annotations.get("sandbox_required") {
+            Some(Value::Bool(value)) => *value,
+            _ => false,
+        };
+        let sandbox_executor = string_field(&annotations, "sandbox_executor", "");
+        let sandbox_policy = match annotations.get("sandbox_policy") {
+            Some(Value::Object(state)) => state.clone(),
+            _ => State::new(),
+        };
         let client_call = self.client_call;
         let tool_name = name.clone();
         let mut spec = ToolSpec::new(&name, Box::new(move |args| client_call(&tool_name, args)));
@@ -5031,6 +5098,18 @@ impl MCPToolAdapter {
         spec.side_effect = side_effect;
         spec.risk_level = risk_level;
         spec.idempotency_required = idempotency_required;
+        spec.approval_required = approval_required;
+        spec.sandbox_required = sandbox_required;
+        spec.sandbox_executor = sandbox_executor;
+        spec.sandbox_policy = sandbox_policy;
+        spec.input_schema = descriptor
+            .get("inputSchema")
+            .or_else(|| descriptor.get("input_schema"))
+            .cloned();
+        spec.output_schema = descriptor
+            .get("outputSchema")
+            .or_else(|| descriptor.get("output_schema"))
+            .cloned();
         spec
     }
 }

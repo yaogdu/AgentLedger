@@ -15,8 +15,8 @@ test('adapter subpath exports expose the v1.2 package boundary', async () => {
   const docker = await import('../src/adapters/sandbox-docker.js');
   const langgraph = await import('../src/adapters/langgraph.js');
 
-  assert.equal(postgres.adapterPackage.version, '1.2.3');
-  assert.equal(mysql.adapterPackage.version, '1.2.3');
+  assert.equal(postgres.adapterPackage.version, '1.2.4');
+  assert.equal(mysql.adapterPackage.version, '1.2.4');
   assert.equal(typeof postgres.PostgresAdapter, 'function');
   assert.equal(typeof mysql.MySQLAdapter, 'function');
   assert.equal(typeof s3.S3BlobStoreAdapter, 'function');
@@ -31,6 +31,32 @@ test('adapter subpath exports expose the v1.2 package boundary', async () => {
   const checkpointer = new langgraph.LangGraphCheckpointerAdapter(rt);
   const config = checkpointer.configForRun(runId);
   assert.deepEqual(checkpointer.get(config).state, { hello: 'world' });
+});
+
+test('mcp tool adapter maps governance annotations', async () => {
+  const { MCPToolAdapter } = await import('../src/adapters/mcp.js');
+  const adapter = new MCPToolAdapter(async () => ({ ok: true }));
+  const spec = adapter.toolSpecFromDescriptor({
+    name: 'mcp.github.create_pr',
+    inputSchema: { type: 'object', required: ['title'] },
+    annotations: {
+      side_effect: 'external_write',
+      risk_level: 'high',
+      idempotency_required: true,
+      approval_required: true,
+      sandbox_required: true,
+      sandbox_executor: 'docker',
+      sandbox_policy: { network: 'deny', filesystem: 'read-only' },
+    },
+  });
+  assert.equal(spec.sideEffect, 'external_write');
+  assert.equal(spec.riskLevel, 'high');
+  assert.equal(spec.idempotencyRequired, true);
+  assert.equal(spec.approvalRequired, true);
+  assert.equal(spec.sandboxRequired, true);
+  assert.equal(spec.sandboxExecutor, 'docker');
+  assert.deepEqual(spec.sandboxPolicy, { network: 'deny', filesystem: 'read-only' });
+  assert.equal(spec.inputSchema.type, 'object');
 });
 
 test('docker sandbox executor fails closed unless execution is explicitly enabled', async () => {

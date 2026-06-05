@@ -1,13 +1,13 @@
 {
   "name": "agentledger-sandbox-docker",
-  "version": "1.2.3",
+  "version": "1.2.4",
   "private": false,
   "description": "Docker sandbox adapter package for AgentLedger Runtime.",
   "type": "module",
   "main": "src/index.js",
   "types": "src/index.d.ts",
   "dependencies": {
-    "agentledger-runtime": "^1.2.3"
+    "agentledger-runtime": "^1.2.4"
   },
   "files": [
     "src/",

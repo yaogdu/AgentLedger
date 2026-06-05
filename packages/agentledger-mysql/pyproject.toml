@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "agentledger-mysql"
-version = "1.2.3"
+version = "1.2.4"
 description = "MySQL StateStore adapter package for AgentLedger"
 readme = "README.md"
 requires-python = ">=3.11"

@@ -3,14 +3,16 @@
 [English](README.md) | [中文](README.zh-CN.md)
 
 ![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)
-![Version 1.2.3 stable](https://img.shields.io/badge/Version-1.2.3--stable-111827)
+![Version 1.2.4 stable](https://img.shields.io/badge/Version-1.2.4--stable-111827)
 ![License Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-0f766e)
 ![Runtime Durable](https://img.shields.io/badge/Runtime-durable%20execution-1f6feb)
 ![Storage SQLite/Postgres/MySQL](https://img.shields.io/badge/Storage-SQLite%20%7C%20Postgres%20%7C%20MySQL-b45309)
 ![Replay Evidence](https://img.shields.io/badge/Replay-evidence%20driven-7c3aed)
 ![Tool Ledger](https://img.shields.io/badge/Tools-ledger%20guarded-d97706)
 
-AgentLedger `1.2.3` is a runtime reliability layer for Agent Harness stacks. It does not try to teach agents how to reason or replace the surrounding harness ecosystem; it makes agent runs durable, auditable, replayable, policy-governed, and recoverable when workers crash, tools fail, or prompts change.
+Your agent called a tool. Did it happen? Can you retry safely? Can you prove it later?
+
+AgentLedger `1.2.4` is a runtime reliability layer for Agent Harness stacks. It does not try to teach agents how to reason or replace the surrounding harness ecosystem; it makes agent runs durable, auditable, replayable, policy-governed, and recoverable when workers crash, tools fail, or prompts change.
 
 Most agent frameworks focus on planning, reasoning, and workflow logic. AgentLedger sits underneath or beside LangChain, LangGraph, CrewAI, AutoGen, OpenAI Agents SDK, LlamaIndex, Semantic Kernel, or custom agents to provide runtime guarantees around state, tools, evidence, replay, and recovery.
 
@@ -29,6 +31,7 @@ Python remains the reference implementation, and Go, TypeScript, and Rust now ha
 | Understand Harness stack composition | [docs/HARNESS_STACK.md](docs/HARNESS_STACK.md) |
 | Understand open-source impact | [docs/OPEN_SOURCE_IMPACT.md](docs/OPEN_SOURCE_IMPACT.md) |
 | Understand maintainer responsibilities | [docs/MAINTAINER_NOTES.md](docs/MAINTAINER_NOTES.md) |
+| Plan adoption work | [docs/ADOPTION.md](docs/ADOPTION.md) |
 | Understand what is equal across languages | [docs/LANGUAGE_IMPLEMENTATION_COMPARISON.md](docs/LANGUAGE_IMPLEMENTATION_COMPARISON.md) |
 | Install optional adapter packages | [docs/ADAPTER_PACKAGING.md](docs/ADAPTER_PACKAGING.md) |
 | Use Go correctly | [go/README.md](go/README.md#install) |
@@ -117,10 +120,12 @@ The intended production shape is therefore not `AgentLedger instead of LangGraph
 
 ## Examples
 
-The repository includes small quickstarts plus a richer multi-language Travel Assistant demo that shows the same runtime ideas across Python, Go, Rust, and TypeScript.
+The repository includes cross-language 3-minute side-effect safety demos, MCP governance demos, small quickstarts, and a richer multi-language Travel Assistant demo that shows the same runtime ideas across Python, Go, Rust, and TypeScript.
 
-| Language | Demo | Run |
+| Goal | Demo | Run |
 | --- | --- | --- |
+| 3-minute side-effect safety | Python / Go / Rust / TypeScript | `PYTHONPATH=src python3 examples/three_minute_demo/demo.py`; `cd go && go run ./examples/three_minute_demo`; `cd rust && cargo run --example three_minute_demo`; `cd typescript && node examples/three_minute_demo/three_minute_demo.js` |
+| MCP tool governance | Python / Go / Rust / TypeScript | `PYTHONPATH=src python3 examples/mcp_governance/demo.py`; `cd go && go run ./examples/mcp_governance`; `cd rust && cargo run --example mcp_governance`; `cd typescript && node examples/mcp_governance/mcp_governance.js` |
 | Python | `examples/travel_assistant/demo.py` | `python3 examples/travel_assistant/demo.py` |
 | Go | `go/examples/travel_assistant/main.go` | `cd go && go run examples/travel_assistant/main.go` |
 | Rust | `rust/examples/travel_assistant.rs` | `cd rust && cargo run --example travel_assistant` |
@@ -275,7 +280,7 @@ AgentLedger is also not a new LLM SDK, not a workflow engine, not a general obse
 
 ## Current maturity
 
-AgentLedger 1.2.3 is a stable runtime-core release with Python as the reference implementation and Go, TypeScript, and Rust covered by shared runtime-core parity gates. It is suitable for local use, framework adapter integration, reliability semantics validation, and production pilot preparation with explicit adapter boundaries.
+AgentLedger 1.2.4 is a stable runtime-core release with Python as the reference implementation and Go, TypeScript, and Rust covered by shared runtime-core parity gates. It is suitable for local use, framework adapter integration, reliability semantics validation, and production pilot preparation with explicit adapter boundaries.
 
 The runtime-core contract is stable; optional production adapters and external infrastructure hardening remain separately tracked. See [docs/MATURITY_MODEL.md](docs/MATURITY_MODEL.md), [docs/IMPLEMENTATION_STATUS.md](docs/IMPLEMENTATION_STATUS.md), and [docs/ROADMAP.md](docs/ROADMAP.md).
 

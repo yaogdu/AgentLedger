@@ -2,7 +2,7 @@
 
 [English](LANGUAGE_QUICKSTART.md) | [中文](zh/LANGUAGE_QUICKSTART.md)
 
-AgentLedger 1.2.3 has one Python reference runtime and native preview runtime-core baselines for Go, TypeScript, and Rust. The shared promise is semantic parity for runtime-core: durable runs, leases, Tool Ledger, evidence, replay, policy/approval/sandbox boundaries, cost/failure attribution, conformance, and official optional adapter contracts.
+AgentLedger 1.2.4 has one Python reference runtime and native preview runtime-core baselines for Go, TypeScript, and Rust. The shared promise is semantic parity for runtime-core: durable runs, leases, Tool Ledger, evidence, replay, policy/approval/sandbox boundaries, cost/failure attribution, conformance, and official optional adapter contracts.
 
 The non-Python packages are native runtime packages, not thin clients: each runs a native local runtime loop and reports the shared conformance checks.
 
@@ -66,13 +66,13 @@ Use the released Go module from a Go project:
 
 ```bash
 go mod init your-module-name  # only if your project does not have go.mod yet
-go get github.com/yaogdu/AgentLedger/go@v1.2.3
+go get github.com/yaogdu/AgentLedger/go@v1.2.4
 ```
 
 Install the optional CLI command:
 
 ```bash
-go install github.com/yaogdu/AgentLedger/go/cmd/agentledger-go@v1.2.3
+go install github.com/yaogdu/AgentLedger/go/cmd/agentledger-go@v1.2.4
 agentledger-go --help
 agentledger-go doctor
 agentledger-go quickstart
@@ -86,7 +86,7 @@ go test . ./cmd/agentledger-go
 go run ./cmd/agentledger-go conformance
 ```
 
-Note: `go get` must run inside a Go module. `go install github.com/yaogdu/AgentLedger/go@v1.2.3` fails because the library package is not a `package main`; use `/cmd/agentledger-go` for the CLI.
+Note: `go get` must run inside a Go module. `go install github.com/yaogdu/AgentLedger/go@v1.2.4` fails because the library package is not a `package main`; use `/cmd/agentledger-go` for the CLI.
 
 Minimal runtime:
 
@@ -267,7 +267,7 @@ python3.11 scripts/audit_python_parity.py > /tmp/agentledger-python-parity-audit
 python3.11 scripts/check_language_parity.py --json-report /tmp/agentledger-language-parity.json
 ```
 
-Expected for 1.2.3:
+Expected for 1.2.4:
 
 ```text
 gap_count: 0
@@ -277,5 +277,5 @@ AgentLedger language parity checks passed
 ## What Not To Assume
 
 - Go/TypeScript/Rust are package surfaces, even though runtime-core semantics are conformance-aligned.
-- Official adapters in 1.2.3 use injected clients and dry-run manifests; real cloud SDKs and live service hardening are optional follow-up gates.
+- Official adapters in 1.2.4 use injected clients and dry-run manifests; real cloud SDKs and live service hardening are optional follow-up gates.
 - AgentLedger does not replace LangGraph, LangChain, LangSmith, Langfuse, Temporal, Ray, Kubernetes, vector DBs, or eval platforms. It provides the runtime safety/evidence layer those systems can integrate with.

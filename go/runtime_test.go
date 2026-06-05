@@ -275,6 +275,40 @@ func TestApprovalPausesAndResumesStep(t *testing.T) {
 	}
 }
 
+func TestMCPToolAdapterMapsGovernanceAnnotations(t *testing.T) {
+	adapter := MCPToolAdapter{ClientCall: func(name string, args JSONObject) (any, error) {
+		return JSONObject{"ok": true}, nil
+	}}
+	spec := adapter.ToolSpecFromDescriptor(JSONObject{
+		"name": "mcp.github.create_pr",
+		"inputSchema": JSONObject{
+			"type":     "object",
+			"required": []any{"title"},
+		},
+		"annotations": JSONObject{
+			"side_effect":          "external_write",
+			"risk_level":           "high",
+			"idempotency_required": true,
+			"approval_required":    true,
+			"sandbox_required":     true,
+			"sandbox_executor":     "docker",
+			"sandbox_policy": JSONObject{
+				"network":    "deny",
+				"filesystem": "read-only",
+			},
+		},
+	})
+	if spec.SideEffect != "external_write" || spec.RiskLevel != "high" || !spec.IdempotencyRequired || !spec.ApprovalRequired || !spec.SandboxRequired {
+		t.Fatalf("governance annotations not mapped: %#v", spec)
+	}
+	if spec.SandboxExecutor != "docker" || spec.SandboxPolicy["network"] != "deny" || spec.SandboxPolicy["filesystem"] != "read-only" {
+		t.Fatalf("sandbox annotations not mapped: %#v", spec)
+	}
+	if spec.InputSchema["type"] != "object" {
+		t.Fatalf("input schema not mapped: %#v", spec.InputSchema)
+	}
+}
+
 func TestSandboxRequiredToolFailsClosed(t *testing.T) {
 	rt := NewRuntime(NewMemoryStore())
 	calls := 0

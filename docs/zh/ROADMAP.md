@@ -131,7 +131,7 @@ tool marketplace or app store
 
 ## Open Source Adoption And Maintainer Workflow
 
-这条路线不是新的 runtime feature line，也不改变 `1.2.3` runtime contract。它的目标是让项目更容易被评估、采用、维护，并且更清晰地接入 Agent 生态。
+这条路线不是新的 runtime feature line，也不改变 stable v1.x runtime-core contract。它的目标是让项目更容易被评估、采用、维护，并且更清晰地接入 Agent 生态。
 
 定位：
 
@@ -182,6 +182,25 @@ adoption 目标不是直接追 star，而是让项目在几分钟内可理解、
 不把 repo 做成 hosted SaaS、完整 harness product 或 eval platform
 不把 secret、私有客户信息或公司内部实现细节写进公开文档
 ```
+
+## v1.2.4 - Adoption And Short Demo Release
+
+状态：已作为 adoption/example release 实现，不改变 runtime-core 语义。
+
+已实现：
+
+- 增加四语言 3-minute side-effect safety demo，展示 crash/retry 后不会重复外部写入
+- 增加四语言 MCP governance example，把 descriptor annotations 映射到 policy、approval、sandbox metadata、idempotency 和 audit evidence
+- 强化 README 第一屏，直接说明 tool side-effect safety 问题
+- 增加 adoption planning 文档、公开 issue/discussion 候选清单和 legal-agent case-study 模板
+- 将 package metadata 和当前 install examples 更新到 1.2.4 release train
+
+明确不包含：
+
+- 改变 stable runtime-core contract
+- 声明 OpenAI Agents SDK 或 MCP 官方 endorsement
+- 实现 Inspector、Replay Lab 或 Security Scanner companion products
+- 在没有真实服务证据时声明 optional adapters production-hardened
 
 ## v1.2.3 - Query Documentation And Langfuse Adapter Boundary
 

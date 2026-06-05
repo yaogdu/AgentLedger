@@ -3,6 +3,6 @@ export { InMemoryMCPContextServer, InMemoryMCPToolServer, MCPContextAdapter, MCP
 export const adapterPackage = {
   name: 'agentledger-mcp-adapter',
   runtimePackage: 'agentledger-runtime',
-  version: '1.2.3',
+  version: '1.2.4',
   category: 'mcp',
 };

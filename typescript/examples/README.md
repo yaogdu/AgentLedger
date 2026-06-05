@@ -11,6 +11,16 @@ node examples/quickstart/quickstart.js
 
 Source: `quickstart/quickstart.js`
 
+## Adoption Demos
+
+```bash
+cd typescript
+node examples/three_minute_demo/three_minute_demo.js
+node examples/mcp_governance/mcp_governance.js
+```
+
+The 3-minute demo shows crash/retry without duplicate external writes. The MCP governance demo shows descriptor annotations flowing into approval, sandbox metadata, idempotency, and audit evidence.
+
 ## CLI Quickstart
 
 ```bash

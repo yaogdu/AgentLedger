@@ -1,12 +1,12 @@
 # Implementation Status
 
-Updated: 2026-05-27
+Updated: 2026-06-05
 
 This document tracks what is implemented in runtime-core, what remains planned for optional adapters, and what should stay outside runtime-core.
 
 ## Current Baseline
 
-AgentLedger 1.2.3 is a stable runtime-core line with Python as the reference implementation and Go/TypeScript/Rust covered by shared runtime-core parity gates. The 1.2.x line adds adapter packaging boundaries across the supported language ecosystems and now includes the official MySQL storage adapter boundary plus a dependency-free Langfuse export adapter boundary while keeping selected preview/experimental concrete adapter paths explicit. It is suitable for:
+AgentLedger 1.2.4 is a stable runtime-core line with Python as the reference implementation and Go/TypeScript/Rust covered by shared runtime-core parity gates. The 1.2.x line adds adapter packaging boundaries across the supported language ecosystems and now includes the official MySQL storage adapter boundary plus a dependency-free Langfuse export adapter boundary while keeping selected preview/experimental concrete adapter paths explicit. It is suitable for:
 
 - local use
 - runtime design review
@@ -15,7 +15,7 @@ AgentLedger 1.2.3 is a stable runtime-core line with Python as the reference imp
 - reliability semantics validation
 - production pilot preparation with explicit adapter boundaries
 
-Release-scope note: 1.2.3 is a small documentation and observability-adapter release. It adds SQL query examples and `agentledger-langfuse` package boundaries without changing runtime-core semantics. MySQL remains the 1.2.2 storage adapter boundary; real-service production claims still require external validation.
+Release-scope note: 1.2.4 is an adoption and example-focused release. It adds cross-language 3-minute side-effect safety demos, cross-language MCP governance examples, adoption documentation, public issue/discussion candidates, and legal-agent case-study templates without changing runtime-core semantics. MySQL remains the 1.2.2 storage adapter boundary and Langfuse remains the 1.2.3 observability adapter boundary; real-service production claims still require external validation.
 
 The runtime-core contract is stable. Optional production adapters, external infrastructure hardening, and full eval systems remain outside the stable core boundary; non-Python runtime-core baselines are verified by the shared parity gates.
 

@@ -11,6 +11,16 @@ cargo run --quiet --example quickstart
 
 Source: `quickstart.rs`
 
+## Adoption Demos
+
+```bash
+cd rust
+cargo run --example three_minute_demo
+cargo run --example mcp_governance
+```
+
+The 3-minute demo shows crash/retry without duplicate external writes. The MCP governance demo shows descriptor annotations flowing into approval, sandbox metadata, idempotency, and audit evidence.
+
 ## CLI Quickstart
 
 ```bash
