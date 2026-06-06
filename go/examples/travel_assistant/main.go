@@ -107,7 +107,7 @@ func bookHotel(_ context.Context, args agentledger.JSONObject) (any, error) {
 			booking := map[string]any{
 				"booking_ref": ref, "type": "hotel", "name": h["name"],
 				"price_total_usd": h["nightly_usd"].(float64) * float64(nights),
-				"status": "confirmed", "external_id": ref,
+				"status":          "confirmed", "external_id": ref,
 			}
 			bookingDB[ref] = booking
 			return booking, nil
@@ -261,7 +261,10 @@ func showDB(store *agentledger.JSONStore, runID string) {
 }
 
 func main() {
-	root := ".agentledger-go"
+	root, err := os.MkdirTemp("", "agentledger-go-")
+	if err != nil {
+		panic(err)
+	}
 	if len(os.Args) > 1 {
 		root = os.Args[1]
 	}

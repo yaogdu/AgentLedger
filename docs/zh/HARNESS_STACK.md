@@ -232,7 +232,7 @@ AgentLedger 不应该变成：
 - 完整 eval platform；
 - RAG 或 vector memory platform；
 - model marketplace 或 billing system；
-- hosted sandbox platform；
-- SaaS 或多租户 app platform。
+- sandbox infrastructure provider；
+- 应用管理、身份、计费或控制面后台。
 
 长期方向是让 AgentLedger 成为 reliability substrate：用户可以用成熟组件组装 Harness stack，同时不丢失 durable execution、governance、evidence、replay 和 side-effect safety。

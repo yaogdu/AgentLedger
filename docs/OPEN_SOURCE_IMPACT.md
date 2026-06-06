@@ -1,6 +1,6 @@
 # Open Source Impact
 
-AgentLedger is an early-stage open-source infrastructure project for production AI agent reliability and governance. It is not an agent framework, a hosted platform, or a replacement for LangGraph, Temporal, Langfuse, MCP, or model providers. Its value is the runtime boundary those systems can share: durable state, governed tool use, evidence, replay, policy checks, sandbox routing, and cost/failure attribution.
+AgentLedger is an early-stage open-source infrastructure project for production AI agent reliability and governance. It is not an agent framework, an application administration backend, or a replacement for LangGraph, Temporal, Langfuse, MCP, or model providers. Its value is the runtime boundary those systems can share: durable state, governed tool use, evidence, replay, policy checks, sandbox routing, and cost/failure attribution.
 
 ## Ecosystem Problem
 
@@ -58,7 +58,7 @@ What is already in place:
 
 What remains intentionally separate or later-stage:
 
-- hosted dashboard products
+- application administration or dashboard backends
 - full eval platforms
 - RAG/vector memory systems
 - production claims for every external backend
@@ -77,4 +77,3 @@ AgentLedger is useful to maintain as open source because the problem is shared a
 - Can a new agent version be compared against historical evidence?
 
 Open development makes the runtime contract, adapter boundaries, conformance fixtures, and examples easier to review and reuse across ecosystems.
-

@@ -21,7 +21,7 @@ An adapter should stay community/experimental when:
 - The upstream SDK is unstable or mostly private/internal.
 - The integration requires opinionated infrastructure that users should own.
 - The runtime can only expose a safe boundary, not guarantee real behavior.
-- The adapter would force core to become a workflow engine, eval platform, SaaS platform, or deployment product.
+- The adapter would force core to become a workflow engine, eval system, application administration backend, or deployment product.
 
 ## Priority 1: Official Adapters
 
@@ -55,7 +55,7 @@ These are valuable but should follow the Priority 1 adapters or remain thinner f
 | Sandbox | Kubernetes Job sandbox | Good production boundary for cluster users. | Should support dry-run manifests, namespace/service account policy, and optional runtimeClass. |
 | Sandbox | E2B | Good managed remote sandbox for code/tool execution. | Keep as optional remote executor adapter. |
 | Distributed execution | Ray bridge | Useful for Python distributed worker pools. | Ray should own cluster scheduling; AgentLedger owns run semantics. |
-| Deployment | Kubernetes worker recipe | Useful for pilots. | Recipe/Helm/examples first; full platform later only if needed. |
+| Deployment | Kubernetes worker recipe | Useful for pilots. | Recipe/Helm/examples first; keep deployment management outside runtime-core. |
 | Model providers/router | OpenAI, Anthropic, Gemini, Bedrock, Azure OpenAI, Ollama, LiteLLM-style bridge | Model calls affect evidence, cost, replay, fallback, and budget enforcement, but provider SDKs should not be runtime-core dependencies. | Wait for `ModelGateway`/`ModelRouter` contract before stabilizing provider packages. |
 
 ## Priority 3: Experimental Or Community Adapters
@@ -70,7 +70,7 @@ These should not block core parity or official release claims.
 | Workflow | Airflow / Prefect / Argo | They are batch/workflow systems; useful bridges, but AgentLedger should not become a general workflow engine. |
 | Eval | LangSmith / Braintrust / custom eval platforms | Eval remains a consumer of evidence/replay contracts, not runtime-core. |
 | Vector DB / RAG | Pinecone, Weaviate, Milvus, pgvector, etc. | Long-term memory/retrieval infra should be external; runtime stores refs/evidence, not knowledge retrieval logic. |
-| SaaS/multi-tenant platform | Any hosted platform adapter | Out of current project scope. AgentLedger is a framework/library/runtime, not SaaS. |
+| Application administration backend | User, organization, billing, identity, or control-plane adapters | Out of current project scope. AgentLedger is a framework/library/runtime reliability layer. |
 
 ## Cross-Language Policy
 

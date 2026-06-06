@@ -1,0 +1,68 @@
+# agentledger-inspector
+
+Read-only Inspector and evidence viewer package for AgentLedger.
+
+This package is language-neutral. It is implemented once as a companion evidence consumer and can inspect evidence/runtime metadata produced by Python, Go, TypeScript, or Rust implementations when they follow the AgentLedger contract.
+
+```bash
+pip install agentledger-inspector
+pip install "agentledger-runtime[inspector]"
+```
+
+Inspect a local runtime database:
+
+```bash
+agentledger inspector run <run_id> --root .agentledger --html ./inspector.html
+```
+
+Inspect an exported evidence bundle:
+
+```bash
+agentledger inspector evidence ./evidence/<run_id> --html ./inspector.html
+```
+
+For Postgres or MySQL, use a read-only database credential and pass the local blob root that contains the referenced payload blobs. Inspector uses read-only store wrappers and does not run migrations or create tables:
+
+```bash
+agentledger inspector run <run_id> --backend postgres --dsn "$AGENTLEDGER_POSTGRES_DSN" --blob-root .agentledger/blobs --html ./inspector.html
+agentledger inspector run <run_id> --backend mysql --dsn "$AGENTLEDGER_MYSQL_DSN" --blob-root .agentledger/blobs --html ./inspector.html
+```
+
+The Inspector does not start a server, mutate runtime state, call tools, approve requests, or contact model providers. It builds a language-neutral read model from AgentLedger runtime metadata or exported evidence bundles. AgentLedger does not add a separate permission layer for Inspector; use database grants, filesystem ACLs, and deployment policy.
+
+Extension API:
+
+```python
+from agentledger_inspector import EvidenceBlobStoreProtocol, EvidenceStateStoreProtocol, InspectorDataSource, InspectorReportBuilder
+
+report = InspectorDataSource().from_evidence_path("./evidence/run-1")
+data = report.to_dict()
+html = report.to_html()
+
+builder = InspectorReportBuilder()
+custom_report = builder.from_evidence_path("./evidence/run-1")
+
+custom_source_report = InspectorDataSource().from_runtime_store(
+    store=my_read_only_state_store,
+    blobs=my_read_only_blob_store,
+    run_id="run_123",
+)
+```
+
+The default HTML renderer is a reference renderer. Users can build their own UI by consuming `InspectorReport.to_dict()` and preserving `schema_version == agentledger.inspector.v1`.
+
+`EvidenceStateStoreProtocol` and `EvidenceBlobStoreProtocol` describe the minimal read API for custom database/blob backends.
+
+Custom viewers should depend on the read model and protocols instead of undocumented SQL tables. Keep write/control actions outside Inspector surfaces; use runtime APIs for approve, deny, cancel, or recover operations.
+
+Runnable custom-viewer example:
+
+```bash
+git clone https://github.com/yaogdu/AgentLedger.git
+cd AgentLedger
+PYTHONPATH=src python3 examples/inspector/custom_viewer.py
+```
+
+That example creates a temporary runtime, reads SQLite metadata, exports an evidence bundle, writes JSON/HTML reports, and builds a compact custom UI/API payload from `InspectorReport.to_dict()`.
+
+Security note: Inspector output may include tool arguments, model metadata, artifact references, approval reasons, and failure details. Treat exported JSON/HTML as sensitive operational evidence.

@@ -122,7 +122,7 @@ runtime-core 不会变成：
 - DLP 产品
 - prompt-injection 产品
 - policy 管理 UI
-- 多租户治理后台
+- 应用治理管理后台
 - 完整 eval 平台
 
 Core 负责 request/decision contract、确定性本地 evaluator、gate enforcement 和 audit evidence。重依赖或组织特定的智能判断应通过 adapter 接入。

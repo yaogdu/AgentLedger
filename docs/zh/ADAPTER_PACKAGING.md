@@ -1,6 +1,6 @@
 # Adapter Packaging
 
-AgentLedger `1.2.1` 引入 adapter packaging model，`1.2.2` 在这个模型上补充官方 MySQL storage adapter boundary，`1.2.3` 增加 dependency-free Langfuse evidence/trace export boundary。runtime-core 保持小而稳定，具体生态集成进入 optional adapter packages，用户可以通过 extras 或直接安装 adapter 包启用。
+AgentLedger `1.2.1` 引入 adapter packaging model，`1.2.2` 在这个模型上补充官方 MySQL storage adapter boundary，`1.2.3` 增加 dependency-free Langfuse evidence/trace export boundary，`1.3.0` 增加 read-only Inspector companion package。runtime-core 保持小而稳定，具体生态集成和外部 evidence consumer 进入 optional packages，用户可以通过 extras 或直接安装包启用。
 
 ## 为什么拆包
 
@@ -24,7 +24,7 @@ extras 保持安装体验简单
 
 adapter packaging 是按语言生态落地的。同一个目标，在不同语言里使用不同机制：
 
-| 语言 | `1.2.x` 机制 | 原因 |
+| 语言 | 机制 | 原因 |
 | --- | --- | --- |
 | Python | `packages/` 下独立 PyPI 包，加 `agentledger-runtime[...]` extras | Python extras 最适合把 optional SDK dependency 留在 core 之外 |
 | TypeScript/Node | `agentledger-runtime` subpath exports，加 `typescript/packages/` 下 npm adapter packages | subpath exports 方便本地使用；独立 package 保留后续独立发布能力 |
@@ -50,6 +50,7 @@ pip install "agentledger-runtime[mcp]"
 pip install "agentledger-runtime[otel]"
 pip install "agentledger-runtime[langfuse]"
 pip install "agentledger-runtime[docker]"
+pip install "agentledger-runtime[inspector]"
 pip install "agentledger-runtime[all]"
 ```
 
@@ -64,6 +65,7 @@ pip install agentledger-mcp
 pip install agentledger-otel
 pip install agentledger-langfuse
 pip install agentledger-sandbox-docker
+pip install agentledger-inspector
 ```
 
 普通项目优先使用 extras。需要显式锁依赖、内部镜像或独立治理 adapter 发版时，再直接安装 adapter package。
@@ -89,6 +91,7 @@ agentledger-runtime/
     agentledger-otel/
     agentledger-langfuse/
     agentledger-sandbox-docker/
+    agentledger-inspector/                 # companion package，不是 adapter
   typescript/
     src/adapters/                        # runtime subpath exports
     packages/                            # npm adapter packages
@@ -132,7 +135,7 @@ agentledger-runtime/
 
 ## 第一批 Adapter Packages
 
-| Package | `1.2.x` 负责 | 依赖状态 |
+| Package | 负责 | 依赖状态 |
 | --- | --- | --- |
 | `agentledger-postgres` | `PostgresStore`、`PostgresStoreConfig`、migration/conformance helpers | 依赖 `psycopg[binary]`；production rollout 仍需要真实服务演练。 |
 | `agentledger-mysql` | `MySQLStore`、`MySQLStoreConfig`、migration/conformance helpers | 依赖 `pymysql`；production rollout 仍需要真实服务演练。 |
@@ -144,6 +147,18 @@ agentledger-runtime/
 | `agentledger-sandbox-docker` | Docker sandbox executor package 和本地/团队 recipe | 当前边界支持 Docker CLI/manifest 语义；daemon hardening、network policy、resource validation 属于外部。 |
 
 这里要尊重语言生态。`agentledger-langgraph` 对 Python 和 TypeScript/Node 是一等 adapter，因为这两个生态有 LangGraph 包；Go 和 Rust 不强行假装有原生 LangGraph 生态，而是提供通用 `framework` adapter boundary。
+
+## Companion Packages
+
+不是所有 optional package 都是 adapter。`agentledger-inspector` 是只读 evidence/runtime metadata consumer。它复用 package 和 extra 机制，是为了安装方便，但它不提供 storage、framework、sandbox、model 或 observability adapter。
+
+```bash
+pip install "agentledger-runtime[inspector]"
+agentledger inspector evidence ./evidence/<run_id> --html ./inspector.html
+agentledger inspector run <run_id> --root .agentledger --html ./inspector.html
+```
+
+Inspector package 应保持 read-only 和 dependency-light。Web server、authentication、deployment management、write/control-plane actions 都不属于这个 package boundary。
 
 ## Sandbox Adapter 范围
 
@@ -191,27 +206,29 @@ Install with: pip install "agentledger-runtime[postgres]"
 
 ## Core Extras
 
-`agentledger-runtime` 应暴露指向 adapter package 的 extras：
+`agentledger-runtime` 应暴露指向 adapter package 和 companion package 的 extras：
 
 ```toml
 [project.optional-dependencies]
-postgres = ["agentledger-postgres>=1.2,<2"]
-mysql = ["agentledger-mysql>=1.2,<2"]
-s3 = ["agentledger-s3>=1.2,<2"]
-langgraph = ["agentledger-langgraph>=1.2,<2"]
-mcp = ["agentledger-mcp>=1.2,<2"]
-otel = ["agentledger-otel>=1.2,<2"]
-langfuse = ["agentledger-langfuse>=1.2,<2"]
-docker = ["agentledger-sandbox-docker>=1.2,<2"]
+postgres = ["agentledger-postgres>=1.3,<2"]
+mysql = ["agentledger-mysql>=1.3,<2"]
+s3 = ["agentledger-s3>=1.3,<2"]
+langgraph = ["agentledger-langgraph>=1.3,<2"]
+mcp = ["agentledger-mcp>=1.3,<2"]
+otel = ["agentledger-otel>=1.3,<2"]
+langfuse = ["agentledger-langfuse>=1.3,<2"]
+docker = ["agentledger-sandbox-docker>=1.3,<2"]
+inspector = ["agentledger-inspector>=1.3,<2"]
 all = [
-  "agentledger-postgres>=1.2,<2",
-  "agentledger-mysql>=1.2,<2",
-  "agentledger-s3>=1.2,<2",
-  "agentledger-langgraph>=1.2,<2",
-  "agentledger-mcp>=1.2,<2",
-  "agentledger-otel>=1.2,<2",
-  "agentledger-langfuse>=1.2,<2",
-  "agentledger-sandbox-docker>=1.2,<2",
+  "agentledger-postgres>=1.3,<2",
+  "agentledger-mysql>=1.3,<2",
+  "agentledger-s3>=1.3,<2",
+  "agentledger-langgraph>=1.3,<2",
+  "agentledger-mcp>=1.3,<2",
+  "agentledger-otel>=1.3,<2",
+  "agentledger-langfuse>=1.3,<2",
+  "agentledger-sandbox-docker>=1.3,<2",
+  "agentledger-inspector>=1.3,<2",
 ]
 ```
 
@@ -219,17 +236,19 @@ monorepo 本地开发时，测试可以从 `packages/*` 路径安装；发布后
 
 ## Release Gates
 
-`1.2.x` packaging release 期望通过：
+packaging release 期望通过：
 
 ```bash
 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m unittest discover -s tests -q
-PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m agentledger adapter certify --kind postgres --adapter-version 1.2.4
-PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m agentledger adapter certify --kind mysql --adapter-version 1.2.4
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m agentledger adapter certify --kind postgres --adapter-version 1.3.0
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m agentledger adapter certify --kind mysql --adapter-version 1.3.0
 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 scripts/check_adapter_packages.py
 go test ./...
 cd typescript && npm test
 cd rust && cargo test --features adapters-all
 ```
+
+`scripts/check_adapter_packages.py` 会覆盖官方 adapter package 和只读 companion package。`agentledger-inspector` 会检查 metadata、dependency declaration、README 和 import smoke，但它仍是 companion package，不是 adapter。
 
 每个 adapter package 也应通过：
 
@@ -239,9 +258,11 @@ python3 -m pip install dist/<adapter>.whl
 python3 -c "import <adapter_import_name>"
 ```
 
-## 1.2.1 非目标
+Rust adapter crates 同时依赖已发布的 `agentledger-runtime` crate version 和 monorepo 本地 `path` dependency。新的 release train 应先发布 `agentledger-runtime`，再对 `rust/crates/agentledger-*` 执行 `cargo package` 或 `cargo publish`。在 runtime crate 对应版本尚未出现在 crates.io 前，adapter crate packaging 可能因为 registry dependency resolution 失败；这不代表本地测试失败。
 
-`1.2.1` 不因为 package 存在就声明 production hardening 完成。以下内容继续作为后续工作：
+## Adapter Package Boundary 非目标
+
+adapter package boundary 不因为 package 存在就声明 production hardening 完成。以下内容继续作为后续工作：
 
 - 真实 Postgres/S3 restore drill 和 load/concurrency report
 - 完整 framework-native version matrix
@@ -249,4 +270,4 @@ python3 -c "import <adapter_import_name>"
 - Temporal/Ray/Kubernetes backend adapters
 - media processing adapters
 - sub-agent 或 multi-agent runtime semantics
-- hosted platform、SaaS、长运行 UI 或完整 eval platform
+- 长运行 UI、deployment management 或完整 eval system

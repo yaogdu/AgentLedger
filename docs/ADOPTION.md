@@ -31,7 +31,7 @@ These can be opened as GitHub issues when the project is ready for public tracki
 | Build a cross-language 3-minute Tool Ledger demo | example | Shows the core value in a few minutes across Python, Go, TypeScript, and Rust. |
 | Add OpenAI Agents SDK approval/replay example | example | Connects AgentLedger to a major agent SDK boundary without claiming official endorsement. |
 | Add MCP tool governance example | example | Shows how MCP-style tools should pass through policy, approval, sandbox, idempotency, and evidence. |
-| Prototype AgentLedger Inspector | product | Makes run timelines, Tool Ledger, approvals, replay, and failures visible. |
+| Prototype AgentLedger Inspector | debug tool | Makes run timelines, Tool Ledger, approvals, replay, and failures visible. |
 | Add Temporal bridge example | integration | Clarifies Temporal owns workflow lifecycle while AgentLedger owns node-internal reliability. |
 | Add tool-injection risk scanner | security | Detects risky tool schemas, missing approval/sandbox, and runtime-boundary bypass patterns. |
 | Publish legal-agent case study | case study | Shows a realistic audit/evidence use case without private data. |

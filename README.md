@@ -3,7 +3,7 @@
 [English](README.md) | [中文](README.zh-CN.md)
 
 ![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)
-![Version 1.2.4 stable](https://img.shields.io/badge/Version-1.2.4--stable-111827)
+![Version 1.3.0 stable](https://img.shields.io/badge/Version-1.3.0--stable-111827)
 ![License Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-0f766e)
 ![Runtime Durable](https://img.shields.io/badge/Runtime-durable%20execution-1f6feb)
 ![Storage SQLite/Postgres/MySQL](https://img.shields.io/badge/Storage-SQLite%20%7C%20Postgres%20%7C%20MySQL-b45309)
@@ -12,7 +12,7 @@
 
 Your agent called a tool. Did it happen? Can you retry safely? Can you prove it later?
 
-AgentLedger `1.2.4` is a runtime reliability layer for Agent Harness stacks. It does not try to teach agents how to reason or replace the surrounding harness ecosystem; it makes agent runs durable, auditable, replayable, policy-governed, and recoverable when workers crash, tools fail, or prompts change.
+AgentLedger `1.3.0` is a runtime reliability layer for Agent Harness stacks. It does not try to teach agents how to reason or replace the surrounding harness ecosystem; it makes agent runs durable, auditable, replayable, policy-governed, and recoverable when workers crash, tools fail, or prompts change.
 
 Most agent frameworks focus on planning, reasoning, and workflow logic. AgentLedger sits underneath or beside LangChain, LangGraph, CrewAI, AutoGen, OpenAI Agents SDK, LlamaIndex, Semantic Kernel, or custom agents to provide runtime guarantees around state, tools, evidence, replay, and recovery.
 
@@ -28,6 +28,7 @@ Python remains the reference implementation, and Go, TypeScript, and Rust now ha
 | Choose Python / Go / TypeScript / Rust | [docs/LANGUAGE_QUICKSTART.md](docs/LANGUAGE_QUICKSTART.md) |
 | Find runnable examples | [examples/README.md](examples/README.md), [go/examples/README.md](go/examples/README.md), [typescript/examples/README.md](typescript/examples/README.md), [rust/examples/README.md](rust/examples/README.md) |
 | Query runtime tables | [docs/QUERY_EXAMPLES.md](docs/QUERY_EXAMPLES.md) |
+| Inspect a run visually | [docs/INSPECTOR.md](docs/INSPECTOR.md) |
 | Understand Harness stack composition | [docs/HARNESS_STACK.md](docs/HARNESS_STACK.md) |
 | Understand open-source impact | [docs/OPEN_SOURCE_IMPACT.md](docs/OPEN_SOURCE_IMPACT.md) |
 | Understand maintainer responsibilities | [docs/MAINTAINER_NOTES.md](docs/MAINTAINER_NOTES.md) |
@@ -44,7 +45,7 @@ Python remains the reference implementation, and Go, TypeScript, and Rust now ha
 | What is stable? | The v1.x runtime-core contract: durable execution, Tool Ledger, evidence/replay, policy/approval/sandbox boundaries, cost/failure reports, worker/conformance, and Python reference implementation with Go/TypeScript/Rust runtime-core parity gates. |
 | What is optional? | Postgres, MySQL, S3/MinIO, framework-native packages, OTLP collector transport, sandbox infrastructure, distributed deployment recipes, and real-service hardening. |
 | What is experimental? | Some concrete provider adapters, media/stream processing adapters, and real-service hardening paths. Go/TypeScript/Rust runtime-core baselines are native implementations covered by shared conformance. |
-| What is not in core? | Planning engines, full eval systems, RAG/vector memory, trace stores, hosted application products, and hosted sandbox infrastructure. |
+| What is not in core? | Planning engines, full eval systems, RAG/vector memory, trace stores, application administration backends, and sandbox infrastructure providers. |
 | How should other languages work? | This repo is contract-first. Python is the reference runtime; Go, Node/TypeScript, and Rust now have native runtime baselines under `go/`, `typescript/`, and `rust/`. Runtime-ready requires `contracts/agentledger.runtime.v1.json`, the shared semantic manifest `contracts/conformance/runtime_semantics.v1.json`, shared conformance fixtures, and per-language conformance commands. |
 
 ## Scope principle
@@ -280,7 +281,7 @@ AgentLedger is also not a new LLM SDK, not a workflow engine, not a general obse
 
 ## Current maturity
 
-AgentLedger 1.2.4 is a stable runtime-core release with Python as the reference implementation and Go, TypeScript, and Rust covered by shared runtime-core parity gates. It is suitable for local use, framework adapter integration, reliability semantics validation, and production pilot preparation with explicit adapter boundaries.
+AgentLedger 1.3.0 is a stable runtime-core release with Python as the reference implementation and Go, TypeScript, and Rust covered by shared runtime-core parity gates. It is suitable for local use, framework adapter integration, reliability semantics validation, and production pilot preparation with explicit adapter boundaries.
 
 The runtime-core contract is stable; optional production adapters and external infrastructure hardening remain separately tracked. See [docs/MATURITY_MODEL.md](docs/MATURITY_MODEL.md), [docs/IMPLEMENTATION_STATUS.md](docs/IMPLEMENTATION_STATUS.md), and [docs/ROADMAP.md](docs/ROADMAP.md).
 
@@ -289,6 +290,7 @@ The runtime-core contract is stable; optional production adapters and external i
 | Goal | Document |
 | --- | --- |
 | Use the runtime | [docs/USAGE.md](docs/USAGE.md) |
+| Inspect runtime evidence | [docs/INSPECTOR.md](docs/INSPECTOR.md) |
 | Understand architecture | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) |
 | Compare with adjacent tools | [docs/COMPARISONS.md](docs/COMPARISONS.md) |
 | Read implementation details | [docs/DESIGN_AND_IMPLEMENTATION.md](docs/DESIGN_AND_IMPLEMENTATION.md) |

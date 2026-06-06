@@ -6,7 +6,7 @@ This document tracks what is implemented in runtime-core, what remains planned f
 
 ## Current Baseline
 
-AgentLedger 1.2.4 is a stable runtime-core line with Python as the reference implementation and Go/TypeScript/Rust covered by shared runtime-core parity gates. The 1.2.x line adds adapter packaging boundaries across the supported language ecosystems and now includes the official MySQL storage adapter boundary plus a dependency-free Langfuse export adapter boundary while keeping selected preview/experimental concrete adapter paths explicit. It is suitable for:
+AgentLedger 1.3.0 is a stable runtime-core line with Python as the reference implementation and Go/TypeScript/Rust covered by shared runtime-core parity gates. The 1.3.0 line keeps the stable runtime-core contract and adds a language-neutral, read-only Inspector companion path for evidence and runtime metadata inspection. It is suitable for:
 
 - local use
 - runtime design review
@@ -15,7 +15,7 @@ AgentLedger 1.2.4 is a stable runtime-core line with Python as the reference imp
 - reliability semantics validation
 - production pilot preparation with explicit adapter boundaries
 
-Release-scope note: 1.2.4 is an adoption and example-focused release. It adds cross-language 3-minute side-effect safety demos, cross-language MCP governance examples, adoption documentation, public issue/discussion candidates, and legal-agent case-study templates without changing runtime-core semantics. MySQL remains the 1.2.2 storage adapter boundary and Langfuse remains the 1.2.3 observability adapter boundary; real-service production claims still require external validation.
+Release-scope note: 1.3.0 adds Inspector as a read-only evidence/runtime metadata consumer. It can read exported evidence bundles or connect to SQLite/Postgres/MySQL AgentLedger metadata with read-only credentials and can export a static HTML debug report. MySQL remains the 1.2.2 storage adapter boundary and Langfuse remains the 1.2.3 observability adapter boundary; real-service production claims still require external validation.
 
 The runtime-core contract is stable. Optional production adapters, external infrastructure hardening, and full eval systems remain outside the stable core boundary; non-Python runtime-core baselines are verified by the shared parity gates.
 
@@ -23,7 +23,7 @@ Scope rule: runtime-core should stay thin but indispensable. It should own only 
 
 ## Current Completion Boundary
 
-For the current 1.2.x goal, "stable runtime-core" means the Python reference runtime is usable, documented, tested, release-gated, and contract-frozen, with Go/TypeScript/Rust covered by runtime-core parity gates. It also means first-party adapter boundaries are packaged or importable in each ecosystem where they fit. It does not mean every optional production adapter or external eval integration is production-hardened in every language.
+For the current 1.3.x goal, "stable runtime-core plus read-only evidence consumers" means the Python reference runtime is usable, documented, tested, release-gated, and contract-frozen, with Go/TypeScript/Rust covered by runtime-core parity gates. It also means first-party adapter boundaries are packaged or importable in each ecosystem where they fit, and the Inspector can consume exported evidence across languages. It does not mean every optional production adapter or external eval integration is production-hardened in every language.
 
 Included in this boundary:
 
@@ -58,6 +58,7 @@ Excluded from this boundary:
 | Adapter contracts | framework adapter base, LangGraph facade, MCP tool/context mapping, dependency-free method facades, first-party adapter package boundaries |
 | Sandbox boundary | fail-closed `none`, local executor, router, external executor contracts, Docker/bubblewrap command paths, Kubernetes dry-run/gated path |
 | Observability | trace JSONL export with media/stream spans, dependency-free OTLP JSON export, optional OTLP/JSON collector POST, evidence-linked audit records |
+| Inspector | `agentledger.inspector.v1` read model, `agentledger inspector run/evidence`, static HTML report, evidence-bundle input, read-only SQLite input, Postgres/MySQL read paths through existing adapter boundaries, optional `agentledger-inspector` companion package |
 | Reliability checks | failure injection suite, failure attribution report, conformance runners including media runtime conformance, runtime-boundary lint, scheduler facade, adversarial review, evidence regression for shell, HTTP, cloud, GitHub, and common model SDK bypasses with JSON rule-pack extension |
 | Media and stream contracts | `MediaArtifact`, `MediaMetadata`, `ArtifactLineage`, `StreamChunkRef`, `EventStreamCheckpoint`, `AgentContext.create_media_artifact(...)`, `AgentContext.create_stream_checkpoint(...)`, media/stream tool schema conventions, ToolGateway/Tool Ledger media tool example, evidence indexes, replay artifact validation/counts |
 | Release scaffolding | CI workflow, changelog, security policy, versioning policy, release checklist, contributor checks, bilingual documentation entrypoints, SVG architecture diagram, ResourceWarning-sensitive test gate, adapter certification checklist, adapter packaging docs/checks |
@@ -76,7 +77,7 @@ Excluded from this boundary:
 | MCP support | descriptor-to-ToolSpec mapping, dependency-free tool/context server fixtures, context read tool adapter, examples, `agentledger-mcp` package boundary | exact MCP SDK client/server integration |
 | Sandbox | contract, local/fail-closed modes, command-style Docker/bubblewrap, Kubernetes dry-run/gated execution, E2B/Firecracker slots, Docker sandbox package boundary | hardened isolation packages, secret injection policy, network policy recipes, resource limit validation |
 | Retention and backup checks | non-destructive retention plan with media/stream protected refs, compaction marker, and backup readiness check including media/stream nested refs | actual compaction/snapshot job that preserves replay guarantees |
-| Time travel and debug | JSON CLI timeline, state reconstruction, state diff view, `debug --json`, `--include-diffs`, `--include-states`, optional static HTML report export | richer report layout and artifact cross-links; no long-running web app in core |
+| Time travel and debug | JSON CLI timeline, state reconstruction, state diff view, `debug --json`, `--include-diffs`, `--include-states`, optional static HTML report export, Inspector static report | richer report layout and artifact cross-links; no long-running web app in core |
 
 ## Remaining Gaps And Preview Areas
 

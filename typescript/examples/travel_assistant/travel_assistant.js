@@ -10,6 +10,9 @@
  */
 
 import { createInterface } from 'node:readline';
+import { mkdtemp } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import {
   Runtime, JSONStore, LocalBlobStore, RetryableAgentError,
   exportEvidence, replay, costAttribution,
@@ -177,7 +180,7 @@ function showDB(store, runID) {
 // ════════════════════════════════════════════════════════════
 
 async function main() {
-  const root = process.argv[2] || '.agentledger-ts';
+  const root = process.argv[2] || await mkdtemp(join(tmpdir(), 'agentledger-ts-'));
 
   // Intro
   console.log(`\n${C.BOLD}${C.C}  ╔════════════════════════════════════════════════════╗${C.RST}`);

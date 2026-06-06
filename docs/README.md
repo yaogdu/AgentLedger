@@ -20,6 +20,7 @@ AgentLedger is a runtime reliability layer for Agent Harness stacks. It is not a
 | Use the runtime | `USAGE.md`, `LANGUAGE_QUICKSTART.md` | `zh/USAGE.md`, `zh/LANGUAGE_QUICKSTART.md` |
 | Find examples | `../examples/README.md`, `../go/examples/README.md`, `../typescript/examples/README.md`, `../rust/examples/README.md` | same paths plus `zh/GETTING_STARTED.md` |
 | Query runtime tables | `QUERY_EXAMPLES.md` | `zh/QUERY_EXAMPLES.md` |
+| Inspect runtime evidence | `INSPECTOR.md` | `zh/INSPECTOR.md` |
 | Understand open-source impact | `OPEN_SOURCE_IMPACT.md` | `zh/OPEN_SOURCE_IMPACT.md` |
 | Understand maintainer responsibilities | `MAINTAINER_NOTES.md` | `zh/MAINTAINER_NOTES.md` |
 | Plan adoption work | `ADOPTION.md` | `zh/ADOPTION.md` |
@@ -49,6 +50,7 @@ AgentLedger is a runtime reliability layer for Agent Harness stacks. It is not a
 - `ARCHITECTURE.md`: runtime layers, SVG architecture diagram, module map, invariants, adapter boundaries.
 - `COMPARISONS.md`: overlap and boundary guide for agent frameworks, workflow backends, observability/eval tools, RAG, and sandbox infrastructure.
 - `HARNESS_STACK.md`: concrete stack patterns that combine AgentLedger with LangGraph, Temporal, Langfuse/LangSmith/OTel, MCP, model gateways, storage, and sandbox infrastructure.
+- `INSPECTOR.md`: read-only Inspector commands, DB/evidence inputs, static HTML output, and extension API.
 - `OPEN_SOURCE_IMPACT.md`: open-source ecosystem value and early-stage infrastructure positioning.
 - `MAINTAINER_NOTES.md`: maintainer responsibilities, review principles, coding-agent usage, and maintenance signals.
 - `ADOPTION.md`: short demos, public issue/discussion candidates, and case-study rules for adoption work.
@@ -56,7 +58,7 @@ AgentLedger is a runtime reliability layer for Agent Harness stacks. It is not a
 - `POLICY_ENGINE.md`: policy request/decision contract, PEP/PDP split, evaluator registry, controls, and adapter boundary.
 - `RUNTIME_SPEC.md`: runtime concepts, state model, event schema, Tool Ledger semantics, evidence regression/replay/debug interfaces.
 - `EXTENSIBILITY.md`: adapter model for storage, tools, frameworks, protocols, observability, media, and sandbox.
-- `ADAPTER_PACKAGING.md`: optional adapter package layout, extras install model, compatibility shim strategy, and 1.2.x packaging release gates.
+- `ADAPTER_PACKAGING.md`: optional adapter and companion package layout, extras install model, compatibility shim strategy, and packaging release gates.
 - `STORAGE.md`: runtime metadata schema, migrations, StateStore and BlobStore extension contract.
 - `QUERY_EXAMPLES.md`: single-table and multi-table SQL examples for runtime metadata, including large business-schema integration patterns.
 - `ADAPTER_CERTIFICATION.md`: compatibility checklist for storage, blob, framework, tool, sandbox, media/stream, and observability adapters.

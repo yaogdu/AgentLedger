@@ -14,11 +14,10 @@ store = PostgresStore(PostgresStoreConfig.from_env())
 store.init()
 ```
 
-This package keeps the runtime core dependency-light while making Postgres an explicit opt-in. It re-exports the stable adapter classes from `agentledger.storage_postgres` in the `1.2.x` line.
+This package keeps runtime-core dependency-light while making Postgres an explicit opt-in. It re-exports the stable adapter classes from `agentledger.storage_postgres` in the current `1.3.x` release train.
 
 Certification:
 
 ```bash
-python3 -m agentledger adapter certify --kind postgres --adapter-version 1.2.4
+python3 -m agentledger adapter certify --kind postgres --adapter-version 1.3.0
 ```
-

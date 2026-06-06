@@ -7,7 +7,7 @@ from urllib.request import Request, urlopen
 
 from agentledger.trace import TraceExporter, TraceSpan
 
-__version__ = "1.2.4"
+__version__ = "1.3.0"
 
 
 @dataclass(frozen=True)

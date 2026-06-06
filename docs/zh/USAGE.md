@@ -43,9 +43,10 @@ python3 -m pip install "agentledger-runtime[postgres]"
 python3 -m pip install "agentledger-runtime[mysql]"
 python3 -m pip install "agentledger-runtime[s3]"
 python3 -m pip install "agentledger-runtime[langfuse]"
+python3 -m pip install "agentledger-runtime[inspector]"
 ```
 
-如果是从仓库本地开发，可以使用 `python3 -m pip install -e ".[postgres]"`、`python3 -m pip install -e ".[mysql]"`、`python3 -m pip install -e ".[s3]"` 或 `python3 -m pip install -e ".[langfuse]"`。
+如果是从仓库本地开发，可以使用 `python3 -m pip install -e ".[postgres]"`、`python3 -m pip install -e ".[mysql]"`、`python3 -m pip install -e ".[s3]"`、`python3 -m pip install -e ".[langfuse]"` 或 `python3 -m pip install -e ".[inspector]"`。
 
 ## 前 10 分钟
 
@@ -58,6 +59,7 @@ PYTHONPATH=src python3 -m agentledger --root .agentledger-demo debug <run_id> --
 PYTHONPATH=src python3 -m agentledger --root .agentledger-demo ledger <run_id>
 PYTHONPATH=src python3 -m agentledger --root .agentledger-demo replay <run_id>
 PYTHONPATH=src python3 -m agentledger --root .agentledger-demo evidence <run_id> --html ./evidence.html
+PYTHONPATH=src python3 -m agentledger --root .agentledger-demo inspector run <run_id> --html ./inspector.html
 ```
 
 重点不是输出文本，而是确认这个 run 具备 durable state、带 lease 的 step、Tool Ledger entry、无副作用 replay，以及可导出的 evidence。
@@ -166,9 +168,14 @@ PYTHONPATH=src python3 -m agentledger evidence <run_id> --dir ./bundle-dir
 PYTHONPATH=src python3 -m agentledger evidence <run_id> --html ./evidence.html
 PYTHONPATH=src python3 -m agentledger replay <run_id>
 PYTHONPATH=src python3 -m agentledger timetravel <run_id> --include-diffs --include-states --html ./time-travel.html
+PYTHONPATH=src python3 -m agentledger inspector run <run_id> --root .agentledger-demo --html ./inspector.html
+PYTHONPATH=src python3 -m agentledger inspector evidence ./bundle-dir --html ./inspector.html
+PYTHONPATH=src python3 examples/inspector/custom_viewer.py
 PYTHONPATH=src python3 -m agentledger evidence-check <run_id>  # side-effect-free evidence invariant check
 PYTHONPATH=src python3 -m agentledger review checklist <run_id> --fail-on-risk
 ```
+
+`inspector` 是只读 evidence consumer。它可以读取导出的 evidence bundle，也可以用只读凭证连接 SQLite/Postgres/MySQL runtime metadata。它不会修改 runtime state，也不是 Web 控制平面。`examples/inspector/custom_viewer.py` 展示了如何基于稳定 read model 二开自己的 viewer/API payload。DB 参数和二开 API 见 `INSPECTOR.md`。
 
 Regression / corpus：
 
@@ -219,7 +226,7 @@ AGENTLEDGER_MYSQL_DSN=mysql://user:password@localhost:3306/database \
 PYTHONPATH=src python3 -m agentledger migrate up --dialect mysql
 ```
 
-不要把 conformance 或实验命令指向真实业务数据。`1.2.4` 的 MySQL 支持是官方 adapter boundary；生产使用仍需要真实服务并发、权限、备份和恢复验证。
+不要把 conformance 或实验命令指向真实业务数据。`1.3.0` 的 MySQL 支持是官方 adapter boundary；生产使用仍需要真实服务并发、权限、备份和恢复验证。
 
 ## Media 和 Stream
 
@@ -241,8 +248,8 @@ PYTHONPATH=src python3 -m agentledger state conformance --backend sqlite
 PYTHONPATH=src python3 -m agentledger blob conformance --backend local
 PYTHONPATH=src python3 -m agentledger worker conformance --backend sqlite --concurrent
 PYTHONPATH=src python3 -m agentledger adapter conformance --kind langchain
-PYTHONPATH=src python3 -m agentledger adapter certify --kind postgres --adapter-version 1.2.4 --out ./postgres-certification.json
-PYTHONPATH=src python3 -m agentledger adapter certify --kind mysql --adapter-version 1.2.4 --out ./mysql-certification.json
+PYTHONPATH=src python3 -m agentledger adapter certify --kind postgres --adapter-version 1.3.0 --out ./postgres-certification.json
+PYTHONPATH=src python3 -m agentledger adapter certify --kind mysql --adapter-version 1.3.0 --out ./mysql-certification.json
 ```
 
 `adapter certify` 会生成机器可读的 adapter certification bundle，包含 package metadata、conformance command、smoke command、required external services、security assumptions、known limitations，以及 production validation 是否仍然依赖真实基础设施。例如 Postgres/MySQL/S3/Docker/Temporal 会标记为 `external-required`，直到在真实服务凭证、并发/负载、restore 或 rollback drill 下完成验证。

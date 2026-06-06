@@ -8,6 +8,21 @@ This project follows semantic versioning for the stable runtime-core contract. O
 
 No unreleased changes yet.
 
+## 1.3.0
+
+### Added
+
+- `agentledger inspector` CLI with read-only `run` and `evidence` subcommands.
+- Language-neutral Inspector read model `agentledger.inspector.v1` for run timeline, Tool Ledger, approvals, policy decisions, cost/failure records, artifacts, and risk flags.
+- Static HTML Inspector export for local or internal debugging without starting a server.
+- Read-only SQLite runtime data source and Postgres/MySQL read data sources through existing StateStore adapter boundaries.
+- Optional `agentledger-inspector` companion package for users who want to depend on the read model and extension API directly.
+
+### Clarified
+
+- Inspector is an evidence/runtime metadata consumer, not a permissions system or write/control plane.
+- Use read-only database credentials for Postgres/MySQL inspection; evidence-bundle input remains the most portable path across Python, Go, TypeScript, and Rust.
+
 ## 1.2.4
 
 ### Added
@@ -127,7 +142,7 @@ No unreleased changes yet.
 
 - Python reference runtime-core parity is now declared for Go, TypeScript, and Rust within the AgentLedger core scope.
 - Concrete production adapters such as Postgres, S3/MinIO, Docker, Kubernetes, MCP transport, LangGraph, Temporal, and OpenTelemetry remain optional packages unless explicitly shipped for a language.
-- AgentLedger remains a framework/library/runtime layer, not SaaS and not a general workflow, eval, RAG, or deployment platform.
+- AgentLedger remains a framework/library/runtime layer, not a managed service and not a general workflow, eval, RAG, or deployment product.
 
 ## 1.0.0
 

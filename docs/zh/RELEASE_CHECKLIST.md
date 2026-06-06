@@ -1,6 +1,6 @@
 # 发布检查清单
 
-本文是 `../RELEASE_CHECKLIST.md` 的中文主路径版本，用于 v1.0 stable runtime-core release 检查。
+本文是 `../RELEASE_CHECKLIST.md` 的中文主路径版本，用于 AgentLedger v1.x runtime-core release train 检查，覆盖 Python reference runtime 以及 Go、TypeScript、Rust package surface。
 
 ## Scope Gate
 
@@ -51,15 +51,45 @@ python3.11 scripts/check_language_parity.py --json-report /tmp/agentledger-langu
 python3.11 scripts/audit_python_parity.py > /tmp/agentledger-python-parity-audit.json
 ```
 
-对于 1.0.x 这类 runtime-core parity release，`audit_python_parity.py` 应报告 `gap_count: 0`。
+对于 v1.x runtime-core parity release，`audit_python_parity.py` 应报告 `gap_count: 0`。
 
 该 runner 会一次执行 Python reference tests、Go tests、TypeScript tests/check、Rust tests、各 preview 语言 conformance CLI、contract diff、Markdown local link check 和 `git diff --check`。它会读取 `contracts/conformance/runtime_semantics.v1.json` 共享语义清单；JSON report 会包含 `required_semantic_checks`、`semantic_manifest` 与 `language_conformance`，可作为 release notes、CI artifact 和 adapter certification evidence。
+
+## Packaging Gate
+
+如果本次 release 修改了 package metadata、optional adapter package、companion package 或任一语言的发布面，发布前运行：
+
+使用 repo 外的干净输出目录。不要从旧的 repo-local `dist/` 目录上传。
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 python3 scripts/check_adapter_packages.py
+
+# Python runtime、companion 和 adapter packages。使用 repo 外的干净 outdir。
+python3 -m build --sdist --wheel --outdir /tmp/agentledger-build/root .
+python3 -m build --sdist --wheel --outdir /tmp/agentledger-build/inspector packages/agentledger-inspector
+for package in packages/agentledger-postgres packages/agentledger-mysql packages/agentledger-s3 packages/agentledger-langgraph packages/agentledger-mcp packages/agentledger-otel packages/agentledger-langfuse packages/agentledger-sandbox-docker; do
+  python3 -m build --sdist --wheel --outdir "/tmp/agentledger-build/$(basename "$package")" "$package"
+done
+twine check /tmp/agentledger-build/root/* /tmp/agentledger-build/inspector/* /tmp/agentledger-build/agentledger-*/*
+
+# TypeScript runtime 和 adapter wrapper packages。
+cd typescript && npm pack --dry-run && cd ..
+for package in typescript/packages/agentledger-langfuse typescript/packages/agentledger-langgraph typescript/packages/agentledger-mcp typescript/packages/agentledger-mysql typescript/packages/agentledger-otel typescript/packages/agentledger-postgres typescript/packages/agentledger-s3 typescript/packages/agentledger-sandbox-docker; do
+  npm pack --dry-run "$package"
+done
+
+# Rust runtime 先发布。Adapter crates 只有在该 runtime version 已出现在 crates.io 后才能 package/publish。
+cd rust && cargo package --allow-dirty --no-verify && cd ..
+```
+
+Rust 发布顺序很重要：先发布 `agentledger-runtime`，等该版本能从 crates.io 解析后，再 package 或 publish `rust/crates/agentledger-*`。Adapter crates 同时声明 runtime crate 的 registry dependency 和 monorepo 本地 `path` dependency；如果 runtime 版本还不存在于 crates.io，adapter packaging 可能因为 dependency resolution 失败，即使本地测试是通过的。
 
 ## Example Smoke
 
 ```bash
 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 examples/hello_world/hello.py
 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 examples/langgraph/basic_graph.py
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 examples/inspector/custom_viewer.py
 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 examples/media_stream/basic_media_stream.py
 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 examples/media_stream/managed_tool.py
 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m agentledger worker-run examples/transient_retry

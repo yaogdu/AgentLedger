@@ -14,12 +14,12 @@ store = MySQLStore(MySQLStoreConfig.from_env())
 store.init()
 ```
 
-This package keeps the runtime core dependency-light while making MySQL an explicit opt-in. It re-exports the adapter classes from `agentledger.storage_mysql` in the `1.2.x` line.
+This package keeps runtime-core dependency-light while making MySQL an explicit opt-in. It re-exports the adapter classes from `agentledger.storage_mysql` in the current `1.3.x` release train.
 
 Certification:
 
 ```bash
-python3 -m agentledger adapter certify --kind mysql --adapter-version 1.2.4
+python3 -m agentledger adapter certify --kind mysql --adapter-version 1.3.0
 ```
 
 Production hardening still requires real MySQL service validation, concurrency/load checks, backup/restore drills, and deployment-specific permission review.

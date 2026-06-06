@@ -427,7 +427,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let root = if args.len() > 1 {
         PathBuf::from(&args[1])
     } else {
-        PathBuf::from(".agentledger-rust")
+        std::env::temp_dir().join(format!("agentledger-rust-{}", std::process::id()))
     };
     let _ = fs::create_dir_all(&root);
 

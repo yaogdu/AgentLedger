@@ -20,7 +20,7 @@ Most capabilities should be evaluated in three layers: core contract, built-in m
 | Memory | session memory, short-term durable state, versioned memory refs, shared findings, replayable memory events | vector stores, semantic retrieval, RAG, long-term knowledge stores | full knowledge base or semantic retrieval system |
 | Session / HITL | run/session/step state machine, approval request lifecycle, audit events | external human review queues, chat/app integrations | business review backend or workflow back office |
 | FinOps / Cost Control | token/call/cost records, budget enforcement hooks, cost attribution reports | provider price catalogs, finance exports, alerts | invoice or payment system |
-| Inspector / Dashboard | stable read models, evidence export, static HTML debug export, redaction hooks, schema/version metadata | separate read-only local or internal web inspector package | hosted SaaS, multi-tenant app platform, write/control plane in runtime-core |
+| Inspector / Debug Viewer | stable read models, evidence export, static HTML debug export, redaction hooks, schema/version metadata | separate read-only local or internal inspector package | deployment management service, write/control plane in runtime-core |
 | Model Gateway / Router | model-call boundary, request/response archival, replay skipping, token/cost attribution, budget/fallback semantics | provider adapters, LiteLLM-style router adapters, policy packs, price catalogs | bundling every model SDK, becoming a full model gateway product, replacing provider SDKs |
 
 Execution backend positioning is documented in `EXECUTION_BACKENDS.md`: Temporal, Ray, and Kubernetes are backend adapters for generic distributed execution, while AgentLedger keeps agent-specific runtime invariants.
@@ -77,7 +77,7 @@ Runtime-core may include dependency-free local defaults and protocol contracts, 
 These are valuable and should be supported when the package boundary is clear:
 
 ```text
-agentledger-inspector: read-only local/internal dashboard for run timeline, state diff, Tool Ledger, cost/failure, evidence
+agentledger-inspector: read-only local/internal debug viewer for run timeline, state diff, Tool Ledger, cost/failure, evidence
 agentledger-langgraph: LangGraph checkpointer/node integration
 agentledger-mcp: MCP tool/context integration
 agentledger-otel and Langfuse/LangSmith-style exporters: observability/evidence export
@@ -115,14 +115,14 @@ complete eval platform
 complete Langfuse/LangSmith replacement
 complete RAG or memory platform
 complete sandbox infrastructure platform
-hosted SaaS, multi-tenant app platform, billing, organization admin
-dashboard write/control plane in the first inspector release
+deployment management service, billing, organization admin
+debug viewer write/control plane in the first inspector release
 tool marketplace or app store
 ```
 
 ### Recommended Implementation Order
 
-1. Build `agentledger-inspector` as a read-only dashboard over existing SQLite/Postgres/MySQL runtime metadata and evidence bundles.
+1. Ship `agentledger-inspector` as a read-only evidence/runtime metadata consumer over SQLite/Postgres/MySQL and exported evidence bundles.
 2. Harden observability export: OTLP now, then Langfuse/LangSmith-style evidence/trace exporters without replacing those tools.
 3. Design and implement the `ModelGateway`/`ModelRouter` contract in runtime-core with injected provider clients and replay-safe archived responses.
 4. Add optional model provider/router adapters for OpenAI, Anthropic, Gemini, Bedrock, Ollama, and LiteLLM-style routing.
@@ -181,9 +181,38 @@ Explicit non-goals for this track:
 ```text
 do not describe AgentLedger as a mature large-adoption project until evidence exists
 do not add marketing-only claims that are not backed by examples or conformance
-do not turn the repo into a hosted SaaS, full harness product, or eval platform
+do not turn the repo into a full harness product, or eval platform
 do not put secrets, private customer details, or private company implementation notes into public docs
 ```
+
+## v1.3.0 - Language-neutral Inspector Release
+
+Status: implemented as a read-only evidence/runtime metadata consumer without changing runtime-core execution semantics.
+
+Implemented:
+
+- added `agentledger inspector run` for SQLite, Postgres, and MySQL runtime metadata reads
+- added `agentledger inspector evidence` for exported evidence bundle files or directories
+- added `agentledger.inspector.v1` as a stable read model for run timeline, Tool Ledger, approvals, policy decisions, cost/failure records, artifacts, and risk flags
+- added static HTML Inspector export for local or internal debugging
+- added read-only SQLite store and read-only local blob store helpers; Postgres/MySQL usage is documented to require read-only DB credentials
+- added optional `agentledger-inspector` companion package and extension API for custom data sources/renderers
+- documented DB connection, evidence input, static HTML output, and extension boundaries in English and Chinese
+
+Explicitly not in this version:
+
+- write/control-plane actions such as approval, denial, cancellation, ledger editing, or database mutation
+- permission/user/organization management
+- long-running web application
+- replacing Langfuse, LangSmith, OpenTelemetry, or eval platforms
+- remote blob service integration inside the Inspector package
+
+Follow-up work:
+
+- richer report navigation and artifact cross-links
+- configurable redaction policies
+- evidence-driven replay/regression lab over Inspector read models
+- optional local/internal web viewer if it remains read-only and dependency-isolated
 
 ## v1.2.4 - Adoption And Short Demo Release
 
@@ -282,7 +311,7 @@ Explicitly not in this version:
 - Temporal/Ray/Kubernetes scheduler backend adapters
 - media processing adapters for audio/video/frame/transcription/embedding
 - sub-agent or multi-agent runtime semantics
-- SaaS, hosted platform, long-running UI, or full eval platform
+- long-running UI, or full eval platform
 
 Verified release gates:
 
@@ -298,8 +327,8 @@ Follow-up versions:
 
 ```text
 1.2.x  adapter packaging fixes, framework-native smoke, and package docs polish
-1.3.0  reliability harness expansion: richer divergence, golden corpus UX, cost/failure regression, shadow comparisons
-1.3.x  optional read-only inspector/dashboard package for run timeline, state diff, Tool Ledger, cost/failure, and evidence browsing
+1.3.0  language-neutral Inspector: read-only DB/evidence consumer and static HTML debug report
+1.3.x  richer Inspector/report UX, redaction, and evidence-driven replay/regression lab
 1.4.0  sub-agent/multi-agent runtime semantics: parent-child runs, spawn/join, cancellation/failure/cost attribution
 1.5.0  media adapter release: frame/audio/video refs, transcription/embedding adapters, stream transports
 1.6.0  ModelGateway/ModelRouter contract: ctx.call_model, model events, provider injection, fallback/budget/replay semantics
@@ -342,7 +371,7 @@ Explicitly not in this version:
 
 - real OPA/Cedar adapters
 - prompt injection, PII, DLP, or LLM safety providers
-- policy management UI or multi-tenant governance service
+- policy management UI or governance backend
 - sub-agent/multi-agent spawn/join runtime semantics
 - full media processing adapters
 - P2-style production claims for Postgres/S3/sandbox/worker/OTLP without real service credentials, concurrency/load checks, and restore or rollback drills
@@ -487,16 +516,15 @@ Exit criteria:
 - media pipeline replay can reuse captured frame/segment artifacts instead of reprocessing raw media
 - regression and external eval results link back to evidence bundles
 
-## Post-v1 - Inspector Dashboard
+## Post-v1 - Inspector Evolution
 
-Status: roadmap. This should be a separate optional package, not runtime-core and not a hosted SaaS product.
+Status: partially implemented in `1.3.0`. The current Inspector is a read-only evidence/runtime metadata consumer with static HTML export. Future work should stay in an optional package and remain outside runtime-core execution semantics.
 
-Working package names:
+Package names:
 
 ```text
 agentledger-inspector
-agentledger-dashboard
-agentledger-web
+future package names may be added only if they remain read-only consumers
 ```
 
 Preferred positioning:
@@ -516,22 +544,27 @@ keep runtime-core free of web framework dependencies
 avoid write/control-plane features until permissions and safety are mature
 ```
 
-Planned first version:
+Implemented in `1.3.0`:
 
-- read-only connection to SQLite, Postgres, and MySQL AgentLedger metadata tables
+- read-only SQLite runtime database input
+- Postgres/MySQL runtime database input through documented adapter boundaries
+- evidence-bundle input for cross-language runs
+- static HTML export for shareable offline debugging
+- Tool Ledger, approval, policy decision, cost/failure, artifact, and timeline read model
+
+Follow-up work:
+
 - run/session list with status, timestamps, cost summary, and failure summary
 - run timeline for steps, events, model calls, tool calls, approvals, artifacts, and checkpoints
 - state diff and state-version view
 - Tool Ledger view with idempotency key, causal token, side-effect status, request/response refs, and unknown-state handling
 - artifact/evidence browser with payload refs, blob hashes, media refs, and stream checkpoint refs
 - cost and failure attribution panels
-- static HTML export integration for shareable offline debugging
 - configurable redaction for secrets, credentials, prompts, payload fields, and large blobs
 - schema/version compatibility checks before reading a database
 
 Explicit non-goals:
 
-- hosted SaaS, multi-tenant product, billing, user management, or organization admin
 - mutating runtime state, approving/denying requests, canceling runs, or editing ledger rows in the first version
 - replacing LangSmith, Langfuse, OpenTelemetry backends, or eval platforms
 - bypassing the evidence/replay/export contracts by reading undocumented internals only
@@ -540,7 +573,7 @@ Exit criteria:
 
 - a developer can point the inspector at a local `.agentledger/state.db` and inspect run timeline, state diff, Tool Ledger, cost, failures, and artifacts
 - the same package can read Postgres/MySQL through documented schema/version checks
-- the UI is useful as a local/internal debug tool without requiring a server-side platform
+- the UI is useful as a local/internal debug tool without requiring a separate application backend
 - all sensitive fields are redacted by default or explicitly configurable
 
 ## Post-v1 - Model Gateway And Router
@@ -590,7 +623,7 @@ Explicit non-goals:
 
 - bundling every model provider SDK into runtime-core
 - replacing OpenAI, Anthropic, Gemini, Bedrock, Ollama, LiteLLM, or enterprise model gateways
-- building a full model marketplace, billing system, prompt management platform, or hosted router
+- building a full model marketplace, billing system, prompt management platform, or managed router
 - claiming deterministic model behavior beyond archived-response replay
 
 Exit criteria:

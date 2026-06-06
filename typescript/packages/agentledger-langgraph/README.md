@@ -10,5 +10,5 @@ npm install agentledger-runtime agentledger-langgraph
 import { LangGraphCheckpointerAdapter, LangGraphNodeAdapter } from 'agentledger-langgraph';
 ```
 
-The LangGraph peer dependency is optional because the `1.2.x` package exposes a dependency-free facade first.
+The LangGraph peer dependency is optional because the current package exposes a dependency-free facade first.
 

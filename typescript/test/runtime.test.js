@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import test from 'node:test';
 import { DockerSandboxExecutor, JSONStore, LocalBlobStore, LocalWorker, RetryableAgentError, Runtime, WorkerService, exportEvidence, replay, costAttribution, failureAttribution } from '../src/index.js';
 
-test('adapter subpath exports expose the v1.2 package boundary', async () => {
+test('adapter subpath exports expose the current package boundary', async () => {
   const postgres = await import('../src/adapters/postgres.js');
   const mysql = await import('../src/adapters/mysql.js');
   const s3 = await import('../src/adapters/s3.js');
@@ -15,8 +15,8 @@ test('adapter subpath exports expose the v1.2 package boundary', async () => {
   const docker = await import('../src/adapters/sandbox-docker.js');
   const langgraph = await import('../src/adapters/langgraph.js');
 
-  assert.equal(postgres.adapterPackage.version, '1.2.4');
-  assert.equal(mysql.adapterPackage.version, '1.2.4');
+  assert.equal(postgres.adapterPackage.version, '1.3.0');
+  assert.equal(mysql.adapterPackage.version, '1.3.0');
   assert.equal(typeof postgres.PostgresAdapter, 'function');
   assert.equal(typeof mysql.MySQLAdapter, 'function');
   assert.equal(typeof s3.S3BlobStoreAdapter, 'function');

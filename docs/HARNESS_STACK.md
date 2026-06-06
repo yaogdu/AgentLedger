@@ -232,7 +232,7 @@ AgentLedger should not become:
 - a full eval platform;
 - a RAG or vector memory platform;
 - a model marketplace or billing system;
-- a hosted sandbox platform;
-- a SaaS or multi-tenant app platform.
+- a sandbox infrastructure provider;
+- an application administration, identity, billing, or control-plane backend.
 
 The long-term direction is to make AgentLedger the reliability substrate that allows a harness stack to be assembled from mature components without losing durable execution, governance, evidence, replay, and side-effect safety.

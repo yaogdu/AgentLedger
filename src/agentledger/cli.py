@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import tempfile
 from pathlib import Path
 
 from .adapter_certification import build_adapter_certification_bundle, supported_adapter_certification_profiles
@@ -21,6 +22,7 @@ from .evidence import EvidenceExporter
 from .examples import crash_once_agent, recovery_agent, register_fake_github
 from .failure import FailureAttributionReporter, RetryableAgentError
 from .failure_injection import FailureInjectionSuite
+from .inspector import InspectorDataSource
 from .lint import RuntimeBoundaryLinter, load_boundary_rules
 from .media_tools import register_media_tool_conventions
 from .policy import PolicyEngine
@@ -150,6 +152,40 @@ def cmd_evidence(args: argparse.Namespace) -> None:
         print(json.dumps({"run_id": args.run_id, "evidence_path": str(path), "bundle_hash": bundle.to_dict()["bundle_hash"]}, indent=2))
         return
     print(bundle.to_json())
+
+
+def _write_inspector_report(report, args: argparse.Namespace) -> None:
+    if getattr(args, "html", None):
+        path = report.write_html(args.html)
+        print(json.dumps({"schema_version": report.to_dict()["schema_version"], "run_id": report.to_dict()["run"].get("run_id"), "inspector_html": str(path)}, indent=2, ensure_ascii=False))
+        return
+    if getattr(args, "out", None):
+        path = report.write(args.out)
+        print(json.dumps({"schema_version": report.to_dict()["schema_version"], "run_id": report.to_dict()["run"].get("run_id"), "inspector_report": str(path)}, indent=2, ensure_ascii=False))
+        return
+    print(report.to_json())
+
+
+def cmd_inspector_run(args: argparse.Namespace) -> None:
+    source = InspectorDataSource()
+    blob_root = args.blob_root or str(Path(args.root) / "blobs")
+    if args.backend == "sqlite":
+        db_path = args.db or str(Path(args.root) / "state.db")
+        report = source.from_sqlite(db_path=db_path, blob_root=blob_root, run_id=args.run_id, include_payloads=args.include_payloads)
+    elif args.backend == "postgres":
+        config = PostgresStoreConfig.from_env(dsn=args.dsn, schema=args.schema)
+        report = source.from_postgres(dsn=config.dsn, schema=config.schema, blob_root=blob_root, run_id=args.run_id, include_payloads=args.include_payloads)
+    elif args.backend == "mysql":
+        config = MySQLStoreConfig.from_env(dsn=args.dsn, database=args.database)
+        report = source.from_mysql(dsn=config.dsn, database=config.database, blob_root=blob_root, run_id=args.run_id, include_payloads=args.include_payloads)
+    else:
+        raise ValueError(f"unsupported inspector backend: {args.backend}")
+    _write_inspector_report(report, args)
+
+
+def cmd_inspector_evidence(args: argparse.Namespace) -> None:
+    report = InspectorDataSource().from_evidence_path(args.path, include_payloads=args.include_payloads)
+    _write_inspector_report(report, args)
 
 
 def cmd_evidence_check(args: argparse.Namespace) -> None:
@@ -709,7 +745,16 @@ def register_example_tool_catalog(rt: Runtime, example: str | None) -> None:
 
 
 def cmd_tools_manifest(args: argparse.Namespace) -> None:
+    if args.root == ".agentledger":
+        with tempfile.TemporaryDirectory(prefix="agentledger-tools-") as tmp:
+            rt = runtime_from_root(Path(tmp) / ".agentledger", args.policy, getattr(args, "sandbox_config", None))
+            _emit_tools_manifest(rt, args)
+        return
     rt = runtime_from_root(args.root, args.policy, getattr(args, "sandbox_config", None))
+    _emit_tools_manifest(rt, args)
+
+
+def _emit_tools_manifest(rt: Runtime, args: argparse.Namespace) -> None:
     register_example_tool_catalog(rt, args.example)
     if args.format == "openai":
         payload = {"tools": rt.registry.openai_tools()}
@@ -823,6 +868,29 @@ def build_parser() -> argparse.ArgumentParser:
     evidence.add_argument("--dir")
     evidence.add_argument("--html", help="write a static HTML evidence report and print its path")
     evidence.set_defaults(func=cmd_evidence)
+
+    inspector = sub.add_parser("inspector", help="read-only runtime and evidence inspector")
+    inspector_sub = inspector.add_subparsers(dest="inspector_cmd", required=True)
+    inspector_run = inspector_sub.add_parser("run", help="inspect one run from a read-only runtime store")
+    inspector_run.add_argument("run_id")
+    inspector_run.add_argument("--root", default=argparse.SUPPRESS, help="runtime data root; accepted here for inspector command ergonomics")
+    inspector_run.add_argument("--backend", choices=["sqlite", "postgres", "mysql"], default="sqlite")
+    inspector_run.add_argument("--db", help="SQLite database path; defaults to <root>/state.db")
+    inspector_run.add_argument("--blob-root", help="local blob root; defaults to <root>/blobs")
+    inspector_run.add_argument("--dsn", help="Postgres/MySQL DSN; falls back to AGENTLEDGER_POSTGRES_DSN or AGENTLEDGER_MYSQL_DSN")
+    inspector_run.add_argument("--schema", default="agentledger", help="Postgres schema; defaults to agentledger")
+    inspector_run.add_argument("--database", help="MySQL database; falls back to AGENTLEDGER_MYSQL_DATABASE")
+    inspector_run.add_argument("--include-payloads", action="store_true", help="include raw event payloads in the report")
+    inspector_run.add_argument("--out", help="write the Inspector JSON read model")
+    inspector_run.add_argument("--html", help="write a static HTML Inspector report")
+    inspector_run.set_defaults(func=cmd_inspector_run)
+    inspector_evidence = inspector_sub.add_parser("evidence", help="inspect an exported evidence bundle file or directory")
+    inspector_evidence.add_argument("path")
+    inspector_evidence.add_argument("--include-payloads", action="store_true", help="include raw event payloads in the report")
+    inspector_evidence.add_argument("--out", help="write the Inspector JSON read model")
+    inspector_evidence.add_argument("--html", help="write a static HTML Inspector report")
+    inspector_evidence.set_defaults(func=cmd_inspector_evidence)
+
     evidence_check = sub.add_parser("evidence-check")
     evidence_check.add_argument("run_id")
     evidence_check.add_argument("--max-total-usd", type=float)

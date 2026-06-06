@@ -1,6 +1,6 @@
 from agentledger.blobstore_s3 import S3BlobStore, S3BlobStoreConfig, S3DependencyMissing
 
-__version__ = "1.2.4"
+__version__ = "1.3.0"
 
 __all__ = [
     "S3BlobStore",

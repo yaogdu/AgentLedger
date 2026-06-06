@@ -5,7 +5,7 @@ AgentLedger stores runtime metadata, state transitions, Tool Ledger rows, events
 - `run_id`: the AgentLedger runtime run id.
 - `session_id`: the logical session id when a run belongs to a longer conversation or task.
 - `step_id`: the runtime-managed step id.
-- `correlation_id`: an application id such as order id, case id, workflow id, request id, or tenant-local task id.
+- `correlation_id`: an application id such as order id, case id, workflow id, request id, or task id.
 - `artifact_id` / `blob_ref`: immutable payload references for large objects.
 
 The recommended pattern is:

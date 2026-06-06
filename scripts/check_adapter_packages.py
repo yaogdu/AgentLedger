@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check the v1.2 adapter package boundaries across supported languages."""
+"""Check adapter and companion package boundaries across supported languages."""
 from __future__ import annotations
 
 import importlib
@@ -29,6 +29,21 @@ PYTHON_ADAPTERS = [
     PythonAdapter("agentledger-otel", "agentledger_otel", ("OTLPTraceExporter", "OTLPResource")),
     PythonAdapter("agentledger-langfuse", "agentledger_langfuse", ("LangfuseTraceExporter", "LangfuseProject")),
     PythonAdapter("agentledger-sandbox-docker", "agentledger_sandbox_docker", ("DockerSandboxExecutor", "SandboxPolicy")),
+]
+
+PYTHON_COMPANION_PACKAGES = [
+    PythonAdapter(
+        "agentledger-inspector",
+        "agentledger_inspector",
+        (
+            "INSPECTOR_SCHEMA_VERSION",
+            "EvidenceBlobStoreProtocol",
+            "EvidenceStateStoreProtocol",
+            "InspectorDataSource",
+            "InspectorReportBuilder",
+            "ReadOnlyPostgresStore",
+        ),
+    ),
 ]
 
 TYPESCRIPT_ADAPTERS = {
@@ -87,33 +102,37 @@ def python_version() -> str:
 def check_python(version: str) -> None:
     root_pyproject = load_toml(ROOT / "pyproject.toml")
     extras = root_pyproject["project"]["optional-dependencies"]
-    for adapter in PYTHON_ADAPTERS:
-        package_dir = ROOT / "packages" / adapter.package
-        metadata = load_toml(package_dir / "pyproject.toml")["project"]
-        if metadata["name"] != adapter.package:
-            fail(f"{adapter.package}: package name mismatch")
-        if metadata["version"] != version:
-            fail(f"{adapter.package}: expected version {version}, got {metadata['version']}")
-        deps = metadata.get("dependencies", [])
-        if not any(dep.startswith("agentledger-runtime>=1.2") for dep in deps):
-            fail(f"{adapter.package}: missing dependency on agentledger-runtime>=1.2")
-        if adapter.required_dependency and not any(adapter.required_dependency in dep for dep in deps):
-            fail(f"{adapter.package}: missing dependency containing {adapter.required_dependency}")
-        if adapter.package not in "\n".join(extras.get("all", [])):
-            fail(f"root extra all does not include {adapter.package}")
-        if not (package_dir / "README.md").exists():
-            fail(f"{adapter.package}: README.md missing")
-        if not (package_dir / "tests" / "test_import.py").exists():
-            fail(f"{adapter.package}: import smoke test missing")
+    for adapter in [*PYTHON_ADAPTERS, *PYTHON_COMPANION_PACKAGES]:
+        check_python_package_metadata(adapter, version, extras)
 
     sys.path.insert(0, str(ROOT / "src"))
-    for adapter in PYTHON_ADAPTERS:
+    for adapter in [*PYTHON_ADAPTERS, *PYTHON_COMPANION_PACKAGES]:
         sys.path.insert(0, str(ROOT / "packages" / adapter.package / "src"))
-    for adapter in PYTHON_ADAPTERS:
+    for adapter in [*PYTHON_ADAPTERS, *PYTHON_COMPANION_PACKAGES]:
         module = importlib.import_module(adapter.module)
         for symbol in adapter.symbols:
             if not hasattr(module, symbol):
                 fail(f"{adapter.module}: missing symbol {symbol}")
+
+
+def check_python_package_metadata(adapter: PythonAdapter, version: str, extras: dict) -> None:
+    package_dir = ROOT / "packages" / adapter.package
+    metadata = load_toml(package_dir / "pyproject.toml")["project"]
+    if metadata["name"] != adapter.package:
+        fail(f"{adapter.package}: package name mismatch")
+    if metadata["version"] != version:
+        fail(f"{adapter.package}: expected version {version}, got {metadata['version']}")
+    deps = metadata.get("dependencies", [])
+    if not any(dep.startswith("agentledger-runtime>=1.3") for dep in deps):
+        fail(f"{adapter.package}: missing dependency on agentledger-runtime>=1.3")
+    if adapter.required_dependency and not any(adapter.required_dependency in dep for dep in deps):
+        fail(f"{adapter.package}: missing dependency containing {adapter.required_dependency}")
+    if adapter.package not in "\n".join(extras.get("all", [])):
+        fail(f"root extra all does not include {adapter.package}")
+    if not (package_dir / "README.md").exists():
+        fail(f"{adapter.package}: README.md missing")
+    if not (package_dir / "tests" / "test_import.py").exists():
+        fail(f"{adapter.package}: import smoke test missing")
 
 
 def check_typescript(version: str) -> None:
@@ -172,7 +191,7 @@ def main() -> None:
     check_typescript(version)
     check_rust(version)
     check_go()
-    print(json.dumps({"passed": True, "version": version, "python_packages": [adapter.package for adapter in PYTHON_ADAPTERS], "typescript_packages": sorted(TYPESCRIPT_ADAPTERS), "rust_crates": sorted(RUST_ADAPTERS), "go_boundaries": GO_ADAPTER_DIRS}, indent=2))
+    print(json.dumps({"passed": True, "version": version, "python_packages": [adapter.package for adapter in PYTHON_ADAPTERS], "python_companion_packages": [package.package for package in PYTHON_COMPANION_PACKAGES], "typescript_packages": sorted(TYPESCRIPT_ADAPTERS), "rust_crates": sorted(RUST_ADAPTERS), "go_boundaries": GO_ADAPTER_DIRS}, indent=2))
 
 
 if __name__ == "__main__":

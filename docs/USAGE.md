@@ -45,9 +45,10 @@ python3 -m pip install "agentledger-runtime[postgres]"
 python3 -m pip install "agentledger-runtime[mysql]"
 python3 -m pip install "agentledger-runtime[s3]"
 python3 -m pip install "agentledger-runtime[langfuse]"
+python3 -m pip install "agentledger-runtime[inspector]"
 ```
 
-For local development from the repository, use extras such as `python3 -m pip install -e ".[postgres]"`, `python3 -m pip install -e ".[mysql]"`, `python3 -m pip install -e ".[s3]"`, or `python3 -m pip install -e ".[langfuse]"`.
+For local development from the repository, use extras such as `python3 -m pip install -e ".[postgres]"`, `python3 -m pip install -e ".[mysql]"`, `python3 -m pip install -e ".[s3]"`, `python3 -m pip install -e ".[langfuse]"`, or `python3 -m pip install -e ".[inspector]"`.
 
 ## First 10 Minutes
 
@@ -60,6 +61,7 @@ PYTHONPATH=src python3 -m agentledger --root .agentledger-demo debug <run_id> --
 PYTHONPATH=src python3 -m agentledger --root .agentledger-demo ledger <run_id>
 PYTHONPATH=src python3 -m agentledger --root .agentledger-demo replay <run_id>
 PYTHONPATH=src python3 -m agentledger --root .agentledger-demo evidence <run_id> --html ./evidence.html
+PYTHONPATH=src python3 -m agentledger --root .agentledger-demo inspector run <run_id> --html ./inspector.html
 ```
 
 The important behavior to observe is not the text output; it is that the run has durable state, leased steps, a Tool Ledger entry, replay without side effects, and exportable evidence.
@@ -168,9 +170,14 @@ PYTHONPATH=src python3 -m agentledger evidence <run_id> --dir ./bundle-dir
 PYTHONPATH=src python3 -m agentledger evidence <run_id> --html ./evidence.html
 PYTHONPATH=src python3 -m agentledger replay <run_id>
 PYTHONPATH=src python3 -m agentledger timetravel <run_id> --include-diffs --include-states --html ./time-travel.html
+PYTHONPATH=src python3 -m agentledger inspector run <run_id> --root .agentledger-demo --html ./inspector.html
+PYTHONPATH=src python3 -m agentledger inspector evidence ./bundle-dir --html ./inspector.html
+PYTHONPATH=src python3 examples/inspector/custom_viewer.py
 PYTHONPATH=src python3 -m agentledger evidence-check <run_id>  # side-effect-free evidence invariant check
 PYTHONPATH=src python3 -m agentledger review checklist <run_id> --fail-on-risk
 ```
+
+`inspector` is a read-only evidence consumer. It can read exported evidence bundles or connect to SQLite/Postgres/MySQL runtime metadata with read-only credentials. It does not mutate runtime state or act as a web control plane. `examples/inspector/custom_viewer.py` shows how to build a custom viewer/API payload from the stable read model. See `INSPECTOR.md` for DB options and extension APIs.
 
 Regression and corpus commands:
 
@@ -228,7 +235,7 @@ AGENTLEDGER_MYSQL_DSN=mysql://user:password@localhost:3306/database \
 PYTHONPATH=src python3 -m agentledger migrate up --dialect mysql
 ```
 
-Do not run adapter conformance against real application data. Use temporary test services. MySQL support in `1.2.4` is an official adapter boundary; production use still requires real-service concurrency, permission, backup, and restore validation.
+Do not run adapter conformance against real application data. Use temporary test services. MySQL support in `1.3.0` is an official adapter boundary; production use still requires real-service concurrency, permission, backup, and restore validation.
 
 ## Media and Streams
 
@@ -250,8 +257,8 @@ PYTHONPATH=src python3 -m agentledger state conformance --backend sqlite
 PYTHONPATH=src python3 -m agentledger blob conformance --backend local
 PYTHONPATH=src python3 -m agentledger worker conformance --backend sqlite --concurrent
 PYTHONPATH=src python3 -m agentledger adapter conformance --kind langchain
-PYTHONPATH=src python3 -m agentledger adapter certify --kind postgres --adapter-version 1.2.4 --out ./postgres-certification.json
-PYTHONPATH=src python3 -m agentledger adapter certify --kind mysql --adapter-version 1.2.4 --out ./mysql-certification.json
+PYTHONPATH=src python3 -m agentledger adapter certify --kind postgres --adapter-version 1.3.0 --out ./postgres-certification.json
+PYTHONPATH=src python3 -m agentledger adapter certify --kind mysql --adapter-version 1.3.0 --out ./mysql-certification.json
 ```
 
 `adapter certify` emits a machine-readable adapter certification bundle. It records package metadata, conformance commands, smoke commands, required external services, security assumptions, known limitations, and whether production validation still requires real infrastructure. For example, Postgres/MySQL/S3/Docker/Temporal bundles are marked `external-required` until they have real service credentials, concurrency/load checks, and restore or rollback drills.

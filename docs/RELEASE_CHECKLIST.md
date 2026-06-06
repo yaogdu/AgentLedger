@@ -1,6 +1,6 @@
 # Release Checklist
 
-This checklist is for v1.0 stable runtime-core releases of the AgentLedger Python reference runtime. It is intentionally read-only except for temporary runtime data, generated contract output, and optional static debug artifacts.
+This checklist is for v1.x runtime-core release trains of AgentLedger, including the Python reference runtime and the Go, TypeScript, and Rust package surfaces. It is intentionally read-only except for temporary runtime data, generated contract output, package dry-run artifacts outside the repository, and optional static debug artifacts.
 
 ## Scope Gate
 
@@ -27,6 +27,7 @@ PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src PYTHONTRACEMALLOC=10 python3 -W default
 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m agentledger --root /tmp/agentledger-release-check conformance
 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m agentledger lint boundary examples src --exclude src/agentledger --no-fail
 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m agentledger contract export > /tmp/agentledger-contract.json
+python3 -m json.tool /tmp/agentledger-contract.json >/dev/null
 diff -u contracts/agentledger.runtime.v1.json /tmp/agentledger-contract.json
 ```
 
@@ -52,9 +53,38 @@ python3.11 scripts/check_language_parity.py --json-report /tmp/agentledger-langu
 python3.11 scripts/audit_python_parity.py > /tmp/agentledger-python-parity-audit.json
 ```
 
-For a 1.0.x-style runtime-core parity release, `audit_python_parity.py` should report `gap_count: 0`.
+For a v1.x runtime-core parity release, `audit_python_parity.py` should report `gap_count: 0`.
 
 This aggregate runner executes the Python reference tests, Go tests, TypeScript tests/check, Rust tests, each preview language conformance CLI, contract diff, Markdown local link check, and `git diff --check`. It loads the shared semantic manifest at `contracts/conformance/runtime_semantics.v1.json`; the JSON report includes `required_semantic_checks`, `semantic_manifest`, and `language_conformance` entries, so it is useful for release notes, CI artifacts, and adapter certification evidence.
+
+## Packaging Gate
+
+For a release that changes package metadata, optional adapter packages, companion packages, or published language surfaces, run the packaging checks before publishing:
+
+Use a fresh output directory outside the repository. Do not upload from an old repo-local `dist/` directory.
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 python3 scripts/check_adapter_packages.py
+
+# Python runtime, companion, and adapter packages. Use a clean outdir outside the repo.
+python3 -m build --sdist --wheel --outdir /tmp/agentledger-build/root .
+python3 -m build --sdist --wheel --outdir /tmp/agentledger-build/inspector packages/agentledger-inspector
+for package in packages/agentledger-postgres packages/agentledger-mysql packages/agentledger-s3 packages/agentledger-langgraph packages/agentledger-mcp packages/agentledger-otel packages/agentledger-langfuse packages/agentledger-sandbox-docker; do
+  python3 -m build --sdist --wheel --outdir "/tmp/agentledger-build/$(basename "$package")" "$package"
+done
+twine check /tmp/agentledger-build/root/* /tmp/agentledger-build/inspector/* /tmp/agentledger-build/agentledger-*/*
+
+# TypeScript runtime and adapter wrapper packages.
+cd typescript && npm pack --dry-run && cd ..
+for package in typescript/packages/agentledger-langfuse typescript/packages/agentledger-langgraph typescript/packages/agentledger-mcp typescript/packages/agentledger-mysql typescript/packages/agentledger-otel typescript/packages/agentledger-postgres typescript/packages/agentledger-s3 typescript/packages/agentledger-sandbox-docker; do
+  npm pack --dry-run "$package"
+done
+
+# Rust runtime first. Adapter crates can only package/publish after this runtime version exists on crates.io.
+cd rust && cargo package --allow-dirty --no-verify && cd ..
+```
+
+Publishing order matters for Rust: publish `agentledger-runtime` first, wait until that version resolves from crates.io, then package or publish `rust/crates/agentledger-*`. Adapter crates declare a registry dependency on the runtime crate as well as a local monorepo `path` dependency, so packaging them before the runtime version exists on crates.io can fail dependency resolution even when local tests pass.
 
 ## Example Smoke
 
@@ -63,6 +93,7 @@ Run representative dependency-free examples:
 ```bash
 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 examples/hello_world/hello.py
 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 examples/langgraph/basic_graph.py
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 examples/inspector/custom_viewer.py
 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 examples/media_stream/basic_media_stream.py
 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 examples/media_stream/managed_tool.py
 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m agentledger worker-run examples/transient_retry

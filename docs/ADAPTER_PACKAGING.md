@@ -1,6 +1,6 @@
 # Adapter Packaging
 
-AgentLedger `1.2.1` introduced the adapter packaging model, `1.2.2` extended it with the official MySQL storage adapter boundary, and `1.2.3` adds a dependency-free Langfuse evidence/trace export boundary. Runtime-core stays small and dependency-light; concrete integrations move into optional adapter packages that can be installed through extras or directly.
+AgentLedger `1.2.1` introduced the adapter packaging model, `1.2.2` extended it with the official MySQL storage adapter boundary, `1.2.3` added a dependency-free Langfuse evidence/trace export boundary, and `1.3.0` adds the read-only Inspector companion package. Runtime-core stays small and dependency-light; concrete integrations and external evidence consumers move into optional packages that can be installed through extras or directly.
 
 ## Why Split Adapters
 
@@ -24,7 +24,7 @@ extras preserve easy installation
 
 Adapter packaging is language-specific. The goal is the same across languages, but the package mechanism follows each ecosystem:
 
-| Language | Mechanism in `1.2.x` | Reason |
+| Language | Mechanism | Reason |
 | --- | --- | --- |
 | Python | separate PyPI packages under `packages/` plus `agentledger-runtime[...]` extras | Python extras are the cleanest way to keep optional SDK dependencies out of core |
 | TypeScript/Node | `agentledger-runtime` subpath exports plus separate npm adapter packages under `typescript/packages/` | subpath exports are ergonomic for local use; adapter packages preserve future independent npm releases |
@@ -50,6 +50,7 @@ pip install "agentledger-runtime[mcp]"
 pip install "agentledger-runtime[otel]"
 pip install "agentledger-runtime[langfuse]"
 pip install "agentledger-runtime[docker]"
+pip install "agentledger-runtime[inspector]"
 pip install "agentledger-runtime[all]"
 ```
 
@@ -64,6 +65,7 @@ pip install agentledger-mcp
 pip install agentledger-otel
 pip install agentledger-langfuse
 pip install agentledger-sandbox-docker
+pip install agentledger-inspector
 ```
 
 Use extras for normal projects. Use direct adapter packages when an organization wants explicit dependency locks, separate package mirrors, or independent adapter release governance.
@@ -89,6 +91,7 @@ agentledger-runtime/
     agentledger-otel/
     agentledger-langfuse/
     agentledger-sandbox-docker/
+    agentledger-inspector/                 # companion package, not an adapter
   typescript/
     src/adapters/                        # runtime subpath exports
     packages/                            # npm adapter packages
@@ -132,7 +135,7 @@ Each adapter package should provide:
 
 ## First Adapter Packages
 
-| Package | Owns in `1.2.x` | Dependency status |
+| Package | Owns in current `1.3.x` release train | Dependency status |
 | --- | --- | --- |
 | `agentledger-postgres` | `PostgresStore`, `PostgresStoreConfig`, migration/conformance helpers | Requires `psycopg[binary]`; production rollout still needs real-service drills. |
 | `agentledger-mysql` | `MySQLStore`, `MySQLStoreConfig`, migration/conformance helpers | Requires `pymysql`; production rollout still needs real-service drills. |
@@ -142,6 +145,18 @@ Each adapter package should provide:
 | `agentledger-otel` | OTLP JSON/export package boundary around AgentLedger spans | Current package is dependency-light; hardened OpenTelemetry SDK wiring is follow-up work. |
 | `agentledger-langfuse` | Langfuse-style evidence/trace payload export | Current package is dependency-light; Langfuse SDK/server ingestion behavior remains application/deployment validation. |
 | `agentledger-sandbox-docker` | Docker sandbox executor package and local/team recipes | Current boundary can use Docker CLI/manifest semantics; daemon hardening, network policy, and resource validation are external. |
+
+## Companion Packages
+
+Not every optional package is an adapter. `agentledger-inspector` is a read-only evidence/runtime metadata consumer. It uses the same package and extra mechanism for installation convenience, but it does not provide a storage, framework, sandbox, model, or observability adapter.
+
+```bash
+pip install "agentledger-runtime[inspector]"
+agentledger inspector evidence ./evidence/<run_id> --html ./inspector.html
+agentledger inspector run <run_id> --root .agentledger --html ./inspector.html
+```
+
+The Inspector package should remain read-only and dependency-light. Web servers, authentication, deployment management, and write/control-plane actions are outside this package boundary.
 
 Language fit matters. `agentledger-langgraph` is first-class for Python and TypeScript/Node because those ecosystems have LangGraph packages. Go and Rust expose a generic `framework` adapter boundary instead of pretending a native LangGraph ecosystem exists there.
 
@@ -195,23 +210,25 @@ Do not remove these shim paths in `1.2.1`. A future `2.0` may remove compatibili
 
 ```toml
 [project.optional-dependencies]
-postgres = ["agentledger-postgres>=1.2,<2"]
-mysql = ["agentledger-mysql>=1.2,<2"]
-s3 = ["agentledger-s3>=1.2,<2"]
-langgraph = ["agentledger-langgraph>=1.2,<2"]
-mcp = ["agentledger-mcp>=1.2,<2"]
-otel = ["agentledger-otel>=1.2,<2"]
-langfuse = ["agentledger-langfuse>=1.2,<2"]
-docker = ["agentledger-sandbox-docker>=1.2,<2"]
+postgres = ["agentledger-postgres>=1.3,<2"]
+mysql = ["agentledger-mysql>=1.3,<2"]
+s3 = ["agentledger-s3>=1.3,<2"]
+langgraph = ["agentledger-langgraph>=1.3,<2"]
+mcp = ["agentledger-mcp>=1.3,<2"]
+otel = ["agentledger-otel>=1.3,<2"]
+langfuse = ["agentledger-langfuse>=1.3,<2"]
+docker = ["agentledger-sandbox-docker>=1.3,<2"]
+inspector = ["agentledger-inspector>=1.3,<2"]
 all = [
-  "agentledger-postgres>=1.2,<2",
-  "agentledger-mysql>=1.2,<2",
-  "agentledger-s3>=1.2,<2",
-  "agentledger-langgraph>=1.2,<2",
-  "agentledger-mcp>=1.2,<2",
-  "agentledger-otel>=1.2,<2",
-  "agentledger-langfuse>=1.2,<2",
-  "agentledger-sandbox-docker>=1.2,<2",
+  "agentledger-postgres>=1.3,<2",
+  "agentledger-mysql>=1.3,<2",
+  "agentledger-s3>=1.3,<2",
+  "agentledger-langgraph>=1.3,<2",
+  "agentledger-mcp>=1.3,<2",
+  "agentledger-otel>=1.3,<2",
+  "agentledger-langfuse>=1.3,<2",
+  "agentledger-sandbox-docker>=1.3,<2",
+  "agentledger-inspector>=1.3,<2",
 ]
 ```
 
@@ -219,17 +236,19 @@ During local monorepo development, tests may install packages from `packages/*` 
 
 ## Release Gates
 
-The `1.2.x` packaging release is expected to pass:
+The packaging release is expected to pass:
 
 ```bash
 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m unittest discover -s tests -q
-PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m agentledger adapter certify --kind postgres --adapter-version 1.2.4
-PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m agentledger adapter certify --kind mysql --adapter-version 1.2.4
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m agentledger adapter certify --kind postgres --adapter-version 1.3.0
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m agentledger adapter certify --kind mysql --adapter-version 1.3.0
 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 scripts/check_adapter_packages.py
 go test ./...
 cd typescript && npm test
 cd rust && cargo test --features adapters-all
 ```
+
+`scripts/check_adapter_packages.py` covers official adapter packages and read-only companion packages. `agentledger-inspector` is checked for metadata, dependency declaration, README, and import smoke coverage, but it remains a companion package rather than an adapter.
 
 Each adapter package should also pass:
 
@@ -239,9 +258,11 @@ python3 -m pip install dist/<adapter>.whl
 python3 -c "import <adapter_import_name>"
 ```
 
-## Non-Goals For 1.2.1
+Rust adapter crates depend on the published `agentledger-runtime` crate version as well as the local monorepo `path` dependency. For a new release train, publish `agentledger-runtime` first; then run `cargo package` or `cargo publish` for `rust/crates/agentledger-*`. Before the runtime crate version exists on crates.io, adapter crate packaging may fail registry dependency resolution even though local tests pass.
 
-`1.2.1` should not claim production hardening just because packages exist. The following stay as later work:
+## Non-Goals For The Adapter Package Boundary
+
+The adapter package boundary should not claim production hardening just because packages exist. The following stay as later work:
 
 - real Postgres/S3 restore drills and load/concurrency reports
 - full framework-native version matrix
@@ -249,4 +270,4 @@ python3 -c "import <adapter_import_name>"
 - Temporal/Ray/Kubernetes backend adapters
 - media processing adapters
 - sub-agent or multi-agent runtime semantics
-- hosted platform, SaaS, long-running UI, or full eval platform
+- long-running UI, deployment management, or full eval system

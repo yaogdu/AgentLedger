@@ -24,10 +24,11 @@ from agentledger.blobstore_s3 import S3BlobStore, S3BlobStoreConfig
 from agentledger.conformance import BlobStoreConformanceRunner, FrameworkAdapterConformanceRunner, MediaRuntimeConformanceRunner, StateStoreConformanceRunner, WorkerConformanceRunner
 from agentledger.contract import contract_json, runtime_contract
 from agentledger.approval import ApprovalRequired
-from agentledger.cli import build_parser, cmd_adapter_certify, cmd_adapter_conformance, cmd_backup_check, cmd_blob_conformance, cmd_conformance, cmd_corpus_add, cmd_corpus_eval, cmd_corpus_list, cmd_corpus_seed, cmd_cost_report, cmd_debug, cmd_divergence, cmd_evidence, cmd_evidence_regression, cmd_failure_inject, cmd_failure_report, cmd_lint_boundary, cmd_migrate_status, cmd_migrate_up, cmd_review_checklist, cmd_state_conformance, cmd_timetravel, cmd_tools_manifest, cmd_worker_conformance, cmd_worker_plan, cmd_worker_serve, create_blob_store, create_state_store
+from agentledger.cli import build_parser, cmd_adapter_certify, cmd_adapter_conformance, cmd_backup_check, cmd_blob_conformance, cmd_conformance, cmd_corpus_add, cmd_corpus_eval, cmd_corpus_list, cmd_corpus_seed, cmd_cost_report, cmd_debug, cmd_divergence, cmd_evidence, cmd_evidence_regression, cmd_failure_inject, cmd_failure_report, cmd_inspector_evidence, cmd_inspector_run, cmd_lint_boundary, cmd_migrate_status, cmd_migrate_up, cmd_review_checklist, cmd_state_conformance, cmd_timetravel, cmd_tools_manifest, cmd_worker_conformance, cmd_worker_plan, cmd_worker_serve, create_blob_store, create_state_store
 from agentledger.cost import BudgetController, BudgetExceeded, BudgetLimits, CostAttributionReporter
 from agentledger.failure import FailureAttributionReporter, RetryableAgentError
 from agentledger.failure_injection import FailureInjectionSuite
+from agentledger.inspector import INSPECTOR_SCHEMA_VERSION, InspectorDataSource, InspectorReportBuilder, ReadOnlyLocalBlobStore, ReadOnlyMySQLStore, ReadOnlyPostgresStore, ReadOnlySQLiteStore
 from agentledger.lint import RuntimeBoundaryLinter, load_boundary_rules
 from agentledger.media import ArtifactLineage, EventStreamCheckpoint, MediaArtifact, MediaMetadata, StreamChunkRef
 from agentledger.media_tools import media_tool_specs, register_media_tool_conventions
@@ -141,6 +142,11 @@ class RuntimeTests(unittest.TestCase):
             ["evidence", "run-1"],
             ["evidence", "run-1", "--dir", "./evidence/run-1"],
             ["evidence", "run-1", "--html", "./evidence.html"],
+            ["inspector", "run", "run-1", "--backend", "sqlite", "--html", "./inspector.html"],
+            ["inspector", "run", "run-1", "--root", ".agentledger-demo", "--html", "./inspector.html"],
+            ["inspector", "run", "run-1", "--backend", "postgres", "--dsn", "postgresql://user:pass@localhost/db", "--schema", "agentledger", "--out", "./inspector.json"],
+            ["inspector", "run", "run-1", "--backend", "mysql", "--dsn", "mysql://user:pass@localhost/db", "--database", "agentledger", "--out", "./inspector.json"],
+            ["inspector", "evidence", "./evidence/run-1", "--out", "./inspector.json"],
             ["evidence-check", "run-1"],
             ["review", "checklist", "run-1", "--fail-on-risk"],
             ["cost", "report", "run-1"],
@@ -212,6 +218,7 @@ class RuntimeTests(unittest.TestCase):
         self.assertIn("README.md", project["readme"])
         self.assertIn("postgres", project["optional-dependencies"])
         self.assertIn("s3", project["optional-dependencies"])
+        self.assertIn("inspector", project["optional-dependencies"])
         self.assertIn("Programming Language :: Python :: 3.11", project["classifiers"])
         self.assertIn("Programming Language :: Python :: 3.12", project["classifiers"])
         self.assertEqual(project["version"], AGENTLEDGER_VERSION)
@@ -387,6 +394,207 @@ class RuntimeTests(unittest.TestCase):
             self.assertEqual(bundle["summary"]["cost_summary"]["tool_calls"], 2.0)
             report = EvidenceRegressionRunner().evaluate(bundle)
             self.assertTrue(report.passed)
+
+    def test_inspector_reads_sqlite_runtime_and_evidence_bundle(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / ".agentledger"
+            rt, run_id, _ = self._run_side_effect_demo(root)
+            source = InspectorDataSource()
+
+            runtime_report = source.from_sqlite(db_path=root / "state.db", blob_root=root / "blobs", run_id=run_id)
+            data = runtime_report.to_dict()
+            self.assertEqual(data["schema_version"], INSPECTOR_SCHEMA_VERSION)
+            self.assertEqual(data["run"]["run_id"], run_id)
+            self.assertGreater(data["summary"]["event_count"], 0)
+            self.assertEqual(len(data["tool_ledger"]), 1)
+            self.assertTrue(data["evidence"]["bundle_hash"].startswith("sha256:"))
+            html = runtime_report.to_html()
+            self.assertIn("AgentLedger Inspector", html)
+            self.assertIn(run_id, html)
+
+            evidence_dir = Path(tmp) / "evidence" / run_id
+            EvidenceExporter(store=rt.store, blobs=rt.blobs).export(run_id).write_dir(evidence_dir)
+            evidence_report = source.from_evidence_path(evidence_dir)
+            self.assertEqual(evidence_report.to_dict()["run"]["run_id"], run_id)
+            self.assertEqual(evidence_report.to_dict()["evidence"]["bundle_hash"], data["evidence"]["bundle_hash"])
+
+    def test_inspector_cli_outputs_json_and_static_html(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / ".agentledger"
+            rt, run_id, _ = self._run_side_effect_demo(root)
+            json_path = Path(tmp) / "inspector.json"
+            html_path = Path(tmp) / "inspector.html"
+
+            args = type(
+                "Args",
+                (),
+                {
+                    "root": str(root),
+                    "run_id": run_id,
+                    "backend": "sqlite",
+                    "db": None,
+                    "blob_root": None,
+                    "dsn": None,
+                    "schema": "agentledger",
+                    "database": None,
+                    "include_payloads": False,
+                    "out": str(json_path),
+                    "html": None,
+                },
+            )()
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                cmd_inspector_run(args)
+            payload = json.loads(stdout.getvalue())
+            self.assertEqual(payload["run_id"], run_id)
+            written = json.loads(json_path.read_text(encoding="utf-8"))
+            self.assertEqual(written["schema_version"], INSPECTOR_SCHEMA_VERSION)
+
+            evidence_dir = Path(tmp) / "evidence" / run_id
+            EvidenceExporter(store=rt.store, blobs=rt.blobs).export(run_id).write_dir(evidence_dir)
+            args = type("Args", (), {"path": str(evidence_dir), "include_payloads": False, "out": None, "html": str(html_path)})()
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                cmd_inspector_evidence(args)
+            payload = json.loads(stdout.getvalue())
+            self.assertEqual(payload["inspector_html"], str(html_path))
+            html = html_path.read_text(encoding="utf-8")
+            self.assertIn("AgentLedger Inspector", html)
+            self.assertIn(run_id, html)
+
+    def test_inspector_read_only_sources_do_not_create_or_write_runtime_data(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            missing_db = Path(tmp) / "missing.db"
+            missing_blobs = Path(tmp) / "missing-blobs"
+            with self.assertRaises(FileNotFoundError):
+                ReadOnlySQLiteStore(missing_db)
+            with self.assertRaises(FileNotFoundError):
+                ReadOnlyLocalBlobStore(missing_blobs)
+
+            root = Path(tmp) / ".agentledger"
+            Runtime.local(root)
+            store = ReadOnlySQLiteStore(root / "state.db")
+            try:
+                store.init()
+                with self.assertRaises(sqlite3.OperationalError):
+                    store.conn.execute("CREATE TABLE inspector_write_probe(id TEXT)")
+            finally:
+                store.close()
+
+            blobs = ReadOnlyLocalBlobStore(root / "blobs")
+            with self.assertRaises(RuntimeError):
+                blobs.put_json({"should": "not write"})
+
+            pg_store = ReadOnlyPostgresStore(PostgresStoreConfig("postgres://fake/agentledger"), connection=FakePostgresConnection(), owns_connection=True)
+            try:
+                pg_store.init()
+                with self.assertRaises(RuntimeError):
+                    pg_store.create_run(initial_state={})
+                with self.assertRaises(RuntimeError):
+                    pg_store.append_event(run_id="run-1", event_type="probe", payload={})
+                with self.assertRaises(RuntimeError):
+                    pg_store.migration_status()
+            finally:
+                pg_store.close()
+
+            mysql_store = ReadOnlyMySQLStore(MySQLStoreConfig("mysql://fake/agentledger"), connection=FakePostgresConnection(), owns_connection=True)
+            try:
+                mysql_store.init()
+                with self.assertRaises(RuntimeError):
+                    mysql_store.create_artifact(run_id="run-1", step_id=None, name="probe", blob_hash="sha256:x", blob_ref="blob://x")
+                with self.assertRaises(RuntimeError):
+                    mysql_store.record_cost(run_id="run-1", session_id=None, step_id=None, category="tool", name="probe", amount=1, unit="call")
+            finally:
+                mysql_store.close()
+
+    def test_inspector_extension_api_accepts_custom_read_store_and_escapes_html(self) -> None:
+        class CustomBlobStore:
+            def get_json(self, ref: str) -> Any:
+                self.last_ref = ref
+                return {"tool_name": "<script>alert(1)</script>", "reason": "needs <approval>"}
+
+        class CustomStateStore:
+            def run(self, run_id: str) -> dict[str, Any]:
+                return {
+                    "run_id": run_id,
+                    "session_id": "sess-custom",
+                    "status": "completed",
+                    "state_version": 1,
+                    "created_at": 1.0,
+                    "updated_at": 2.0,
+                }
+
+            def steps(self, run_id: str) -> list[dict[str, Any]]:
+                return [{"step_id": "step-1", "run_id": run_id, "status": "completed", "attempt": 1, "state_version": 1}]
+
+            def events(self, run_id: str) -> list[dict[str, Any]]:
+                return [
+                    {
+                        "seq": 1,
+                        "event_id": "evt-1",
+                        "run_id": run_id,
+                        "step_id": "step-1",
+                        "agent_role": "Reviewer",
+                        "state_version": 1,
+                        "type": "tool_permission_decided",
+                        "timestamp": 1.1,
+                        "payload_ref": "blob://payload-danger",
+                    }
+                ]
+
+            def ledger(self, run_id: str) -> list[dict[str, Any]]:
+                return [{"tool_name": "<b>danger</b>", "status": "SUCCEEDED", "external_id": "ext-1"}]
+
+            def approval_requests(self, run_id: str | None = None) -> list[dict[str, Any]]:
+                return []
+
+            def artifacts(self, run_id: str) -> list[dict[str, Any]]:
+                return [{"name": "<img src=x onerror=alert(1)>", "blob_hash": "sha256:x", "blob_ref": "blob://artifact", "metadata_json": "{}"}]
+
+            def cost_records(self, run_id: str) -> list[dict[str, Any]]:
+                return [{"category": "tool", "name": "custom", "amount": 1, "unit": "call"}]
+
+            def cost_summary(self, run_id: str) -> dict[str, Any]:
+                return {"tool_calls": 1.0}
+
+            def final_state(self, run_id: str) -> dict[str, Any]:
+                return {"done": True}
+
+        report = InspectorDataSource().from_runtime_store(store=CustomStateStore(), blobs=CustomBlobStore(), run_id="run-<unsafe>")
+        data = report.to_dict()
+        self.assertEqual(data["schema_version"], INSPECTOR_SCHEMA_VERSION)
+        self.assertEqual(data["source"], {"kind": "runtime_store", "run_id": "run-<unsafe>"})
+        self.assertEqual(data["run"]["run_id"], "run-<unsafe>")
+        self.assertEqual(data["timeline"][0]["summary"], "tool_name=<script>alert(1)</script>, reason=needs <approval>")
+        self.assertEqual(data["tool_ledger"][0]["tool_name"], "<b>danger</b>")
+
+        html = report.to_html()
+        self.assertIn("run-&lt;unsafe&gt;", html)
+        self.assertIn("&lt;script&gt;alert(1)&lt;/script&gt;", html)
+        self.assertIn("&lt;b&gt;danger&lt;/b&gt;", html)
+        self.assertNotIn("<script>alert(1)</script>", html)
+        self.assertNotIn("<b>danger</b>", html)
+        self.assertNotIn('<img src=x onerror=alert(1)>', html)
+
+        evidence_report = InspectorReportBuilder().from_evidence(
+            {
+                "schema_version": "agentledger.evidence.v1",
+                "bundle_hash": "sha256:custom",
+                "run": {"run_id": "run-from-evidence", "status": "completed", "state_version": 1},
+                "steps": [],
+                "events": [],
+                "tool_ledger": [],
+                "approval_requests": [],
+                "artifacts": [],
+                "media_artifacts": [],
+                "stream_checkpoints": [],
+                "cost_records": [],
+                "summary": {"event_count": 0},
+                "final_state": {},
+            }
+        )
+        self.assertEqual(evidence_report.to_dict()["schema_version"], INSPECTOR_SCHEMA_VERSION)
+        self.assertEqual(evidence_report.to_dict()["run"]["run_id"], "run-from-evidence")
 
     def test_shadow_mode_replays_side_effect_without_external_mutation(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

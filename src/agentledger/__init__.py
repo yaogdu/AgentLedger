@@ -1,6 +1,6 @@
 """AgentLedger stable agent runtime core."""
 
-__version__ = "1.2.4"
+__version__ = "1.3.0"
 
 from .adapters import FrameworkAdapter, PythonFunctionAdapter, python_agent
 from .adapter_certification import AdapterCertificationBundle, build_adapter_certification_bundle, supported_adapter_certification_profiles
@@ -20,11 +20,12 @@ from .eval import EvidenceCheck, EvidenceCheckReport, EvidenceRegressionRunner
 from .evidence import EvidenceExporter
 from .failure import FailureAttributionReport, FailureAttributionReporter, FailureClassification, NonRetryableAgentError, RetryableAgentError, RetryPolicy
 from .failure_injection import FailureInjectionCheck, FailureInjectionReport, FailureInjectionSuite
+from .inspector import INSPECTOR_SCHEMA_VERSION, InspectorDataSource, InspectorReport, InspectorReportBuilder, ReadOnlyLocalBlobStore, ReadOnlyMySQLStore, ReadOnlyPostgresStore, ReadOnlySQLiteStore
 from .lint import BoundaryLintFinding, BoundaryLintReport, BoundaryLintRule, RuntimeBoundaryLinter, load_boundary_rules
 from .media import ArtifactLineage, EventStreamCheckpoint, MediaArtifact, MediaMetadata, StreamChunkRef
 from .media_tools import media_tool_specs, register_media_tool_conventions
 from .policy import DecisionComposer, PolicyControl, PolicyDecision, PolicyEngine, PolicyEvaluator, PolicyFinding, PolicyRequest, RolePolicy
-from .protocol import BlobStoreProtocol, ModelProviderProtocol, StateStoreProtocol, ToolExecutorProtocol
+from .protocol import BlobStoreProtocol, EvidenceBlobStoreProtocol, EvidenceStateStoreProtocol, ModelProviderProtocol, StateStoreProtocol, ToolExecutorProtocol
 from .repro import GoldenCase, GoldenCorpus
 from .replay import ReplayEngine
 from .runtime import Runtime, SimulatedCrash
@@ -93,7 +94,9 @@ __all__ = [
     "__version__",
     "EvidenceCheck",
     "EvidenceCheckReport",
+    "EvidenceBlobStoreProtocol",
     "EvidenceRegressionRunner",
+    "EvidenceStateStoreProtocol",
     "EventStreamCheckpoint",
     "OTLPResource",
     "OTLPTraceExporter",
@@ -126,6 +129,10 @@ __all__ = [
     "CrewAIAdapter",
     "GoldenCase",
     "GoldenCorpus",
+    "INSPECTOR_SCHEMA_VERSION",
+    "InspectorDataSource",
+    "InspectorReport",
+    "InspectorReportBuilder",
     "LangGraphCheckpointerAdapter",
     "LangGraphNodeAdapter",
     "LangChainRunnableAdapter",
@@ -155,6 +162,10 @@ __all__ = [
     "DecisionComposer",
     "OpenAIAgentsSDKAdapter",
     "PythonFunctionAdapter",
+    "ReadOnlyLocalBlobStore",
+    "ReadOnlyMySQLStore",
+    "ReadOnlyPostgresStore",
+    "ReadOnlySQLiteStore",
     "RecoverySummary",
     "ReplayEngine",
     "RetryPolicy",

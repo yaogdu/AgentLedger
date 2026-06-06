@@ -122,7 +122,7 @@ Runtime-core does not become:
 - a DLP product
 - a prompt-injection product
 - a policy management UI
-- a multi-tenant governance backend
+- an application governance administration backend
 - a full eval platform
 
 Core owns the request/decision contract, deterministic local evaluator, gate enforcement, and audit evidence. Heavy or organization-specific intelligence should be provided by adapters.

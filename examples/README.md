@@ -24,6 +24,7 @@ Run Python examples from the repository root with `PYTHONPATH=src` unless the ex
 | Sandbox tool | `sandbox/command_tool.py` | Uses `sandbox/sandbox.yaml`. |
 | Boundary lint | `lint/boundary_rules.json` | Example lint rules. |
 | Media/stream refs | `media_stream/basic_media_stream.py` | Artifact refs and stream checkpoints, not media processing. |
+| Inspector/custom viewer | `inspector/README.md` | Reads SQLite/evidence into the stable Inspector read model for custom UI/API code. |
 
 Other language examples:
 

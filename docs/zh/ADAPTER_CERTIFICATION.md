@@ -146,10 +146,10 @@ backup/restore notes if stateful
 AgentLedger 可以为官方 adapter profile 生成机器可读的起始认证 bundle：
 
 ```bash
-PYTHONPATH=src python3 -m agentledger adapter certify --kind postgres --adapter-version 1.2.4
-PYTHONPATH=src python3 -m agentledger adapter certify --kind mysql --adapter-version 1.2.4 --out ./mysql-certification.json
-PYTHONPATH=src python3 -m agentledger adapter certify --kind s3 --adapter-version 1.2.4 --out ./s3-certification.json
-PYTHONPATH=src python3 -m agentledger adapter certify --kind langgraph --adapter-version 1.2.4 --package-name agentledger-langgraph
+PYTHONPATH=src python3 -m agentledger adapter certify --kind postgres --adapter-version 1.3.0
+PYTHONPATH=src python3 -m agentledger adapter certify --kind mysql --adapter-version 1.3.0 --out ./mysql-certification.json
+PYTHONPATH=src python3 -m agentledger adapter certify --kind s3 --adapter-version 1.3.0 --out ./s3-certification.json
+PYTHONPATH=src python3 -m agentledger adapter certify --kind langgraph --adapter-version 1.3.0 --package-name agentledger-langgraph
 ```
 
 内置 profile：
