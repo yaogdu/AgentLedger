@@ -590,6 +590,14 @@ static HTML export，用于离线 debug 分享
 Tool Ledger、approval、policy decision、cost/failure、artifact、timeline read model
 ```
 
+`1.3.2` 已实现：
+
+```text
+JSON 和 static HTML 输出的可配置 Inspector redaction policy
+CLI 支持 --redact-key、--redaction-policy 和 --redaction-replacement
+给自定义 read-model consumer 使用的 InspectorRedactionPolicy API
+```
+
 后续工作：
 
 ```text
@@ -599,7 +607,7 @@ state diff 和 state-version view
 Tool Ledger view：idempotency key、causal token、side-effect status、request/response refs、unknown-state handling
 artifact/evidence browser：payload refs、blob hashes、media refs、stream checkpoint refs
 cost / failure attribution panels
-secret、credential、prompt、payload field、大 blob 的 redaction 配置
+prompt、大 blob 和项目自定义 evidence field 的更丰富 redaction preset
 读取数据库前做 schema/version compatibility check
 ```
 

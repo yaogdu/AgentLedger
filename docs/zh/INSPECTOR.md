@@ -90,6 +90,38 @@ Postgres/MySQL 建议使用只读数据库账号。AgentLedger 不为 Inspector 
 
 `--html` 写出静态 HTML 报告，适合本地或内网排查问题；打开 HTML 不需要启动服务。
 
+## 脱敏
+
+Inspector 输出可能包含敏感运行证据，尤其是在使用 `--include-payloads` 时。`1.3.2` 增加了显式 redaction policy，作用于 JSON read model 和 HTML report。脱敏会在渲染前作用到 Inspector read model，所以二开的 viewer 如果消费 `InspectorReport.to_dict()`，拿到的也是同一份脱敏后的数据。
+
+直接指定一个或多个敏感 key：
+
+```bash
+agentledger inspector evidence ./evidence/<run_id> \
+  --include-payloads \
+  --redact-key password \
+  --redact-key api_token \
+  --html ./inspector.html
+```
+
+如果需要复用规则，可以使用 policy 文件：
+
+```json
+{
+  "keys": ["password", "api_token", "authorization"],
+  "replacement": "[redacted]"
+}
+```
+
+```bash
+agentledger inspector run <run_id> \
+  --root .agentledger \
+  --redaction-policy ./inspector-redaction.json \
+  --out ./inspector.json
+```
+
+内置 policy 按 key 精确匹配，不区分大小写；如果字段值是可以解析的 JSON 字符串，也会继续对其中的对象或数组做脱敏。它是本地 debug 的防护手段，不替代上游 secret 管理、数据库权限或 evidence retention policy。
+
 ## 二开接口
 
 Inspector 分成三层，方便用户二开：
@@ -103,12 +135,13 @@ Inspector 分成三层，方便用户二开：
 示例：
 
 ```python
-from agentledger import InspectorDataSource, InspectorReportBuilder
+from agentledger import InspectorDataSource, InspectorRedactionPolicy, InspectorReportBuilder
 
-report = InspectorDataSource().from_evidence_path("./evidence/run-1")
+policy = InspectorRedactionPolicy(keys=("password", "api_token"))
+report = InspectorDataSource().from_evidence_path("./evidence/run-1", redaction_policy=policy)
 data = report.to_dict()
 
-custom_report = InspectorReportBuilder().from_evidence_path("./evidence/run-1")
+custom_report = InspectorReportBuilder().from_evidence_path("./evidence/run-1", redaction_policy=policy)
 html = custom_report.to_html()
 ```
 
@@ -135,6 +168,7 @@ data = report.to_dict()
 
 - 将 `InspectorReport.to_dict()` 作为 UI/API 输入
 - 保留 `schema_version == "agentledger.inspector.v1"`
+- payload 可能包含 secret 时，先应用 `InspectorRedactionPolicy` 再对用户暴露 report
 - 为自定义 store 实现 `EvidenceStateStoreProtocol` / `EvidenceBlobStoreProtocol`
 - Inspector surface 保持只读，不加入写入/控制动作
 - 需要 approve、deny、cancel、recover run 时走 runtime API，不要走 Inspector data source
@@ -143,6 +177,7 @@ data = report.to_dict()
 
 - Inspector JSON 和 HTML 可能包含敏感运行证据，应按敏感运维数据处理。
 - 报告可能包含 tool name、tool status、external id、approval reason、model metadata、artifact ref、payload summary 和 failure detail。
+- 把 report 分享出本地 debug 边界前，建议使用 `--redact-key` 或 `--redaction-policy`。
 - Postgres/MySQL 使用只读数据库账号。
 - 不要基于 Inspector report 自行增加写入动作。runtime 控制应走 runtime API，debug viewer 保持只读。
 - 如果 blob store 是远程服务或由其它系统管理，优先使用 evidence bundle 输入。
@@ -159,6 +194,10 @@ data = report.to_dict()
 - Postgres/MySQL DB input，通过已有 adapter boundary
 - 用于自定义 data source 和 renderer 的 extension API
 - optional `agentledger-inspector` companion package
+
+`1.3.2` 已实现：
+
+- 通过 `--redact-key`、`--redaction-policy` 和 `InspectorRedactionPolicy` 对 JSON/HTML report 做可配置脱敏
 
 本版本不包含：
 

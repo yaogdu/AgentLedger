@@ -12,6 +12,11 @@ ROOT = Path(__file__).resolve().parents[1]
 PY = sys.executable
 
 
+def release_family(version: str) -> str:
+    parts = version.split(".")
+    return ".".join(parts[:2]) if len(parts) >= 2 else version
+
+
 def run(cmd: list[str], *, cwd: Path = ROOT) -> dict[str, object]:
     env = os.environ.copy()
     env["PYTHONPATH"] = str(ROOT / "src")
@@ -67,9 +72,10 @@ def main() -> None:
         "rust_version": next(line.split("=", 1)[1].strip().strip('"') for line in (ROOT / "rust" / "Cargo.toml").read_text().splitlines() if line.startswith("version")),
         "python_version": next(line.split("=", 1)[1].strip().strip('"') for line in (ROOT / "pyproject.toml").read_text().splitlines() if line.startswith("version")),
     }
-    expected_version = metadata["python_version"]
-    version_ok = metadata == {"typescript_version": expected_version, "rust_version": expected_version, "python_version": expected_version}
-    checks.append({"name": "package-version-alignment", "ok": version_ok, "metadata": metadata, "expected_version": expected_version})
+    families = {language: release_family(version) for language, version in metadata.items()}
+    expected_family = families["python_version"]
+    version_ok = all(value == expected_family for value in families.values())
+    checks.append({"name": "package-release-family-alignment", "ok": version_ok, "metadata": metadata, "release_families": families, "expected_family": expected_family})
 
     docs = [
         ROOT / "docs" / "COMPLETE_CORE_PARITY_CHECKLIST.md",

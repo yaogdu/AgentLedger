@@ -1,8 +1,8 @@
 """Read-only Inspector package for AgentLedger."""
 
-__version__ = "1.3.1"
+__version__ = "1.3.2"
 
-from agentledger.inspector import INSPECTOR_SCHEMA_VERSION, InspectorDataSource, InspectorReport, InspectorReportBuilder, ReadOnlyLocalBlobStore, ReadOnlyMySQLStore, ReadOnlyPostgresStore, ReadOnlySQLiteStore
+from agentledger.inspector import INSPECTOR_SCHEMA_VERSION, InspectorDataSource, InspectorRedactionPolicy, InspectorReport, InspectorReportBuilder, ReadOnlyLocalBlobStore, ReadOnlyMySQLStore, ReadOnlyPostgresStore, ReadOnlySQLiteStore
 from agentledger.protocol import EvidenceBlobStoreProtocol, EvidenceStateStoreProtocol
 
 __all__ = [
@@ -10,6 +10,7 @@ __all__ = [
     "EvidenceBlobStoreProtocol",
     "EvidenceStateStoreProtocol",
     "InspectorDataSource",
+    "InspectorRedactionPolicy",
     "InspectorReport",
     "InspectorReportBuilder",
     "ReadOnlyLocalBlobStore",

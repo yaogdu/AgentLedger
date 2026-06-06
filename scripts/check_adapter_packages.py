@@ -40,6 +40,7 @@ PYTHON_COMPANION_PACKAGES = [
             "EvidenceBlobStoreProtocol",
             "EvidenceStateStoreProtocol",
             "InspectorDataSource",
+            "InspectorRedactionPolicy",
             "InspectorReportBuilder",
             "ReadOnlyPostgresStore",
         ),
@@ -99,11 +100,13 @@ def python_version() -> str:
     return load_toml(ROOT / "pyproject.toml")["project"]["version"]
 
 
-def check_python(version: str) -> None:
+def check_python(root_version: str) -> None:
     root_pyproject = load_toml(ROOT / "pyproject.toml")
     extras = root_pyproject["project"]["optional-dependencies"]
-    for adapter in [*PYTHON_ADAPTERS, *PYTHON_COMPANION_PACKAGES]:
-        check_python_package_metadata(adapter, version, extras)
+    for adapter in PYTHON_ADAPTERS:
+        check_python_package_metadata(adapter, extras, expected_version=None)
+    for package in PYTHON_COMPANION_PACKAGES:
+        check_python_package_metadata(package, extras, expected_version=root_version)
 
     sys.path.insert(0, str(ROOT / "src"))
     for adapter in [*PYTHON_ADAPTERS, *PYTHON_COMPANION_PACKAGES]:
@@ -115,13 +118,15 @@ def check_python(version: str) -> None:
                 fail(f"{adapter.module}: missing symbol {symbol}")
 
 
-def check_python_package_metadata(adapter: PythonAdapter, version: str, extras: dict) -> None:
+def check_python_package_metadata(adapter: PythonAdapter, extras: dict, *, expected_version: str | None) -> None:
     package_dir = ROOT / "packages" / adapter.package
     metadata = load_toml(package_dir / "pyproject.toml")["project"]
     if metadata["name"] != adapter.package:
         fail(f"{adapter.package}: package name mismatch")
-    if metadata["version"] != version:
-        fail(f"{adapter.package}: expected version {version}, got {metadata['version']}")
+    if expected_version is not None and metadata["version"] != expected_version:
+        fail(f"{adapter.package}: expected version {expected_version}, got {metadata['version']}")
+    if not str(metadata["version"]).startswith("1.3."):
+        fail(f"{adapter.package}: expected 1.3.x package boundary, got {metadata['version']}")
     deps = metadata.get("dependencies", [])
     if not any(dep.startswith("agentledger-runtime>=1.3") for dep in deps):
         fail(f"{adapter.package}: missing dependency on agentledger-runtime>=1.3")
@@ -186,12 +191,14 @@ def check_go() -> None:
 
 
 def main() -> None:
-    version = python_version()
-    check_python(version)
-    check_typescript(version)
-    check_rust(version)
+    root_version = python_version()
+    typescript_version = json.loads((ROOT / "typescript" / "package.json").read_text(encoding="utf-8"))["version"]
+    rust_version = load_toml(ROOT / "rust" / "Cargo.toml")["package"]["version"]
+    check_python(root_version)
+    check_typescript(typescript_version)
+    check_rust(rust_version)
     check_go()
-    print(json.dumps({"passed": True, "version": version, "python_packages": [adapter.package for adapter in PYTHON_ADAPTERS], "python_companion_packages": [package.package for package in PYTHON_COMPANION_PACKAGES], "typescript_packages": sorted(TYPESCRIPT_ADAPTERS), "rust_crates": sorted(RUST_ADAPTERS), "go_boundaries": GO_ADAPTER_DIRS}, indent=2))
+    print(json.dumps({"passed": True, "python_runtime_version": root_version, "typescript_runtime_version": typescript_version, "rust_runtime_version": rust_version, "python_packages": [adapter.package for adapter in PYTHON_ADAPTERS], "python_companion_packages": [package.package for package in PYTHON_COMPANION_PACKAGES], "typescript_packages": sorted(TYPESCRIPT_ADAPTERS), "rust_crates": sorted(RUST_ADAPTERS), "go_boundaries": GO_ADAPTER_DIRS}, indent=2))
 
 
 if __name__ == "__main__":

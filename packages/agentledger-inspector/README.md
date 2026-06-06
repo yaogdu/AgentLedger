@@ -21,6 +21,29 @@ Inspect an exported evidence bundle:
 agentledger inspector evidence ./evidence/<run_id> --html ./inspector.html
 ```
 
+Redact sensitive keys before writing JSON or HTML:
+
+```bash
+agentledger inspector evidence ./evidence/<run_id> \
+  --include-payloads \
+  --redact-key password \
+  --redact-key api_token \
+  --html ./inspector.html
+```
+
+Reusable redaction policy:
+
+```json
+{
+  "keys": ["password", "api_token", "authorization"],
+  "replacement": "[redacted]"
+}
+```
+
+```bash
+agentledger inspector run <run_id> --root .agentledger --redaction-policy ./inspector-redaction.json --out ./inspector.json
+```
+
 For Postgres or MySQL, use a read-only database credential and pass the local blob root that contains the referenced payload blobs. Inspector uses read-only store wrappers and does not run migrations or create tables:
 
 ```bash
@@ -33,14 +56,15 @@ The Inspector does not start a server, mutate runtime state, call tools, approve
 Extension API:
 
 ```python
-from agentledger_inspector import EvidenceBlobStoreProtocol, EvidenceStateStoreProtocol, InspectorDataSource, InspectorReportBuilder
+from agentledger_inspector import EvidenceBlobStoreProtocol, EvidenceStateStoreProtocol, InspectorDataSource, InspectorRedactionPolicy, InspectorReportBuilder
 
-report = InspectorDataSource().from_evidence_path("./evidence/run-1")
+policy = InspectorRedactionPolicy(keys=("password", "api_token"))
+report = InspectorDataSource().from_evidence_path("./evidence/run-1", redaction_policy=policy)
 data = report.to_dict()
 html = report.to_html()
 
 builder = InspectorReportBuilder()
-custom_report = builder.from_evidence_path("./evidence/run-1")
+custom_report = builder.from_evidence_path("./evidence/run-1", redaction_policy=policy)
 
 custom_source_report = InspectorDataSource().from_runtime_store(
     store=my_read_only_state_store,

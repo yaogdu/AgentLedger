@@ -90,6 +90,38 @@ The `--blob-root` argument currently points at a local blob directory containing
 
 `--html` writes a static HTML report for local or internal debugging. The file is self-contained and can be opened without a server.
 
+## Redaction
+
+Inspector output can include sensitive operational evidence, especially when `--include-payloads` is used. `1.3.2` adds explicit redaction for JSON and HTML reports. Redaction is applied to the Inspector read model before rendering, so custom viewers that consume `InspectorReport.to_dict()` receive the same masked data as the default HTML renderer.
+
+Redact one or more keys directly:
+
+```bash
+agentledger inspector evidence ./evidence/<run_id> \
+  --include-payloads \
+  --redact-key password \
+  --redact-key api_token \
+  --html ./inspector.html
+```
+
+Use a policy file when the same rule should be reused:
+
+```json
+{
+  "keys": ["password", "api_token", "authorization"],
+  "replacement": "[redacted]"
+}
+```
+
+```bash
+agentledger inspector run <run_id> \
+  --root .agentledger \
+  --redaction-policy ./inspector-redaction.json \
+  --out ./inspector.json
+```
+
+The built-in policy matches exact key names case-insensitively and also redacts JSON strings that can be parsed as objects or arrays. It is a local debug safeguard, not a substitute for upstream secret management, database permissions, or evidence retention policy.
+
 ## Extension API
 
 Inspector is intentionally split into three pieces so users can extend it:
@@ -103,12 +135,13 @@ Inspector is intentionally split into three pieces so users can extend it:
 Example:
 
 ```python
-from agentledger import InspectorDataSource, InspectorReportBuilder
+from agentledger import InspectorDataSource, InspectorRedactionPolicy, InspectorReportBuilder
 
-report = InspectorDataSource().from_evidence_path("./evidence/run-1")
+policy = InspectorRedactionPolicy(keys=("password", "api_token"))
+report = InspectorDataSource().from_evidence_path("./evidence/run-1", redaction_policy=policy)
 data = report.to_dict()
 
-custom_report = InspectorReportBuilder().from_evidence_path("./evidence/run-1")
+custom_report = InspectorReportBuilder().from_evidence_path("./evidence/run-1", redaction_policy=policy)
 html = custom_report.to_html()
 ```
 
@@ -135,6 +168,7 @@ For secondary development, keep these contracts stable:
 
 - accept `InspectorReport.to_dict()` as the UI/API input
 - preserve `schema_version == "agentledger.inspector.v1"`
+- apply `InspectorRedactionPolicy` before exposing reports to users when payloads may contain secrets
 - implement `EvidenceStateStoreProtocol` / `EvidenceBlobStoreProtocol` for custom stores
 - keep write/control actions out of Inspector surfaces
 - use runtime APIs, not Inspector data sources, when an operator needs to approve, deny, cancel, or recover a run
@@ -143,6 +177,7 @@ For secondary development, keep these contracts stable:
 
 - Treat Inspector JSON and HTML as sensitive operational evidence.
 - Reports can include tool names, tool status, external ids, approval reasons, model metadata, artifact refs, payload summaries, and failure details.
+- Use `--redact-key` or `--redaction-policy` before sharing reports outside the local debugging boundary.
 - Use read-only DB credentials for Postgres/MySQL.
 - Do not build custom write actions on top of Inspector reports. Use runtime APIs for runtime control and keep debug viewers read-only.
 - Prefer evidence-bundle input when the blob store is remote or managed by another service.
@@ -159,6 +194,10 @@ Implemented in `1.3.0`:
 - Postgres/MySQL DB input through existing adapter boundaries
 - extension API for custom data sources and renderers
 - optional `agentledger-inspector` companion package
+
+Implemented in `1.3.2`:
+
+- configurable JSON/HTML report redaction through `--redact-key`, `--redaction-policy`, and `InspectorRedactionPolicy`
 
 Not in this version:
 

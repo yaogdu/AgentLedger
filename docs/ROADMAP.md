@@ -555,6 +555,12 @@ Implemented in `1.3.0`:
 - static HTML export for shareable offline debugging
 - Tool Ledger, approval, policy decision, cost/failure, artifact, and timeline read model
 
+Implemented in `1.3.2`:
+
+- configurable Inspector redaction policy for JSON and static HTML output
+- CLI support for `--redact-key`, `--redaction-policy`, and `--redaction-replacement`
+- `InspectorRedactionPolicy` API for custom read-model consumers
+
 Follow-up work:
 
 - run/session list with status, timestamps, cost summary, and failure summary
@@ -563,7 +569,7 @@ Follow-up work:
 - Tool Ledger view with idempotency key, causal token, side-effect status, request/response refs, and unknown-state handling
 - artifact/evidence browser with payload refs, blob hashes, media refs, and stream checkpoint refs
 - cost and failure attribution panels
-- configurable redaction for secrets, credentials, prompts, payload fields, and large blobs
+- richer redaction presets for prompts, large blobs, and project-specific evidence fields
 - schema/version compatibility checks before reading a database
 
 Explicit non-goals:

@@ -2,7 +2,7 @@
 
 [English](LANGUAGE_QUICKSTART.md) | [中文](zh/LANGUAGE_QUICKSTART.md)
 
-AgentLedger 1.3.1 has one Python reference runtime and native preview runtime-core baselines for Go, TypeScript, and Rust. The shared promise is semantic parity for runtime-core: durable runs, leases, Tool Ledger, evidence, replay, policy/approval/sandbox boundaries, cost/failure attribution, conformance, and official optional adapter contracts.
+AgentLedger 1.3.x has one Python reference runtime and native preview runtime-core baselines for Go, TypeScript, and Rust. The shared promise is semantic parity for runtime-core: durable runs, leases, Tool Ledger, evidence, replay, policy/approval/sandbox boundaries, cost/failure attribution, conformance, and official optional adapter contracts. Python may carry Inspector-only patch releases such as 1.3.2 while the non-Python runtime-core package baselines remain on the latest shared runtime-core tag.
 
 The non-Python packages are native runtime packages, not thin clients: each runs a native local runtime loop and reports the shared conformance checks.
 
@@ -267,7 +267,7 @@ python3.11 scripts/audit_python_parity.py > /tmp/agentledger-python-parity-audit
 python3.11 scripts/check_language_parity.py --json-report /tmp/agentledger-language-parity.json
 ```
 
-Expected for 1.3.1:
+Expected for 1.3.x:
 
 ```text
 gap_count: 0
@@ -277,5 +277,5 @@ AgentLedger language parity checks passed
 ## What Not To Assume
 
 - Go/TypeScript/Rust are package surfaces, even though runtime-core semantics are conformance-aligned.
-- Official adapters in 1.3.1 use injected clients and dry-run manifests; real cloud SDKs and live service hardening are optional follow-up gates.
+- Official adapters in 1.3.x use injected clients and dry-run manifests; real cloud SDKs and live service hardening are optional follow-up gates.
 - AgentLedger does not replace LangGraph, LangChain, LangSmith, Langfuse, Temporal, Ray, Kubernetes, vector DBs, or eval platforms. It provides the runtime safety/evidence layer those systems can integrate with.

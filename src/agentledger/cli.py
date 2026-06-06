@@ -23,7 +23,7 @@ from .evidence import EvidenceExporter
 from .examples import crash_once_agent, recovery_agent, register_fake_github
 from .failure import FailureAttributionReporter, RetryableAgentError
 from .failure_injection import FailureInjectionSuite
-from .inspector import InspectorDataSource
+from .inspector import InspectorDataSource, InspectorRedactionPolicy
 from .lint import RuntimeBoundaryLinter, load_boundary_rules
 from .media_tools import register_media_tool_conventions
 from .policy import PolicyEngine
@@ -171,25 +171,40 @@ def _write_inspector_report(report, args: argparse.Namespace) -> None:
     print(report.to_json())
 
 
+def _inspector_redaction_policy(args: argparse.Namespace) -> InspectorRedactionPolicy | None:
+    keys: list[str] = []
+    replacement = getattr(args, "redaction_replacement", "<redacted>")
+    policy_path = getattr(args, "redaction_policy", None)
+    policy = InspectorRedactionPolicy.from_path(policy_path) if policy_path else None
+    if policy:
+        keys.extend(policy.keys)
+        replacement = policy.replacement
+    keys.extend(getattr(args, "redact_key", None) or [])
+    if not keys:
+        return None
+    return InspectorRedactionPolicy(keys=tuple(dict.fromkeys(keys)), replacement=replacement)
+
+
 def cmd_inspector_run(args: argparse.Namespace) -> None:
     source = InspectorDataSource()
     blob_root = args.blob_root or str(Path(args.root) / "blobs")
+    redaction_policy = _inspector_redaction_policy(args)
     if args.backend == "sqlite":
         db_path = args.db or str(Path(args.root) / "state.db")
-        report = source.from_sqlite(db_path=db_path, blob_root=blob_root, run_id=args.run_id, include_payloads=args.include_payloads)
+        report = source.from_sqlite(db_path=db_path, blob_root=blob_root, run_id=args.run_id, include_payloads=args.include_payloads, redaction_policy=redaction_policy)
     elif args.backend == "postgres":
         config = PostgresStoreConfig.from_env(dsn=args.dsn, schema=args.schema)
-        report = source.from_postgres(dsn=config.dsn, schema=config.schema, blob_root=blob_root, run_id=args.run_id, include_payloads=args.include_payloads)
+        report = source.from_postgres(dsn=config.dsn, schema=config.schema, blob_root=blob_root, run_id=args.run_id, include_payloads=args.include_payloads, redaction_policy=redaction_policy)
     elif args.backend == "mysql":
         config = MySQLStoreConfig.from_env(dsn=args.dsn, database=args.database)
-        report = source.from_mysql(dsn=config.dsn, database=config.database, blob_root=blob_root, run_id=args.run_id, include_payloads=args.include_payloads)
+        report = source.from_mysql(dsn=config.dsn, database=config.database, blob_root=blob_root, run_id=args.run_id, include_payloads=args.include_payloads, redaction_policy=redaction_policy)
     else:
         raise ValueError(f"unsupported inspector backend: {args.backend}")
     _write_inspector_report(report, args)
 
 
 def cmd_inspector_evidence(args: argparse.Namespace) -> None:
-    report = InspectorDataSource().from_evidence_path(args.path, include_payloads=args.include_payloads)
+    report = InspectorDataSource().from_evidence_path(args.path, include_payloads=args.include_payloads, redaction_policy=_inspector_redaction_policy(args))
     _write_inspector_report(report, args)
 
 
@@ -888,12 +903,18 @@ def build_parser() -> argparse.ArgumentParser:
     inspector_run.add_argument("--schema", default="agentledger", help="Postgres schema; defaults to agentledger")
     inspector_run.add_argument("--database", help="MySQL database; falls back to AGENTLEDGER_MYSQL_DATABASE")
     inspector_run.add_argument("--include-payloads", action="store_true", help="include raw event payloads in the report")
+    inspector_run.add_argument("--redact-key", action="append", default=[], help="redact a sensitive key from Inspector JSON/HTML output; repeatable")
+    inspector_run.add_argument("--redaction-policy", help="JSON redaction policy file with keys and optional replacement")
+    inspector_run.add_argument("--redaction-replacement", default="<redacted>", help="replacement text for --redact-key values")
     inspector_run.add_argument("--out", help="write the Inspector JSON read model")
     inspector_run.add_argument("--html", help="write a static HTML Inspector report")
     inspector_run.set_defaults(func=cmd_inspector_run)
     inspector_evidence = inspector_sub.add_parser("evidence", help="inspect an exported evidence bundle file or directory")
     inspector_evidence.add_argument("path")
     inspector_evidence.add_argument("--include-payloads", action="store_true", help="include raw event payloads in the report")
+    inspector_evidence.add_argument("--redact-key", action="append", default=[], help="redact a sensitive key from Inspector JSON/HTML output; repeatable")
+    inspector_evidence.add_argument("--redaction-policy", help="JSON redaction policy file with keys and optional replacement")
+    inspector_evidence.add_argument("--redaction-replacement", default="<redacted>", help="replacement text for --redact-key values")
     inspector_evidence.add_argument("--out", help="write the Inspector JSON read model")
     inspector_evidence.add_argument("--html", help="write a static HTML Inspector report")
     inspector_evidence.set_defaults(func=cmd_inspector_evidence)

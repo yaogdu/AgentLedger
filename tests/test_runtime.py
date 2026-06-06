@@ -28,7 +28,7 @@ from agentledger.cli import build_parser, cmd_adapter_certify, cmd_adapter_confo
 from agentledger.cost import BudgetController, BudgetExceeded, BudgetLimits, CostAttributionReporter
 from agentledger.failure import FailureAttributionReporter, RetryableAgentError
 from agentledger.failure_injection import FailureInjectionSuite
-from agentledger.inspector import INSPECTOR_SCHEMA_VERSION, InspectorDataSource, InspectorReportBuilder, ReadOnlyLocalBlobStore, ReadOnlyMySQLStore, ReadOnlyPostgresStore, ReadOnlySQLiteStore
+from agentledger.inspector import INSPECTOR_SCHEMA_VERSION, InspectorDataSource, InspectorRedactionPolicy, InspectorReportBuilder, ReadOnlyLocalBlobStore, ReadOnlyMySQLStore, ReadOnlyPostgresStore, ReadOnlySQLiteStore
 from agentledger.lint import RuntimeBoundaryLinter, load_boundary_rules
 from agentledger.media import ArtifactLineage, EventStreamCheckpoint, MediaArtifact, MediaMetadata, StreamChunkRef
 from agentledger.media_tools import media_tool_specs, register_media_tool_conventions
@@ -602,6 +602,94 @@ class RuntimeTests(unittest.TestCase):
         )
         self.assertEqual(evidence_report.to_dict()["schema_version"], INSPECTOR_SCHEMA_VERSION)
         self.assertEqual(evidence_report.to_dict()["run"]["run_id"], "run-from-evidence")
+
+    def test_inspector_redaction_policy_applies_to_json_and_html(self) -> None:
+        evidence = {
+            "schema_version": "agentledger.evidence.v1",
+            "bundle_hash": "sha256:redaction",
+            "run": {"run_id": "run-redaction", "status": "completed", "initial_state": {"password": "secret-password"}},
+            "steps": [],
+            "events": [
+                {
+                    "seq": 1,
+                    "event_id": "evt-1",
+                    "type": "tool_permission_decided",
+                    "step_id": "step-1",
+                    "payload": {
+                        "tool_name": "crm.update",
+                        "password": "secret-password",
+                        "decision": {
+                            "allowed": True,
+                            "action_tier": "write_external",
+                            "api_token": "secret-token",
+                            "findings": [{"evidence": {"password": "nested-secret"}}],
+                        },
+                    },
+                }
+            ],
+            "tool_ledger": [{"tool_name": "crm.update", "status": "SUCCEEDED", "external_id": "ticket-1", "request": {"api_token": "secret-token"}}],
+            "approval_requests": [],
+            "artifacts": [{"name": "artifact", "metadata_json": json.dumps({"password": "secret-password"})}],
+            "media_artifacts": [],
+            "stream_checkpoints": [],
+            "cost_records": [],
+            "summary": {"event_count": 1, "secret_note": "not matched by key"},
+            "final_state": {},
+        }
+        report = InspectorReportBuilder().from_evidence(
+            evidence,
+            include_payloads=True,
+            redaction_policy=InspectorRedactionPolicy(keys=("password", "api_token")),
+        )
+        data = report.to_dict()
+        serialized = json.dumps(data, ensure_ascii=False)
+        html = report.to_html()
+
+        self.assertEqual(data["redaction"]["enabled"], True)
+        self.assertIn("password", data["redaction"]["redacted_keys"])
+        self.assertNotIn("secret-password", serialized)
+        self.assertNotIn("secret-token", serialized)
+        self.assertNotIn("nested-secret", serialized)
+        self.assertNotIn("secret-password", html)
+        self.assertNotIn("secret-token", html)
+        self.assertIn("&lt;redacted&gt;", html)
+        self.assertIn("secret_note", serialized)
+
+    def test_inspector_cli_accepts_redaction_policy_file(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / ".agentledger"
+            rt, run_id, _ = self._run_side_effect_demo(root)
+            evidence_dir = Path(tmp) / "evidence" / run_id
+            EvidenceExporter(store=rt.store, blobs=rt.blobs).export(run_id).write_dir(evidence_dir)
+            policy_path = Path(tmp) / "redaction.json"
+            policy_path.write_text(json.dumps({"keys": ["external_id"], "replacement": "[hidden]"}), encoding="utf-8")
+            out_path = Path(tmp) / "inspector.json"
+
+            args = type(
+                "Args",
+                (),
+                {
+                    "path": str(evidence_dir),
+                    "include_payloads": True,
+                    "redact_key": ["request_hash"],
+                    "redaction_policy": str(policy_path),
+                    "redaction_replacement": "<ignored>",
+                    "out": str(out_path),
+                    "html": None,
+                },
+            )()
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                cmd_inspector_evidence(args)
+            payload = json.loads(stdout.getvalue())
+            self.assertEqual(payload["inspector_report"], str(out_path))
+            written = json.loads(out_path.read_text(encoding="utf-8"))
+            self.assertEqual(written["schema_version"], INSPECTOR_SCHEMA_VERSION)
+            self.assertEqual(written["redaction"]["replacement"], "[hidden]")
+            self.assertIn("external_id", written["redaction"]["redacted_keys"])
+            self.assertIn("request_hash", written["redaction"]["redacted_keys"])
+            self.assertTrue(all(row.get("external_id") == "[hidden]" for row in written["tool_ledger"]))
+            self.assertTrue(all(row.get("request_hash") == "[hidden]" for row in written["tool_ledger"]))
 
     def test_shadow_mode_replays_side_effect_without_external_mutation(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -2399,8 +2487,10 @@ roles:
         roadmap = Path("docs/ROADMAP.md").read_text(encoding="utf-8")
         ci = Path(".github/workflows/ci.yml").read_text(encoding="utf-8")
         parity_script = Path("scripts/check_language_parity.py").read_text(encoding="utf-8")
+        release_family = ".".join(AGENTLEDGER_VERSION.split(".")[:2]) + ".x"
         self.assertIn("[English](README.md) | [中文](README.zh-CN.md)", readme)
-        self.assertIn(f"![Version {AGENTLEDGER_VERSION} stable]", readme)
+        self.assertIn(f"![Version {release_family} stable]", readme)
+        self.assertIn(f"current Python/Inspector patch is {AGENTLEDGER_VERSION}", readme)
         self.assertIn("python3 -m pip install agentledger-runtime", readme)
         self.assertIn("https://github.com/yaogdu/AgentLedger", readme)
         self.assertIn("docs/assets/agentledger-runtime-architecture.svg", readme)

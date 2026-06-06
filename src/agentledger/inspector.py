@@ -189,6 +189,40 @@ class InspectorReport:
 """
 
 
+@dataclass(frozen=True)
+class InspectorRedactionPolicy:
+    """Read-model redaction policy for Inspector JSON and HTML output."""
+
+    keys: tuple[str, ...] = ()
+    replacement: str = "<redacted>"
+
+    @classmethod
+    def from_dict(cls, value: dict[str, Any]) -> "InspectorRedactionPolicy":
+        keys = value.get("keys", [])
+        if not isinstance(keys, list) or not all(isinstance(key, str) for key in keys):
+            raise ValueError("Inspector redaction policy must contain a string list field named 'keys'")
+        replacement = value.get("replacement", "<redacted>")
+        if not isinstance(replacement, str):
+            raise ValueError("Inspector redaction policy field 'replacement' must be a string")
+        return cls(keys=tuple(keys), replacement=replacement)
+
+    @classmethod
+    def from_path(cls, path: str | Path) -> "InspectorRedactionPolicy":
+        payload = json.loads(Path(path).read_text(encoding="utf-8"))
+        if not isinstance(payload, dict):
+            raise ValueError("Inspector redaction policy file must contain a JSON object")
+        return cls.from_dict(payload)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {"keys": list(self.keys), "replacement": self.replacement}
+
+    def apply(self, value: Any) -> Any:
+        if not self.keys:
+            return value
+        normalized = {key.casefold() for key in self.keys}
+        return _redact_value(value, normalized, self.replacement)
+
+
 class InspectorReportBuilder:
     """Build language-neutral Inspector reports from runtime stores or evidence bundles."""
 
@@ -199,13 +233,14 @@ class InspectorReportBuilder:
         blobs: EvidenceBlobStoreProtocol,
         run_id: str,
         include_payloads: bool = False,
+        redaction_policy: InspectorRedactionPolicy | None = None,
     ) -> InspectorReport:
         evidence = EvidenceExporter(store=store, blobs=blobs).export(run_id).to_dict()
-        return self.from_evidence(evidence, source={"kind": "runtime_store", "run_id": run_id}, include_payloads=include_payloads)
+        return self.from_evidence(evidence, source={"kind": "runtime_store", "run_id": run_id}, include_payloads=include_payloads, redaction_policy=redaction_policy)
 
-    def from_evidence_path(self, path: str | Path, *, include_payloads: bool = False) -> InspectorReport:
+    def from_evidence_path(self, path: str | Path, *, include_payloads: bool = False, redaction_policy: InspectorRedactionPolicy | None = None) -> InspectorReport:
         evidence = load_evidence_path(path)
-        return self.from_evidence(evidence, source={"kind": "evidence_path", "path": str(path)}, include_payloads=include_payloads)
+        return self.from_evidence(evidence, source={"kind": "evidence_path", "path": str(path)}, include_payloads=include_payloads, redaction_policy=redaction_policy)
 
     def from_evidence(
         self,
@@ -213,7 +248,11 @@ class InspectorReportBuilder:
         *,
         source: dict[str, Any] | None = None,
         include_payloads: bool = False,
+        redaction_policy: InspectorRedactionPolicy | None = None,
     ) -> InspectorReport:
+        redaction = redaction_policy or InspectorRedactionPolicy()
+        if redaction.keys:
+            evidence = redaction.apply(evidence)
         run = _run_summary(evidence.get("run", {}))
         steps = [_project_step(row) for row in evidence.get("steps", [])]
         ledger = [_project_ledger(row) for row in evidence.get("tool_ledger", [])]
@@ -258,6 +297,12 @@ class InspectorReportBuilder:
                 "stream_checkpoint_count": len(evidence.get("stream_checkpoints", [])),
             },
         }
+        if redaction.keys:
+            data["redaction"] = {
+                "enabled": True,
+                "redacted_keys": list(redaction.keys),
+                "replacement": redaction.replacement,
+            }
         return InspectorReport(data)
 
 
@@ -404,8 +449,8 @@ class InspectorDataSource:
     def __init__(self, *, builder: InspectorReportBuilder | None = None):
         self.builder = builder or InspectorReportBuilder()
 
-    def from_evidence_path(self, path: str | Path, *, include_payloads: bool = False) -> InspectorReport:
-        return self.builder.from_evidence_path(path, include_payloads=include_payloads)
+    def from_evidence_path(self, path: str | Path, *, include_payloads: bool = False, redaction_policy: InspectorRedactionPolicy | None = None) -> InspectorReport:
+        return self.builder.from_evidence_path(path, include_payloads=include_payloads, redaction_policy=redaction_policy)
 
     def from_runtime_store(
         self,
@@ -414,6 +459,7 @@ class InspectorDataSource:
         blobs: EvidenceBlobStoreProtocol,
         run_id: str,
         include_payloads: bool = False,
+        redaction_policy: InspectorRedactionPolicy | None = None,
     ) -> InspectorReport:
         """Build an Inspector report from an application-provided read store.
 
@@ -421,7 +467,7 @@ class InspectorDataSource:
         implementations and custom UI backends. The caller owns connection
         lifecycle and must provide read-only store credentials or wrappers.
         """
-        return self.builder.from_runtime(store=store, blobs=blobs, run_id=run_id, include_payloads=include_payloads)
+        return self.builder.from_runtime(store=store, blobs=blobs, run_id=run_id, include_payloads=include_payloads, redaction_policy=redaction_policy)
 
     def from_sqlite(
         self,
@@ -430,11 +476,12 @@ class InspectorDataSource:
         blob_root: str | Path,
         run_id: str,
         include_payloads: bool = False,
+        redaction_policy: InspectorRedactionPolicy | None = None,
     ) -> InspectorReport:
         store = ReadOnlySQLiteStore(db_path)
         try:
             blobs = ReadOnlyLocalBlobStore(blob_root)
-            return self.from_runtime_store(store=store, blobs=blobs, run_id=run_id, include_payloads=include_payloads)
+            return self.from_runtime_store(store=store, blobs=blobs, run_id=run_id, include_payloads=include_payloads, redaction_policy=redaction_policy)
         finally:
             store.close()
 
@@ -446,12 +493,13 @@ class InspectorDataSource:
         run_id: str,
         schema: str = "agentledger",
         include_payloads: bool = False,
+        redaction_policy: InspectorRedactionPolicy | None = None,
     ) -> InspectorReport:
         store = ReadOnlyPostgresStore(PostgresStoreConfig(dsn=dsn, schema=schema))
         try:
             store._configure_schema()
             blobs = ReadOnlyLocalBlobStore(blob_root)
-            return self.from_runtime_store(store=store, blobs=blobs, run_id=run_id, include_payloads=include_payloads)
+            return self.from_runtime_store(store=store, blobs=blobs, run_id=run_id, include_payloads=include_payloads, redaction_policy=redaction_policy)
         finally:
             store.close()
 
@@ -463,12 +511,13 @@ class InspectorDataSource:
         run_id: str,
         database: str | None = None,
         include_payloads: bool = False,
+        redaction_policy: InspectorRedactionPolicy | None = None,
     ) -> InspectorReport:
         store = ReadOnlyMySQLStore(MySQLStoreConfig(dsn=dsn, database=database))
         try:
             store._configure_schema()
             blobs = ReadOnlyLocalBlobStore(blob_root)
-            return self.from_runtime_store(store=store, blobs=blobs, run_id=run_id, include_payloads=include_payloads)
+            return self.from_runtime_store(store=store, blobs=blobs, run_id=run_id, include_payloads=include_payloads, redaction_policy=redaction_policy)
         finally:
             store.close()
 
@@ -683,3 +732,30 @@ def _status_class(status: str) -> str:
 
 def _risk_card_class(risk_flags: list[str]) -> str:
     return "status-risk" if risk_flags else "status-ok"
+
+
+def _redact_value(value: Any, normalized_keys: set[str], replacement: str) -> Any:
+    if isinstance(value, dict):
+        return {
+            key: replacement if str(key).casefold() in normalized_keys else _redact_value(item, normalized_keys, replacement)
+            for key, item in value.items()
+        }
+    if isinstance(value, list):
+        return [_redact_value(item, normalized_keys, replacement) for item in value]
+    if isinstance(value, str):
+        parsed = _parse_json_like_string(value)
+        if parsed is not None:
+            redacted = _redact_value(parsed, normalized_keys, replacement)
+            if redacted != parsed:
+                return json.dumps(redacted, ensure_ascii=False, sort_keys=True)
+    return value
+
+
+def _parse_json_like_string(value: str) -> Any:
+    text = value.strip()
+    if not text or text[0] not in "[{":
+        return None
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        return None

@@ -8,6 +8,18 @@ This project follows semantic versioning for the stable runtime-core contract. O
 
 No unreleased changes yet.
 
+## 1.3.2
+
+### Added
+
+- Added configurable Inspector redaction policies for JSON and static HTML reports.
+- Added `agentledger inspector run/evidence --redact-key ...` and `--redaction-policy policy.json` for local or internal debugging with sensitive fields masked.
+- Exported `InspectorRedactionPolicy` from both `agentledger-runtime` and the optional `agentledger-inspector` companion package for custom viewers.
+
+### Clarified
+
+- This is an Inspector-only patch release. It does not change the stable runtime-core contract or require Go, TypeScript, or Rust runtime-core changes.
+
 ## 1.3.1
 
 ### Fixed
