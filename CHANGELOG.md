@@ -8,6 +8,17 @@ This project follows semantic versioning for the stable runtime-core contract. O
 
 No unreleased changes yet.
 
+## 1.3.3
+
+### Added
+
+- Added stable Inspector read-model anchors and related links for timeline events, steps, Tool Ledger rows, approval requests, policy decisions, and artifacts.
+- Added static HTML report navigation and internal cross-links so local reports can jump between events, tools, approvals, and artifacts without running a server.
+
+### Clarified
+
+- This is an Inspector-only patch release. It does not change the stable runtime-core contract or require Go, TypeScript, or Rust runtime-core changes.
+
 ## 1.3.2
 
 ### Added

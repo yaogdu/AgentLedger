@@ -2,7 +2,7 @@
 
 [English](LANGUAGE_QUICKSTART.md) | [中文](zh/LANGUAGE_QUICKSTART.md)
 
-AgentLedger 1.3.x has one Python reference runtime and native preview runtime-core baselines for Go, TypeScript, and Rust. The shared promise is semantic parity for runtime-core: durable runs, leases, Tool Ledger, evidence, replay, policy/approval/sandbox boundaries, cost/failure attribution, conformance, and official optional adapter contracts. Python may carry Inspector-only patch releases such as 1.3.2 while the non-Python runtime-core package baselines remain on the latest shared runtime-core tag.
+AgentLedger 1.3.x has one Python reference runtime and native preview runtime-core baselines for Go, TypeScript, and Rust. The shared promise is semantic parity for runtime-core: durable runs, leases, Tool Ledger, evidence, replay, policy/approval/sandbox boundaries, cost/failure attribution, conformance, and official optional adapter contracts. Python may carry Inspector-only patch releases such as 1.3.3 while the non-Python runtime-core package baselines remain on the latest shared runtime-core tag.
 
 The non-Python packages are native runtime packages, not thin clients: each runs a native local runtime loop and reports the shared conformance checks.
 

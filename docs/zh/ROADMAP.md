@@ -210,8 +210,6 @@ adoption 目标不是直接追 star，而是让项目在几分钟内可理解、
 
 后续工作：
 
-- 更丰富 report navigation 和 artifact cross-link
-- configurable redaction policy
 - 基于 Inspector read model 的 evidence-driven replay/regression lab
 - 如果保持 read-only 且依赖隔离，再考虑 optional local/internal web viewer
 
@@ -596,6 +594,13 @@ Tool Ledger、approval、policy decision、cost/failure、artifact、timeline re
 JSON 和 static HTML 输出的可配置 Inspector redaction policy
 CLI 支持 --redact-key、--redaction-policy 和 --redaction-replacement
 给自定义 read-model consumer 使用的 InspectorRedactionPolicy API
+```
+
+`1.3.3` 已实现：
+
+```text
+timeline、step、Tool Ledger、approval、policy、artifact row 的稳定 read-model anchor
+相关 runtime record 之间的 static HTML section navigation 和内部 cross-link
 ```
 
 后续工作：

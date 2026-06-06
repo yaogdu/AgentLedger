@@ -90,6 +90,22 @@ The `--blob-root` argument currently points at a local blob directory containing
 
 `--html` writes a static HTML report for local or internal debugging. The file is self-contained and can be opened without a server.
 
+## Navigation And Cross-links
+
+`1.3.3` adds stable row anchors and related links to the Inspector read model. Timeline events, steps, Tool Ledger rows, approval requests, policy decisions, and artifacts may include:
+
+```json
+{
+  "anchor": "event-1",
+  "related_refs": [{"kind": "tool", "value": "email.send"}],
+  "related_links": [{"kind": "tool", "value": "email.send", "href": "#tool-email-send"}]
+}
+```
+
+The default static HTML renderer uses those fields for a top-level section navigation bar and internal links between events, tools, approvals, and artifacts. Custom viewers can consume the same fields from `InspectorReport.to_dict()` and do not need to inspect database tables directly.
+
+These links are local report navigation only. They do not fetch blobs, call tools, mutate runtime state, approve requests, or access remote artifact stores.
+
 ## Redaction
 
 Inspector output can include sensitive operational evidence, especially when `--include-payloads` is used. `1.3.2` adds explicit redaction for JSON and HTML reports. Redaction is applied to the Inspector read model before rendering, so custom viewers that consume `InspectorReport.to_dict()` receive the same masked data as the default HTML renderer.
@@ -198,6 +214,11 @@ Implemented in `1.3.0`:
 Implemented in `1.3.2`:
 
 - configurable JSON/HTML report redaction through `--redact-key`, `--redaction-policy`, and `InspectorRedactionPolicy`
+
+Implemented in `1.3.3`:
+
+- stable read-model anchors for timeline, step, Tool Ledger, approval, policy, and artifact rows
+- static HTML section navigation and internal cross-links between related runtime records
 
 Not in this version:
 

@@ -15,7 +15,7 @@ AgentLedger 1.3.x is a stable runtime-core line with Python as the reference imp
 - reliability semantics validation
 - production pilot preparation with explicit adapter boundaries
 
-Release-scope note: 1.3.0 added Inspector as a read-only evidence/runtime metadata consumer. It can read exported evidence bundles or connect to SQLite/Postgres/MySQL AgentLedger metadata with read-only credentials and can export a static HTML debug report. 1.3.2 adds configurable redaction for Inspector JSON/HTML output. MySQL remains the 1.2.2 storage adapter boundary and Langfuse remains the 1.2.3 observability adapter boundary; real-service production claims still require external validation.
+Release-scope note: 1.3.0 added Inspector as a read-only evidence/runtime metadata consumer. It can read exported evidence bundles or connect to SQLite/Postgres/MySQL AgentLedger metadata with read-only credentials and can export a static HTML debug report. 1.3.2 adds configurable redaction for Inspector JSON/HTML output. 1.3.3 adds static report navigation and read-model cross-links for timeline, tool, approval, policy, and artifact records. MySQL remains the 1.2.2 storage adapter boundary and Langfuse remains the 1.2.3 observability adapter boundary; real-service production claims still require external validation.
 
 The runtime-core contract is stable. Optional production adapters, external infrastructure hardening, and full eval systems remain outside the stable core boundary; non-Python runtime-core baselines are verified by the shared parity gates.
 
@@ -58,7 +58,7 @@ Excluded from this boundary:
 | Adapter contracts | framework adapter base, LangGraph facade, MCP tool/context mapping, dependency-free method facades, first-party adapter package boundaries |
 | Sandbox boundary | fail-closed `none`, local executor, router, external executor contracts, Docker/bubblewrap command paths, Kubernetes dry-run/gated path |
 | Observability | trace JSONL export with media/stream spans, dependency-free OTLP JSON export, optional OTLP/JSON collector POST, evidence-linked audit records |
-| Inspector | `agentledger.inspector.v1` read model, `agentledger inspector run/evidence`, static HTML report, evidence-bundle input, read-only SQLite input, Postgres/MySQL read paths through existing adapter boundaries, configurable redaction policy, optional `agentledger-inspector` companion package |
+| Inspector | `agentledger.inspector.v1` read model, `agentledger inspector run/evidence`, static HTML report, section navigation, row anchors, cross-links between related records, evidence-bundle input, read-only SQLite input, Postgres/MySQL read paths through existing adapter boundaries, configurable redaction policy, optional `agentledger-inspector` companion package |
 | Reliability checks | failure injection suite, failure attribution report, conformance runners including media runtime conformance, runtime-boundary lint, scheduler facade, adversarial review, evidence regression for shell, HTTP, cloud, GitHub, and common model SDK bypasses with JSON rule-pack extension |
 | Media and stream contracts | `MediaArtifact`, `MediaMetadata`, `ArtifactLineage`, `StreamChunkRef`, `EventStreamCheckpoint`, `AgentContext.create_media_artifact(...)`, `AgentContext.create_stream_checkpoint(...)`, media/stream tool schema conventions, ToolGateway/Tool Ledger media tool example, evidence indexes, replay artifact validation/counts |
 | Release scaffolding | CI workflow, changelog, security policy, versioning policy, release checklist, contributor checks, bilingual documentation entrypoints, SVG architecture diagram, ResourceWarning-sensitive test gate, adapter certification checklist, adapter packaging docs/checks |
@@ -77,7 +77,7 @@ Excluded from this boundary:
 | MCP support | descriptor-to-ToolSpec mapping, dependency-free tool/context server fixtures, context read tool adapter, examples, `agentledger-mcp` package boundary | exact MCP SDK client/server integration |
 | Sandbox | contract, local/fail-closed modes, command-style Docker/bubblewrap, Kubernetes dry-run/gated execution, E2B/Firecracker slots, Docker sandbox package boundary | hardened isolation packages, secret injection policy, network policy recipes, resource limit validation |
 | Retention and backup checks | non-destructive retention plan with media/stream protected refs, compaction marker, and backup readiness check including media/stream nested refs | actual compaction/snapshot job that preserves replay guarantees |
-| Time travel and debug | JSON CLI timeline, state reconstruction, state diff view, `debug --json`, `--include-diffs`, `--include-states`, optional static HTML report export, Inspector static report | richer report layout and artifact cross-links; no long-running web app in core |
+| Time travel and debug | JSON CLI timeline, state reconstruction, state diff view, `debug --json`, `--include-diffs`, `--include-states`, optional static HTML report export, Inspector static report with local navigation and cross-links | richer report layout and remote artifact browser; no long-running web app in core |
 
 ## Remaining Gaps And Preview Areas
 

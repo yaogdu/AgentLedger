@@ -282,7 +282,7 @@ AgentLedger 也不是新的 LLM SDK，不是 workflow engine，不是通用 obse
 
 ## 当前成熟度
 
-AgentLedger 1.3.x 是 stable runtime-core line，Python 是 reference implementation，Go、TypeScript、Rust 已由共享 runtime-core parity gate 覆盖。当前 Python/Inspector patch 是 1.3.2；Go、TypeScript、Rust runtime-core package baseline 仍是 1.3.1，直到它们进入下一次 runtime-core release。适合本地使用、framework adapter integration、reliability semantics 验证，以及在明确 adapter 边界下做 production pilot 准备。
+AgentLedger 1.3.x 是 stable runtime-core line，Python 是 reference implementation，Go、TypeScript、Rust 已由共享 runtime-core parity gate 覆盖。当前 Python/Inspector patch 是 1.3.3；Go、TypeScript、Rust runtime-core package baseline 仍是 1.3.1，直到它们进入下一次 runtime-core release。适合本地使用、framework adapter integration、reliability semantics 验证，以及在明确 adapter 边界下做 production pilot 准备。
 
 runtime-core contract 已稳定；optional production adapter 和外部基础设施加固仍按独立阶段推进。详见 [docs/MATURITY_MODEL.md](docs/MATURITY_MODEL.md)、[docs/zh/IMPLEMENTATION_STATUS.md](docs/zh/IMPLEMENTATION_STATUS.md) 和 [docs/zh/ROADMAP.md](docs/zh/ROADMAP.md)。
 

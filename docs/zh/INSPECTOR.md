@@ -90,6 +90,22 @@ Postgres/MySQL 建议使用只读数据库账号。AgentLedger 不为 Inspector 
 
 `--html` 写出静态 HTML 报告，适合本地或内网排查问题；打开 HTML 不需要启动服务。
 
+## 导航和交叉链接
+
+`1.3.3` 在 Inspector read model 中增加了稳定的行级 anchor 和 related links。Timeline event、step、Tool Ledger row、approval request、policy decision 和 artifact 可能包含：
+
+```json
+{
+  "anchor": "event-1",
+  "related_refs": [{"kind": "tool", "value": "email.send"}],
+  "related_links": [{"kind": "tool", "value": "email.send", "href": "#tool-email-send"}]
+}
+```
+
+默认静态 HTML renderer 会用这些字段生成顶部 section 导航，以及 event、tool、approval、artifact 之间的内部跳转。二开的 viewer 可以直接消费 `InspectorReport.to_dict()` 中的这些字段，不需要读取未文档化的数据库表。
+
+这些链接只用于本地 report 导航。它们不会拉取 blob、调用工具、修改 runtime state、approve request，也不会访问远程 artifact store。
+
 ## 脱敏
 
 Inspector 输出可能包含敏感运行证据，尤其是在使用 `--include-payloads` 时。`1.3.2` 增加了显式 redaction policy，作用于 JSON read model 和 HTML report。脱敏会在渲染前作用到 Inspector read model，所以二开的 viewer 如果消费 `InspectorReport.to_dict()`，拿到的也是同一份脱敏后的数据。
@@ -198,6 +214,11 @@ data = report.to_dict()
 `1.3.2` 已实现：
 
 - 通过 `--redact-key`、`--redaction-policy` 和 `InspectorRedactionPolicy` 对 JSON/HTML report 做可配置脱敏
+
+`1.3.3` 已实现：
+
+- timeline、step、Tool Ledger、approval、policy 和 artifact row 的稳定 read-model anchor
+- static HTML section navigation，以及相关 runtime record 之间的内部交叉链接
 
 本版本不包含：
 

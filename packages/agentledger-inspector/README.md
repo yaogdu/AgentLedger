@@ -53,6 +53,8 @@ agentledger inspector run <run_id> --backend mysql --dsn "$AGENTLEDGER_MYSQL_DSN
 
 The Inspector does not start a server, mutate runtime state, call tools, approve requests, or contact model providers. It builds a language-neutral read model from AgentLedger runtime metadata or exported evidence bundles. AgentLedger does not add a separate permission layer for Inspector; use database grants, filesystem ACLs, and deployment policy.
 
+Static HTML reports include local section navigation and internal cross-links between related timeline events, steps, Tool Ledger rows, approvals, policy decisions, and artifacts. Custom viewers can reuse the same `anchor`, `related_refs`, and `related_links` fields from `InspectorReport.to_dict()`.
+
 Extension API:
 
 ```python

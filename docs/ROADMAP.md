@@ -212,8 +212,6 @@ Explicitly not in this version:
 
 Follow-up work:
 
-- richer report navigation and artifact cross-links
-- configurable redaction policies
 - evidence-driven replay/regression lab over Inspector read models
 - optional local/internal web viewer if it remains read-only and dependency-isolated
 
@@ -560,6 +558,11 @@ Implemented in `1.3.2`:
 - configurable Inspector redaction policy for JSON and static HTML output
 - CLI support for `--redact-key`, `--redaction-policy`, and `--redaction-replacement`
 - `InspectorRedactionPolicy` API for custom read-model consumers
+
+Implemented in `1.3.3`:
+
+- stable read-model anchors for timeline, step, Tool Ledger, approval, policy, and artifact rows
+- static HTML section navigation and internal cross-links between related runtime records
 
 Follow-up work:
 

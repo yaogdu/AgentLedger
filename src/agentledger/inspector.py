@@ -49,6 +49,17 @@ class InspectorReport:
         summary = self.data.get("summary", {})
         risk_flags = self.data.get("risk_flags", [])
         evidence = self.data.get("evidence", {})
+        navigation = [
+            ("evidence", "Evidence"),
+            ("risk-flags", "Risk Flags"),
+            ("timeline", "Timeline"),
+            ("steps", "Steps"),
+            ("tool-ledger", "Tool Ledger"),
+            ("approvals", "Approvals"),
+            ("cost-failure", "Cost / Failure"),
+            ("policy-decisions", "Policy"),
+            ("artifacts", "Artifacts"),
+        ]
         return f"""<!doctype html>
 <html lang="en">
 <head>
@@ -93,9 +104,16 @@ class InspectorReport:
     .status-risk {{ background: var(--danger-bg); }}
     .section {{ margin-top: 18px; }}
     .panel {{ padding: 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }}
+    .nav {{ display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 20px; }}
+    .nav a, .link-list a {{ color: var(--accent); text-decoration: none; }}
+    .nav a {{ padding: 6px 9px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); font-size: 13px; }}
+    .nav a:hover, .link-list a:hover {{ text-decoration: underline; }}
     .pill-row {{ display: flex; flex-wrap: wrap; gap: 8px; }}
     .pill {{ display: inline-flex; gap: 6px; align-items: center; max-width: 100%; padding: 5px 8px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface-2); color: var(--ink); font-size: 13px; overflow-wrap: anywhere; }}
     .pill.risk {{ border-color: #e4b6b6; background: var(--danger-bg); color: var(--danger); }}
+    .link-list {{ display: flex; flex-wrap: wrap; gap: 6px; min-width: 160px; }}
+    .link-list a {{ display: inline-flex; align-items: center; gap: 4px; max-width: 260px; padding: 3px 6px; border: 1px solid var(--line); border-radius: 999px; background: #fbfdfb; font-size: 12px; }}
+    .link-list .ref-kind {{ color: var(--muted); }}
     table {{ width: 100%; border-collapse: collapse; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--surface); }}
     th, td {{ padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: top; text-align: left; }}
     th {{ background: var(--surface-2); color: #334137; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; }}
@@ -106,6 +124,7 @@ class InspectorReport:
     summary {{ cursor: pointer; color: var(--accent); font-weight: 650; }}
     pre {{ max-height: 300px; overflow: auto; padding: 11px; border: 1px solid var(--line); border-radius: 8px; background: #fbfdfb; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; line-height: 1.45; }}
     .grid-2 {{ display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }}
+    :target {{ scroll-margin-top: 14px; outline: 2px solid #82b7ad; outline-offset: 2px; }}
     @media (max-width: 900px) {{
       .cards {{ grid-template-columns: repeat(2, minmax(0, 1fr)); }}
       .grid-2 {{ grid-template-columns: 1fr; }}
@@ -124,6 +143,7 @@ class InspectorReport:
       <h1>AgentLedger Inspector</h1>
       <p class="lede">Read-only runtime view generated from AgentLedger evidence. It does not start a server, mutate state, call tools, or contact model providers.</p>
     </header>
+    {_nav(navigation)}
     <section class="cards">
       <div class="card"><span class="label">Run</span><span class="value">{escape(str(run.get("run_id", "-")))}</span></div>
       <div class="card {_status_class(str(run.get("status", "")))}"><span class="label">Status</span><span class="value">{escape(str(run.get("status", "-")))}</span></div>
@@ -131,7 +151,7 @@ class InspectorReport:
       <div class="card {_risk_card_class(risk_flags)}"><span class="label">Risk Flags</span><span class="value">{len(risk_flags)}</span></div>
     </section>
 
-    <section class="panel">
+    <section class="panel" id="evidence">
       <h2>Evidence</h2>
       <div class="grid-2">
         <pre>{_json_block(evidence)}</pre>
@@ -139,33 +159,33 @@ class InspectorReport:
       </div>
     </section>
 
-    <section class="section">
+    <section class="section" id="risk-flags">
       <h2>Risk Flags</h2>
       {_pills(risk_flags, risk=True) if risk_flags else "<p>No active risk flags detected in the evidence summary.</p>"}
     </section>
 
-    <section class="section">
+    <section class="section" id="timeline">
       <h2>Run Timeline</h2>
       {_table(["seq", "type", "step_id", "agent_role", "state_version", "summary"], self.data.get("timeline", []), risk_key="severity", risk_values={"risk"}, warn_values={"warn"})}
     </section>
 
     <section class="section grid-2">
-      <div>
+      <div id="steps">
         <h2>Steps</h2>
         {_table(["step_id", "status", "attempt", "last_error_type"], self.data.get("steps", []), risk_key="status", risk_values={"failed"}, warn_values={"waiting_human", "retry_scheduled", "running"})}
       </div>
-      <div>
+      <div id="tool-ledger">
         <h2>Tool Ledger</h2>
         {_table(["tool_name", "status", "external_id", "error_type"], self.data.get("tool_ledger", []), risk_key="status", risk_values={"PENDING_VERIFICATION"}, warn_values={"RESERVED", "RUNNING"})}
       </div>
     </section>
 
     <section class="section grid-2">
-      <div>
+      <div id="approvals">
         <h2>Approvals</h2>
         {_table(["approval_id", "tool_name", "risk_level", "status"], self.data.get("approvals", []), risk_key="status", risk_values={"DENIED"}, warn_values={"PENDING"})}
       </div>
-      <div>
+      <div id="cost-failure">
         <h2>Cost And Failure</h2>
         <h3>Cost Records</h3>
         {_table(["category", "name", "amount", "unit"], self.data.get("cost_records", []))}
@@ -174,12 +194,12 @@ class InspectorReport:
       </div>
     </section>
 
-    <section class="section">
+    <section class="section" id="policy-decisions">
       <h2>Policy Decisions</h2>
       {_table(["seq", "type", "tool_name", "allowed", "action_tier", "summary"], self.data.get("policy_decisions", []), risk_key="allowed", risk_values={False, "False", "false"})}
     </section>
 
-    <section class="section">
+    <section class="section" id="artifacts">
       <h2>Artifacts</h2>
       {_table(["name", "blob_hash", "blob_ref", "kind", "uri", "content_ref"], self.data.get("artifacts", []))}
     </section>
@@ -260,9 +280,10 @@ class InspectorReportBuilder:
         artifacts = _artifacts(evidence)
         cost_records = [_project_cost(row) for row in evidence.get("cost_records", [])]
         timeline = [_timeline_event(event, include_payloads=include_payloads) for event in evidence.get("events", [])]
-        failure_events = [event for event in timeline if _is_failure_event(event.get("type"))]
         policy_decisions = [_policy_decision(event, include_payloads=include_payloads) for event in evidence.get("events", []) if event.get("type") == "tool_permission_decided"]
         policy_decisions = [row for row in policy_decisions if row is not None]
+        _decorate_report_links(timeline=timeline, steps=steps, ledger=ledger, approvals=approvals, policy_decisions=policy_decisions, artifacts=artifacts)
+        failure_events = [event for event in timeline if _is_failure_event(event.get("type"))]
         summary = {
             **_safe_dict(evidence.get("summary")),
             "event_type_counts": dict(Counter(event.get("type", "-") for event in evidence.get("events", []))),
@@ -560,6 +581,9 @@ def _timeline_event(event: dict[str, Any], *, include_payloads: bool) -> dict[st
         "summary": _payload_summary(payload),
         "severity": "risk" if _is_failure_event(event.get("type")) else "warn" if _is_wait_event(event.get("type")) else "info",
     }
+    related_refs = _related_refs_from_event(event)
+    if related_refs:
+        item["related_refs"] = related_refs
     if include_payloads:
         item["payload"] = payload
     return item
@@ -614,6 +638,124 @@ def _artifacts(evidence: dict[str, Any]) -> list[dict[str, Any]]:
         item = _safe_dict(row)
         rows.append({**_select(item, ["artifact_id", "name", "blob_hash", "blob_ref", "stream_id", "consumer_id", "offset", "watermark"]), "artifact_group": "stream"})
     return rows
+
+
+def _decorate_report_links(
+    *,
+    timeline: list[dict[str, Any]],
+    steps: list[dict[str, Any]],
+    ledger: list[dict[str, Any]],
+    approvals: list[dict[str, Any]],
+    policy_decisions: list[dict[str, Any]],
+    artifacts: list[dict[str, Any]],
+) -> None:
+    anchors: dict[tuple[str, str], str] = {}
+    _anchor_rows(steps, kind="step", key="step_id", anchors=anchors)
+    _anchor_rows(ledger, kind="tool", key="tool_name", anchors=anchors)
+    _anchor_rows(approvals, kind="approval", key="approval_id", anchors=anchors)
+    _anchor_rows(artifacts, kind="artifact", key="artifact_id", anchors=anchors)
+    _anchor_rows(policy_decisions, kind="policy", key="seq", anchors=anchors)
+    _anchor_rows(timeline, kind="event", key="seq", anchors=anchors)
+
+    for row in timeline:
+        _attach_related_links(row, anchors)
+    for row in approvals:
+        refs = []
+        if row.get("step_id") is not None:
+            refs.append({"kind": "step", "value": str(row["step_id"])})
+        if row.get("tool_name") is not None:
+            refs.append({"kind": "tool", "value": str(row["tool_name"])})
+        row["related_refs"] = _merge_related_refs(row.get("related_refs"), refs)
+        _attach_related_links(row, anchors)
+    for row in policy_decisions:
+        refs = []
+        if row.get("tool_name") is not None:
+            refs.append({"kind": "tool", "value": str(row["tool_name"])})
+        row["related_refs"] = _merge_related_refs(row.get("related_refs"), refs)
+        _attach_related_links(row, anchors)
+    for row in ledger:
+        refs = []
+        if row.get("response_ref") is not None:
+            refs.append({"kind": "blob", "value": str(row["response_ref"])})
+        row["related_refs"] = _merge_related_refs(row.get("related_refs"), refs)
+    for row in artifacts:
+        refs = []
+        if row.get("blob_ref") is not None:
+            refs.append({"kind": "blob", "value": str(row["blob_ref"])})
+        if row.get("content_ref") is not None:
+            refs.append({"kind": "content", "value": str(row["content_ref"])})
+        row["related_refs"] = _merge_related_refs(row.get("related_refs"), refs)
+
+
+def _anchor_rows(rows: list[dict[str, Any]], *, kind: str, key: str, anchors: dict[tuple[str, str], str]) -> None:
+    seen: set[str] = set()
+    for index, row in enumerate(rows, start=1):
+        raw_value = row.get(key)
+        suffix = _slug(raw_value if raw_value is not None else index)
+        anchor = f"{kind}-{suffix}"
+        if anchor in seen:
+            anchor = f"{anchor}-{index}"
+        seen.add(anchor)
+        row["anchor"] = anchor
+        if raw_value is not None:
+            anchors[(kind, str(raw_value))] = anchor
+
+
+def _related_refs_from_event(event: dict[str, Any]) -> list[dict[str, str]]:
+    refs: list[dict[str, str]] = []
+    if event.get("step_id") is not None:
+        refs.append({"kind": "step", "value": str(event["step_id"])})
+    payload = event.get("payload")
+    if isinstance(payload, dict):
+        for kind, keys in {
+            "tool": ["tool_name", "name"],
+            "approval": ["approval_id"],
+            "artifact": ["artifact_id"],
+            "blob": ["payload_ref", "blob_ref", "response_ref"],
+        }.items():
+            for key in keys:
+                value = payload.get(key)
+                if value is not None:
+                    refs.append({"kind": kind, "value": str(value)})
+    if event.get("payload_ref") is not None:
+        refs.append({"kind": "blob", "value": str(event["payload_ref"])})
+    return _merge_related_refs(None, refs)
+
+
+def _merge_related_refs(existing: Any, extra: list[dict[str, str]]) -> list[dict[str, str]]:
+    merged: list[dict[str, str]] = []
+    seen: set[tuple[str, str]] = set()
+    for ref in list(existing) if isinstance(existing, list) else []:
+        if not isinstance(ref, dict):
+            continue
+        kind = ref.get("kind")
+        value = ref.get("value")
+        if kind is None or value is None:
+            continue
+        key = (str(kind), str(value))
+        if key not in seen:
+            seen.add(key)
+            merged.append({"kind": key[0], "value": key[1]})
+    for ref in extra:
+        key = (str(ref["kind"]), str(ref["value"]))
+        if key not in seen:
+            seen.add(key)
+            merged.append({"kind": key[0], "value": key[1]})
+    return merged
+
+
+def _attach_related_links(row: dict[str, Any], anchors: dict[tuple[str, str], str]) -> None:
+    links = []
+    for ref in row.get("related_refs", []):
+        if not isinstance(ref, dict):
+            continue
+        kind = str(ref.get("kind", ""))
+        value = str(ref.get("value", ""))
+        target = anchors.get((kind, value))
+        if target:
+            links.append({"kind": kind, "value": value, "href": f"#{target}"})
+    if links:
+        row["related_links"] = links
 
 
 def _risk_flags(
@@ -698,17 +840,66 @@ def _table(
 ) -> str:
     if not rows:
         return "<p>No records.</p>"
-    head = "".join(f"<th>{escape(column)}</th>" for column in columns) + "<th>Details</th>"
-    body = "\n".join(_table_row(columns, row, risk_key=risk_key, risk_values=risk_values or set(), warn_values=warn_values or set()) for row in rows)
+    include_links = any(row.get("related_links") for row in rows)
+    links_head = "<th>Links</th>" if include_links else ""
+    head = "".join(f"<th>{escape(column)}</th>" for column in columns) + links_head + "<th>Details</th>"
+    body = "\n".join(_table_row(columns, row, risk_key=risk_key, risk_values=risk_values or set(), warn_values=warn_values or set(), include_links=include_links) for row in rows)
     return f"<table><thead><tr>{head}</tr></thead><tbody>{body}</tbody></table>"
 
 
-def _table_row(columns: list[str], row: dict[str, Any], *, risk_key: str | None, risk_values: set[Any], warn_values: set[Any]) -> str:
+def _table_row(columns: list[str], row: dict[str, Any], *, risk_key: str | None, risk_values: set[Any], warn_values: set[Any], include_links: bool) -> str:
     status = row.get(risk_key) if risk_key else None
-    css = " class=\"risk\"" if status in risk_values else " class=\"warn\"" if status in warn_values else ""
+    css = "risk" if status in risk_values else "warn" if status in warn_values else ""
     cells = "".join(f"<td>{escape(str(row.get(column, '-')))}</td>" for column in columns)
+    links = f"<td>{_link_list(row.get('related_links'))}</td>" if include_links else ""
     details = f"<td><details><summary>JSON</summary><pre>{_json_block(row)}</pre></details></td>"
-    return f"<tr{css}>{cells}{details}</tr>"
+    return f"<tr{_row_attrs(row.get('anchor'), css)}>{cells}{links}{details}</tr>"
+
+
+def _row_attrs(anchor: Any, css: str) -> str:
+    attrs = []
+    if anchor:
+        attrs.append(f"id=\"{escape(str(anchor), quote=True)}\"")
+    if css:
+        attrs.append(f"class=\"{escape(css, quote=True)}\"")
+    return " " + " ".join(attrs) if attrs else ""
+
+
+def _nav(items: list[tuple[str, str]]) -> str:
+    links = "".join(f"<a href=\"#{escape(anchor, quote=True)}\">{escape(label)}</a>" for anchor, label in items)
+    return f"<nav class=\"nav\" aria-label=\"Inspector sections\">{links}</nav>"
+
+
+def _link_list(value: Any) -> str:
+    if not isinstance(value, list) or not value:
+        return "-"
+    links = []
+    for item in value:
+        if not isinstance(item, dict):
+            continue
+        href = item.get("href")
+        kind = item.get("kind")
+        ref_value = item.get("value")
+        if not href or kind is None or ref_value is None:
+            continue
+        links.append(
+            f"<a href=\"{escape(str(href), quote=True)}\"><span class=\"ref-kind\">{escape(str(kind))}</span>{escape(str(ref_value))}</a>"
+        )
+    return "<div class=\"link-list\">" + "".join(links) + "</div>" if links else "-"
+
+
+def _slug(value: Any) -> str:
+    text = str(value)
+    chars: list[str] = []
+    last_dash = False
+    for char in text:
+        if char.isascii() and char.isalnum():
+            chars.append(char.lower())
+            last_dash = False
+        elif not last_dash:
+            chars.append("-")
+            last_dash = True
+    return "".join(chars).strip("-") or "item"
 
 
 def _json_block(value: Any) -> str:

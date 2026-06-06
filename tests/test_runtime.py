@@ -603,6 +603,51 @@ class RuntimeTests(unittest.TestCase):
         self.assertEqual(evidence_report.to_dict()["schema_version"], INSPECTOR_SCHEMA_VERSION)
         self.assertEqual(evidence_report.to_dict()["run"]["run_id"], "run-from-evidence")
 
+    def test_inspector_report_adds_navigation_anchors_and_related_links(self) -> None:
+        evidence = {
+            "schema_version": "agentledger.evidence.v1",
+            "bundle_hash": "sha256:links",
+            "run": {"run_id": "run-links", "status": "completed", "state_version": 1},
+            "steps": [{"step_id": "step-1", "run_id": "run-links", "status": "completed", "attempt": 1}],
+            "events": [
+                {
+                    "seq": 1,
+                    "event_id": "evt-1",
+                    "type": "tool_permission_decided",
+                    "step_id": "step-1",
+                    "payload": {"tool_name": "email.send", "approval_id": "approval-1", "artifact_id": "art-1"},
+                }
+            ],
+            "tool_ledger": [{"tool_name": "email.send", "status": "SUCCEEDED", "external_id": "msg-1", "response_ref": "blob://response"}],
+            "approval_requests": [{"approval_id": "approval-1", "step_id": "step-1", "tool_name": "email.send", "risk_level": "high", "status": "PENDING"}],
+            "artifacts": [{"artifact_id": "art-1", "name": "receipt", "blob_hash": "sha256:x", "blob_ref": "blob://artifact", "metadata_json": json.dumps({"kind": "receipt", "content_ref": "s3://bucket/receipt.json"})}],
+            "media_artifacts": [],
+            "stream_checkpoints": [],
+            "cost_records": [],
+            "summary": {"event_count": 1},
+            "final_state": {},
+        }
+        report = InspectorReportBuilder().from_evidence(evidence)
+        data = report.to_dict()
+
+        self.assertEqual(data["timeline"][0]["anchor"], "event-1")
+        self.assertEqual(data["steps"][0]["anchor"], "step-step-1")
+        self.assertEqual(data["tool_ledger"][0]["anchor"], "tool-email-send")
+        self.assertEqual(data["approvals"][0]["anchor"], "approval-approval-1")
+        self.assertEqual(data["artifacts"][0]["anchor"], "artifact-art-1")
+        self.assertIn({"kind": "step", "value": "step-1", "href": "#step-step-1"}, data["timeline"][0]["related_links"])
+        self.assertIn({"kind": "tool", "value": "email.send", "href": "#tool-email-send"}, data["timeline"][0]["related_links"])
+        self.assertIn({"kind": "approval", "value": "approval-1", "href": "#approval-approval-1"}, data["timeline"][0]["related_links"])
+        self.assertIn({"kind": "artifact", "value": "art-1", "href": "#artifact-art-1"}, data["timeline"][0]["related_links"])
+
+        html = report.to_html()
+        self.assertIn('href="#timeline"', html)
+        self.assertIn('id="event-1"', html)
+        self.assertIn('href="#step-step-1"', html)
+        self.assertIn('href="#tool-email-send"', html)
+        self.assertIn('href="#approval-approval-1"', html)
+        self.assertIn('href="#artifact-art-1"', html)
+
     def test_inspector_redaction_policy_applies_to_json_and_html(self) -> None:
         evidence = {
             "schema_version": "agentledger.evidence.v1",
