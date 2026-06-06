@@ -70,6 +70,7 @@ These should not block core parity or official release claims.
 | Workflow | Airflow / Prefect / Argo | They are batch/workflow systems; useful bridges, but AgentLedger should not become a general workflow engine. |
 | Eval | LangSmith / Braintrust / custom eval platforms | Eval remains a consumer of evidence/replay contracts, not runtime-core. |
 | Vector DB / RAG | Pinecone, Weaviate, Milvus, pgvector, etc. | Long-term memory/retrieval infra should be external; runtime stores refs/evidence, not knowledge retrieval logic. |
+| Routing advisor / capability router | WisePick-style route decision services | Candidate direction only, not a committed adapter. It may be evaluated as a pre-execution suggestion and post-execution feedback loop, but should remain optional and must not turn AgentLedger core into a capability router or authorization layer. |
 | Application administration backend | User, organization, billing, identity, or control-plane adapters | Out of current project scope. AgentLedger is a framework/library/runtime reliability layer. |
 
 ## Cross-Language Policy
@@ -113,3 +114,4 @@ Every official adapter must provide:
 7. Kubernetes sandbox/backend recipe, then optional execution adapter.
 8. Temporal/Ray/Kubernetes scheduler/backend bridges based on real user demand.
 9. Model provider/router adapters after the runtime `ModelGateway` contract is stable.
+10. Evaluate only, without implementation commitment, whether a Routing Advisor / Capability Router evidence boundary is useful for WisePick-style services. If later adopted, it should record externally supplied route suggestions, preserve replay by reusing stored routing evidence, and send feedback only after new real executions.

@@ -22,6 +22,7 @@
 | FinOps / Cost Control | token/call/cost records、budget enforcement hooks、cost attribution reports | provider price catalogs、finance exports、alerts | 发票或支付系统 |
 | Inspector / Debug Viewer | stable read models、evidence export、static HTML debug export、redaction hooks、schema/version metadata | 独立 read-only 本地/内网 inspector package | deployment management service、runtime-core 中的写入/控制平面 |
 | Model Gateway / Router | model-call boundary、request/response archival、replay skipping、token/cost attribution、budget/fallback semantics | provider adapter、LiteLLM-style router adapter、policy packs、price catalogs | 打包所有 model SDK、变成完整 model gateway 产品、替代 provider SDK |
+| Routing Advisor / Capability Router | 仅作为候选边界评估；目前不承诺成为 core feature。如果未来验证这个边界有价值，runtime 可以把外部传入的 route decision 作为 evidence 记录，并保持 replay 确定性 | 可能的 WisePick-style capability router adapter 或 feedback client；只有真实需求证明有价值时才考虑 | 在 core 里做 capability router、provider selection optimization，或把外部 routing decision 当成授权/幂等键 |
 
 Execution backend 定位见 `EXECUTION_BACKENDS.md`：Temporal、Ray、Kubernetes 是通用分布式执行 backend adapters，AgentLedger 保留 agent-specific runtime invariants。
 
@@ -54,6 +55,7 @@ storage backends, and sandbox systems instead of replacing them.
 | Observability / eval UI | Langfuse、LangSmith、OpenTelemetry、custom dashboards | structured events、evidence bundles、trace/cost/failure export、correlation IDs |
 | Tool and context protocols | MCP、internal tool servers、provider SDK tools | ToolGateway、Tool Ledger、schema validation、approval、sandbox、audit records |
 | Model providers / routers | OpenAI、Anthropic、Gemini、Bedrock、Ollama、LiteLLM | ModelGateway contract、archived model responses、budget/fallback/replay semantics |
+| Routing advisors / capability routers | WisePick-style decision service、自定义 capability router | 仅作为候选集成边界；没有已规划实现，除非后续真实使用证明需要 |
 | Storage / artifacts | SQLite、Postgres、MySQL、S3/MinIO、internal stores | StateStore/BlobStore contracts、migration、conformance、evidence refs |
 
 ### 必须留在 runtime-core 的能力
@@ -101,6 +103,7 @@ LiteLLM and enterprise model gateways
 vector databases, RAG systems, long-term memory systems
 eval platforms and benchmark runners
 MCP tool servers and enterprise tool catalogs
+WisePick-style routing advisor / capability router；仅作为候选方向，前提是后续评估证明这个边界有价值
 ```
 
 AgentLedger 应该为这些层提供 adapter、export format、evidence bundle、trace correlation 和 conformance checks。

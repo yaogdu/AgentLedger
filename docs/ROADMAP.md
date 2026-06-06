@@ -22,6 +22,7 @@ Most capabilities should be evaluated in three layers: core contract, built-in m
 | FinOps / Cost Control | token/call/cost records, budget enforcement hooks, cost attribution reports | provider price catalogs, finance exports, alerts | invoice or payment system |
 | Inspector / Debug Viewer | stable read models, evidence export, static HTML debug export, redaction hooks, schema/version metadata | separate read-only local or internal inspector package | deployment management service, write/control plane in runtime-core |
 | Model Gateway / Router | model-call boundary, request/response archival, replay skipping, token/cost attribution, budget/fallback semantics | provider adapters, LiteLLM-style router adapters, policy packs, price catalogs | bundling every model SDK, becoming a full model gateway product, replacing provider SDKs |
+| Routing Advisor / Capability Router | candidate boundary only; no committed core feature. If future evaluation proves the boundary useful, runtime may record externally supplied route decisions as evidence and keep replay deterministic | possible WisePick-style capability router adapters or feedback clients, only if real usage justifies them | becoming a capability router, optimizing provider selection in core, or treating external routing decisions as authorization or idempotency keys |
 
 Execution backend positioning is documented in `EXECUTION_BACKENDS.md`: Temporal, Ray, and Kubernetes are backend adapters for generic distributed execution, while AgentLedger keeps agent-specific runtime invariants.
 
@@ -54,6 +55,7 @@ Recommended stack positioning:
 | Observability / eval UI | Langfuse, LangSmith, OpenTelemetry, custom dashboards | structured events, evidence bundles, trace/cost/failure export, correlation IDs |
 | Tool and context protocols | MCP, internal tool servers, provider SDK tools | ToolGateway, Tool Ledger, schema validation, approvals, sandbox, audit records |
 | Model providers / routers | OpenAI, Anthropic, Gemini, Bedrock, Ollama, LiteLLM | ModelGateway contract, archived model responses, budget/fallback/replay semantics |
+| Routing advisors / capability routers | WisePick-style decision services, custom capability routers | candidate integration boundary only; no planned implementation until real usage proves the need |
 | Storage / artifacts | SQLite, Postgres, MySQL, S3/MinIO, internal stores | StateStore/BlobStore contracts, migrations, conformance, evidence refs |
 
 ### Must Stay In Runtime-Core
@@ -101,6 +103,7 @@ LiteLLM and enterprise model gateways
 vector databases, RAG systems, long-term memory systems
 eval platforms and benchmark runners
 MCP tool servers and enterprise tool catalogs
+routing advisors and capability routers such as WisePick-style services; candidate only, if future evaluation proves the boundary useful
 ```
 
 AgentLedger should provide adapters, export formats, evidence bundles, trace correlation, and conformance checks for these layers.
