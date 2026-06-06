@@ -8,6 +8,17 @@ This project follows semantic versioning for the stable runtime-core contract. O
 
 No unreleased changes yet.
 
+## 1.3.4
+
+### Fixed
+
+- Corrected the `agentledger-inspector` package module `__version__` so it matches published package metadata.
+- Added a release metadata regression check so the runtime package, Inspector companion package, and optional Inspector extra stay aligned in future patch releases.
+
+### Clarified
+
+- This is an Inspector/package metadata patch release. It does not change the stable runtime-core contract or require Go, TypeScript, or Rust runtime-core changes.
+
 ## 1.3.3
 
 ### Added

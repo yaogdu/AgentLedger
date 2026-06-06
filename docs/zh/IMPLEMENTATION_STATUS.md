@@ -15,7 +15,7 @@ AgentLedger 1.3.x 是 stable runtime-core line，Python 是 reference implementa
 - reliability semantics 验证
 - 在明确 adapter 边界下做 production pilot 准备
 
-版本范围说明：1.3.0 增加 Inspector，定位是只读 evidence/runtime metadata consumer。它可以读取导出的 evidence bundle，也可以用只读凭证连接 SQLite/Postgres/MySQL AgentLedger metadata，并导出静态 HTML debug report。1.3.2 增加 Inspector JSON/HTML 输出的可配置脱敏。1.3.3 增加 static report navigation，以及 timeline、tool、approval、policy、artifact record 的 read-model cross-links。MySQL 仍是 1.2.2 的 storage adapter boundary，Langfuse 仍是 1.2.3 的 observability adapter boundary；真实服务生产级声明仍需要外部验证。
+版本范围说明：1.3.0 增加 Inspector，定位是只读 evidence/runtime metadata consumer。它可以读取导出的 evidence bundle，也可以用只读凭证连接 SQLite/Postgres/MySQL AgentLedger metadata，并导出静态 HTML debug report。1.3.2 增加 Inspector JSON/HTML 输出的可配置脱敏。1.3.3 增加 static report navigation，以及 timeline、tool、approval、policy、artifact record 的 read-model cross-links。1.3.4 修复 Inspector package release metadata 对齐，不改变 runtime-core 语义。MySQL 仍是 1.2.2 的 storage adapter boundary，Langfuse 仍是 1.2.3 的 observability adapter boundary；真实服务生产级声明仍需要外部验证。
 
 runtime-core contract 已稳定。optional production adapter、外部基础设施加固和完整 eval 系统都不属于 stable core 边界；非 Python runtime-core baseline 由共享 parity gate 验证。
 

@@ -224,6 +224,13 @@ class RuntimeTests(unittest.TestCase):
         self.assertIn("Programming Language :: Python :: 3.12", project["classifiers"])
         self.assertEqual(project["version"], AGENTLEDGER_VERSION)
 
+        inspector_metadata = tomllib.loads(Path("packages/agentledger-inspector/pyproject.toml").read_text(encoding="utf-8"))
+        inspector_project = inspector_metadata["project"]
+        inspector_module = runpy.run_path("packages/agentledger-inspector/src/agentledger_inspector/__init__.py")
+        self.assertEqual(inspector_project["version"], inspector_module["__version__"])
+        self.assertEqual(inspector_project["dependencies"], [f"agentledger-runtime>={AGENTLEDGER_VERSION},<2"])
+        self.assertIn(f"agentledger-inspector>={inspector_module['__version__']},<2", project["optional-dependencies"]["inspector"])
+
     def test_cli_version_prints_package_version(self) -> None:
         stdout = io.StringIO()
         with contextlib.redirect_stdout(stdout):
