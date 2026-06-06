@@ -3,7 +3,7 @@
 [English](README.md) | [中文](README.zh-CN.md)
 
 ![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)
-![Version 1.3.0 stable](https://img.shields.io/badge/Version-1.3.0--stable-111827)
+![Version 1.3.1 stable](https://img.shields.io/badge/Version-1.3.1--stable-111827)
 ![License Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-0f766e)
 ![Runtime Durable](https://img.shields.io/badge/Runtime-durable%20execution-1f6feb)
 ![Storage SQLite/Postgres/MySQL](https://img.shields.io/badge/Storage-SQLite%20%7C%20Postgres%20%7C%20MySQL-b45309)
@@ -12,7 +12,7 @@
 
 你的 Agent 调用了一个工具。它真的执行了吗？可以安全重试吗？之后能证明发生过什么吗？
 
-AgentLedger `1.3.0` 是面向 Agent Harness stack 的 runtime reliability layer。它不负责让 Agent 更会“思考”，也不替代完整 Harness 生态；它负责让 Agent run 在 worker 崩溃、工具失败、prompt 变更和长任务恢复时，仍然具备持久化、可审计、可重放、可治理和可恢复能力。
+AgentLedger `1.3.1` 是面向 Agent Harness stack 的 runtime reliability layer。它不负责让 Agent 更会“思考”，也不替代完整 Harness 生态；它负责让 Agent run 在 worker 崩溃、工具失败、prompt 变更和长任务恢复时，仍然具备持久化、可审计、可重放、可治理和可恢复能力。
 
 大多数 Agent 框架关注 planning、reasoning 和 workflow logic。AgentLedger 放在 LangChain、LangGraph、CrewAI、AutoGen、OpenAI Agents SDK、LlamaIndex、Semantic Kernel 或自定义 Agent 的下方或旁边，提供 state、tool、evidence、replay、recovery 相关的 runtime guarantees。
 
@@ -282,7 +282,7 @@ AgentLedger 也不是新的 LLM SDK，不是 workflow engine，不是通用 obse
 
 ## 当前成熟度
 
-AgentLedger 1.3.0 是 stable runtime-core release，Python 是 reference implementation，Go、TypeScript、Rust 已由共享 runtime-core parity gate 覆盖；适合本地使用、framework adapter integration、reliability semantics 验证，以及在明确 adapter 边界下做 production pilot 准备。
+AgentLedger 1.3.1 是 stable runtime-core release，Python 是 reference implementation，Go、TypeScript、Rust 已由共享 runtime-core parity gate 覆盖；适合本地使用、framework adapter integration、reliability semantics 验证，以及在明确 adapter 边界下做 production pilot 准备。
 
 runtime-core contract 已稳定；optional production adapter 和外部基础设施加固仍按独立阶段推进。详见 [docs/MATURITY_MODEL.md](docs/MATURITY_MODEL.md)、[docs/zh/IMPLEMENTATION_STATUS.md](docs/zh/IMPLEMENTATION_STATUS.md) 和 [docs/zh/ROADMAP.md](docs/zh/ROADMAP.md)。
 

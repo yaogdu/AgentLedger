@@ -24,7 +24,7 @@ from agentledger.blobstore_s3 import S3BlobStore, S3BlobStoreConfig
 from agentledger.conformance import BlobStoreConformanceRunner, FrameworkAdapterConformanceRunner, MediaRuntimeConformanceRunner, StateStoreConformanceRunner, WorkerConformanceRunner
 from agentledger.contract import contract_json, runtime_contract
 from agentledger.approval import ApprovalRequired
-from agentledger.cli import build_parser, cmd_adapter_certify, cmd_adapter_conformance, cmd_backup_check, cmd_blob_conformance, cmd_conformance, cmd_corpus_add, cmd_corpus_eval, cmd_corpus_list, cmd_corpus_seed, cmd_cost_report, cmd_debug, cmd_divergence, cmd_evidence, cmd_evidence_regression, cmd_failure_inject, cmd_failure_report, cmd_inspector_evidence, cmd_inspector_run, cmd_lint_boundary, cmd_migrate_status, cmd_migrate_up, cmd_review_checklist, cmd_state_conformance, cmd_timetravel, cmd_tools_manifest, cmd_worker_conformance, cmd_worker_plan, cmd_worker_serve, create_blob_store, create_state_store
+from agentledger.cli import build_parser, cmd_adapter_certify, cmd_adapter_conformance, cmd_backup_check, cmd_blob_conformance, cmd_conformance, cmd_corpus_add, cmd_corpus_eval, cmd_corpus_list, cmd_corpus_seed, cmd_cost_report, cmd_debug, cmd_divergence, cmd_evidence, cmd_evidence_regression, cmd_failure_inject, cmd_failure_report, cmd_inspector_evidence, cmd_inspector_run, cmd_lint_boundary, cmd_migrate_status, cmd_migrate_up, cmd_review_checklist, cmd_state_conformance, cmd_timetravel, cmd_tools_manifest, cmd_worker_conformance, cmd_worker_plan, cmd_worker_serve, create_blob_store, create_state_store, main
 from agentledger.cost import BudgetController, BudgetExceeded, BudgetLimits, CostAttributionReporter
 from agentledger.failure import FailureAttributionReporter, RetryableAgentError
 from agentledger.failure_injection import FailureInjectionSuite
@@ -134,6 +134,7 @@ class RuntimeTests(unittest.TestCase):
         command_cases = [
             ["init"],
             ["doctor"],
+            ["version"],
             ["run", "examples/side_effect_idempotency"],
             ["debug", "run-1"],
             ["debug", "run-1", "--json", "--include-diffs"],
@@ -222,6 +223,12 @@ class RuntimeTests(unittest.TestCase):
         self.assertIn("Programming Language :: Python :: 3.11", project["classifiers"])
         self.assertIn("Programming Language :: Python :: 3.12", project["classifiers"])
         self.assertEqual(project["version"], AGENTLEDGER_VERSION)
+
+    def test_cli_version_prints_package_version(self) -> None:
+        stdout = io.StringIO()
+        with contextlib.redirect_stdout(stdout):
+            main(["version"])
+        self.assertEqual(stdout.getvalue().strip(), f"agentledger {AGENTLEDGER_VERSION}")
 
     def test_cli_help_points_to_github_docs(self) -> None:
         stdout = io.StringIO()

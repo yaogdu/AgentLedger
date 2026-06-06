@@ -1,6 +1,6 @@
 # Adapter Packaging
 
-AgentLedger `1.2.1` introduced the adapter packaging model, `1.2.2` extended it with the official MySQL storage adapter boundary, `1.2.3` added a dependency-free Langfuse evidence/trace export boundary, and `1.3.0` adds the read-only Inspector companion package. Runtime-core stays small and dependency-light; concrete integrations and external evidence consumers move into optional packages that can be installed through extras or directly.
+AgentLedger `1.2.1` introduced the adapter packaging model, `1.2.2` extended it with the official MySQL storage adapter boundary, `1.2.3` added a dependency-free Langfuse evidence/trace export boundary, and `1.3.0` added the read-only Inspector companion package. Runtime-core stays small and dependency-light; concrete integrations and external evidence consumers move into optional packages that can be installed through extras or directly.
 
 ## Why Split Adapters
 
@@ -240,8 +240,8 @@ The packaging release is expected to pass:
 
 ```bash
 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m unittest discover -s tests -q
-PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m agentledger adapter certify --kind postgres --adapter-version 1.3.0
-PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m agentledger adapter certify --kind mysql --adapter-version 1.3.0
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m agentledger adapter certify --kind postgres --adapter-version 1.3.1
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m agentledger adapter certify --kind mysql --adapter-version 1.3.1
 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 scripts/check_adapter_packages.py
 go test ./...
 cd typescript && npm test

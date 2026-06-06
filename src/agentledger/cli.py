@@ -6,6 +6,7 @@ import json
 import tempfile
 from pathlib import Path
 
+from . import __version__
 from .adapter_certification import build_adapter_certification_bundle, supported_adapter_certification_profiles
 from .adapters import PythonFunctionAdapter
 from .adapters_frameworks import AutoGenAdapter, CrewAIAdapter, LangChainRunnableAdapter, LlamaIndexAdapter, OpenAIAgentsSDKAdapter, SemanticKernelAdapter
@@ -69,6 +70,10 @@ def cmd_doctor(args: argparse.Namespace) -> None:
     print(f"store={rt.store.path}")
     print("status=ok")
     print(f"docs={PROJECT_URL}")
+
+
+def cmd_version(args: argparse.Namespace) -> None:
+    print(f"agentledger {__version__}")
 
 
 def cmd_run(args: argparse.Namespace) -> None:
@@ -845,6 +850,8 @@ def build_parser() -> argparse.ArgumentParser:
     init.set_defaults(func=cmd_init)
     doctor = sub.add_parser("doctor")
     doctor.set_defaults(func=cmd_doctor)
+    version = sub.add_parser("version")
+    version.set_defaults(func=cmd_version)
     run = sub.add_parser("run")
     run.add_argument("example")
     run.set_defaults(func=cmd_run)

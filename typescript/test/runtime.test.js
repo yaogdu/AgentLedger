@@ -15,8 +15,8 @@ test('adapter subpath exports expose the current package boundary', async () => 
   const docker = await import('../src/adapters/sandbox-docker.js');
   const langgraph = await import('../src/adapters/langgraph.js');
 
-  assert.equal(postgres.adapterPackage.version, '1.3.0');
-  assert.equal(mysql.adapterPackage.version, '1.3.0');
+  assert.equal(postgres.adapterPackage.version, '1.3.1');
+  assert.equal(mysql.adapterPackage.version, '1.3.1');
   assert.equal(typeof postgres.PostgresAdapter, 'function');
   assert.equal(typeof mysql.MySQLAdapter, 'function');
   assert.equal(typeof s3.S3BlobStoreAdapter, 'function');

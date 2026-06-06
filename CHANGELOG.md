@@ -8,6 +8,13 @@ This project follows semantic versioning for the stable runtime-core contract. O
 
 No unreleased changes yet.
 
+## 1.3.1
+
+### Fixed
+
+- Added the Python `agentledger version` CLI command so the Python reference CLI matches the documented four-language CLI baseline.
+- Aligned the Python, Go, TypeScript, and Rust package train to `1.3.1` after the post-release install smoke caught the missing Python command.
+
 ## 1.3.0
 
 ### Added
