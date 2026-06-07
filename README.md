@@ -38,6 +38,14 @@ Python remains the reference implementation, and Go, TypeScript, and Rust now ha
 | Use Go correctly | [go/README.md](go/README.md#install) |
 | Read the full documentation map | [docs/README.md](docs/README.md) |
 
+## Inspector Preview
+
+Inspector exports self-contained, read-only HTML for local or internal debugging. It can show a run index before opening a single run, then drill into chronological events, Tool Ledger rows, approvals, artifacts, and full-width JSON details.
+
+![AgentLedger Inspector run index](docs/assets/inspector/runs-index.png)
+
+![AgentLedger Inspector single run](docs/assets/inspector/single-run-timeline.png)
+
 ## At a glance
 
 | Question | Answer |

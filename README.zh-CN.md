@@ -38,6 +38,13 @@ Python 仍然是 reference implementation；Go、TypeScript、Rust 已有 native
 | 正确使用 Go | [go/README.md](go/README.md#install) |
 | 查看完整文档地图 | [docs/zh/README.md](docs/zh/README.md) |
 
+## Inspector 预览
+
+Inspector 会导出自包含、只读的 HTML，适合本地或内网排查问题。它可以先展示 run index，再进入单个 run 查看按时间排序的事件、Tool Ledger、approval、artifact 和全宽 JSON 详情。
+
+![AgentLedger Inspector run index](docs/assets/inspector/runs-index.png)
+
+![AgentLedger Inspector single run](docs/assets/inspector/single-run-timeline.png)
 
 ## 快速判断
 

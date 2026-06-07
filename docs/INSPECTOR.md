@@ -4,6 +4,14 @@ AgentLedger Inspector is a language-neutral, read-only debug and audit view for 
 
 It is not a long-running service and not a runtime control plane. It does not approve requests, cancel runs, mutate Tool Ledger rows, call tools, or contact model providers.
 
+## Preview
+
+The default renderer is a static reference UI: a paginated run index plus a single-run view with chronological events and full-width JSON details.
+
+![AgentLedger Inspector run index](assets/inspector/runs-index.png)
+
+![AgentLedger Inspector single run](assets/inspector/single-run-timeline.png)
+
 ## Install
 
 Inspector is available through the core CLI and as an optional companion package:
