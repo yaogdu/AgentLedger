@@ -564,9 +564,16 @@ Implemented in `1.3.3`:
 - stable read-model anchors for timeline, step, Tool Ledger, approval, policy, and artifact rows
 - static HTML section navigation and internal cross-links between related runtime records
 
+Implemented in `1.3.5`:
+
+- chronological Event Stream in JSON and static HTML reports
+- read-only run index with status, timestamps, cost summary, failure summary, and optional single-run links
+- runtime run id and extracted agent run id in event/timeline rows
+- paginated run-list static HTML and full-width JSON/details rows for Inspector, evidence, and time-travel tables
+
 Follow-up work:
 
-- run/session list with status, timestamps, cost summary, and failure summary
+- richer filtering, search, pagination, and saved views for the read-only run index
 - run timeline for steps, events, model calls, tool calls, approvals, artifacts, and checkpoints
 - state diff and state-version view
 - Tool Ledger view with idempotency key, causal token, side-effect status, request/response refs, and unknown-state handling

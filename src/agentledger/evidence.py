@@ -71,14 +71,17 @@ class EvidenceBundle:
     .card {{ padding: 14px 16px; border: 1px solid var(--line); background: rgba(251,255,248,0.9); border-radius: 16px; box-shadow: 0 16px 36px rgba(23,33,27,0.06); }}
     .label {{ display: block; color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; }}
     .value {{ display: block; margin-top: 6px; font-size: 22px; font-weight: 700; overflow-wrap: anywhere; }}
-    table {{ width: 100%; border-collapse: collapse; overflow: hidden; border-radius: 16px; background: var(--panel); box-shadow: 0 14px 34px rgba(23,33,27,0.07); }}
-    th, td {{ padding: 10px 11px; border-bottom: 1px solid var(--line); vertical-align: top; text-align: left; }}
+    table {{ width: 100%; table-layout: fixed; border-collapse: collapse; overflow: hidden; border-radius: 16px; background: var(--panel); box-shadow: 0 14px 34px rgba(23,33,27,0.07); }}
+    th, td {{ padding: 10px 11px; border-bottom: 1px solid var(--line); vertical-align: top; text-align: left; overflow-wrap: anywhere; word-break: break-word; }}
     th {{ background: #dfe8dc; color: #334137; font-size: 12px; text-transform: uppercase; letter-spacing: 0.07em; }}
     tr.risk td {{ background: linear-gradient(90deg, var(--warn), var(--panel) 48%); }}
+    tr.details-row td {{ padding-top: 0; background: #fefff9; }}
+    tr.details-row.risk td {{ background: linear-gradient(90deg, var(--warn), var(--panel) 48%); }}
+    .record-details {{ margin: 0; }}
     code {{ padding: 2px 5px; border-radius: 7px; background: #e7eee5; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }}
-    details {{ margin-top: 5px; }}
+    details {{ margin-top: 5px; max-width: 100%; }}
     summary {{ cursor: pointer; color: var(--accent); font-weight: 700; }}
-    pre {{ max-height: 260px; overflow: auto; padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: #fefff9; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; line-height: 1.45; }}
+    pre {{ max-width: 100%; max-height: 260px; overflow: auto; padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: #fefff9; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word; }}
     @media (max-width: 820px) {{
       .cards {{ grid-template-columns: repeat(2, minmax(0, 1fr)); }}
       table {{ display: block; overflow-x: auto; }}
@@ -214,7 +217,7 @@ class EvidenceExporter:
 def _table(columns: list[str], rows: list[dict[str, Any]], *, risk_key: str | None = None, risk_values: set[str] | None = None) -> str:
     if not rows:
         return "<p>No records.</p>"
-    head = "".join(f"<th>{escape(column)}</th>" for column in columns) + "<th>Details</th>"
+    head = "".join(f"<th>{escape(column)}</th>" for column in columns)
     body = "\n".join(_table_row(columns, row, risk_key=risk_key, risk_values=risk_values or set()) for row in rows)
     return f"<table><thead><tr>{head}</tr></thead><tbody>{body}</tbody></table>"
 
@@ -222,9 +225,10 @@ def _table(columns: list[str], rows: list[dict[str, Any]], *, risk_key: str | No
 def _table_row(columns: list[str], row: dict[str, Any], *, risk_key: str | None, risk_values: set[str]) -> str:
     risk = risk_key is not None and str(row.get(risk_key)) in risk_values
     cells = "".join(f"<td>{escape(str(row.get(column, '-')))}</td>" for column in columns)
-    details = f"<td><details><summary>JSON</summary><pre>{_json_block(row)}</pre></details></td>"
     css = " class=\"risk\"" if risk else ""
-    return f"<tr{css}>{cells}{details}</tr>"
+    details_css = "details-row risk" if risk else "details-row"
+    details = f"<tr class=\"{details_css}\"><td colspan=\"{len(columns)}\"><details class=\"record-details\"><summary>JSON</summary><pre>{_json_block(row)}</pre></details></td></tr>"
+    return f"<tr{css}>{cells}</tr>{details}"
 
 
 def _json_block(value: Any) -> str:

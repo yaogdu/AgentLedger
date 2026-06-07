@@ -1,6 +1,6 @@
 """AgentLedger stable agent runtime core."""
 
-__version__ = "1.3.4"
+__version__ = "1.3.5"
 
 from .adapters import FrameworkAdapter, PythonFunctionAdapter, python_agent
 from .adapter_certification import AdapterCertificationBundle, build_adapter_certification_bundle, supported_adapter_certification_profiles
@@ -20,7 +20,7 @@ from .eval import EvidenceCheck, EvidenceCheckReport, EvidenceRegressionRunner
 from .evidence import EvidenceExporter
 from .failure import FailureAttributionReport, FailureAttributionReporter, FailureClassification, NonRetryableAgentError, RetryableAgentError, RetryPolicy
 from .failure_injection import FailureInjectionCheck, FailureInjectionReport, FailureInjectionSuite
-from .inspector import INSPECTOR_SCHEMA_VERSION, InspectorDataSource, InspectorRedactionPolicy, InspectorReport, InspectorReportBuilder, ReadOnlyLocalBlobStore, ReadOnlyMySQLStore, ReadOnlyPostgresStore, ReadOnlySQLiteStore
+from .inspector import INSPECTOR_RUN_INDEX_SCHEMA_VERSION, INSPECTOR_SCHEMA_VERSION, InspectorDataSource, InspectorRedactionPolicy, InspectorReport, InspectorReportBuilder, InspectorRunIndex, ReadOnlyLocalBlobStore, ReadOnlyMySQLStore, ReadOnlyPostgresStore, ReadOnlySQLiteStore
 from .lint import BoundaryLintFinding, BoundaryLintReport, BoundaryLintRule, RuntimeBoundaryLinter, load_boundary_rules
 from .media import ArtifactLineage, EventStreamCheckpoint, MediaArtifact, MediaMetadata, StreamChunkRef
 from .media_tools import media_tool_specs, register_media_tool_conventions
@@ -130,10 +130,12 @@ __all__ = [
     "GoldenCase",
     "GoldenCorpus",
     "INSPECTOR_SCHEMA_VERSION",
+    "INSPECTOR_RUN_INDEX_SCHEMA_VERSION",
     "InspectorDataSource",
     "InspectorRedactionPolicy",
     "InspectorReport",
     "InspectorReportBuilder",
+    "InspectorRunIndex",
     "LangGraphCheckpointerAdapter",
     "LangGraphNodeAdapter",
     "LangChainRunnableAdapter",

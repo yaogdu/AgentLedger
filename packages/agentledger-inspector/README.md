@@ -15,6 +15,13 @@ Inspect a local runtime database:
 agentledger inspector run <run_id> --root .agentledger --html ./inspector.html
 ```
 
+Inspect recent runs from a local runtime database:
+
+```bash
+agentledger inspector runs --root .agentledger --html ./runs.html
+agentledger inspector runs --root .agentledger --out ./runs.json
+```
+
 Inspect an exported evidence bundle:
 
 ```bash
@@ -53,7 +60,7 @@ agentledger inspector run <run_id> --backend mysql --dsn "$AGENTLEDGER_MYSQL_DSN
 
 The Inspector does not start a server, mutate runtime state, call tools, approve requests, or contact model providers. It builds a language-neutral read model from AgentLedger runtime metadata or exported evidence bundles. AgentLedger does not add a separate permission layer for Inspector; use database grants, filesystem ACLs, and deployment policy.
 
-Static HTML reports include local section navigation and internal cross-links between related timeline events, steps, Tool Ledger rows, approvals, policy decisions, and artifacts. Custom viewers can reuse the same `anchor`, `related_refs`, and `related_links` fields from `InspectorReport.to_dict()`.
+Static HTML reports include local section navigation, a chronological Event Stream, a read-only run index, and internal cross-links between related timeline events, steps, Tool Ledger rows, approvals, policy decisions, and artifacts. Custom viewers can reuse the same `event_stream`, `anchor`, `related_refs`, `related_links`, and run-index fields from `InspectorReport.to_dict()` / `InspectorRunIndex.to_dict()`.
 
 Extension API:
 
@@ -73,9 +80,15 @@ custom_source_report = InspectorDataSource().from_runtime_store(
     blobs=my_read_only_blob_store,
     run_id="run_123",
 )
+
+run_index = InspectorDataSource().runs_from_runtime_store(
+    store=my_read_only_state_store,
+    blobs=my_read_only_blob_store,
+    run_link_template="/runs/{run_id}/inspector.html",
+)
 ```
 
-The default HTML renderer is a reference renderer. Users can build their own UI by consuming `InspectorReport.to_dict()` and preserving `schema_version == agentledger.inspector.v1`.
+The default HTML renderer is a reference renderer. Users can build their own UI by consuming `InspectorReport.to_dict()` / `InspectorRunIndex.to_dict()` and preserving `schema_version == agentledger.inspector.v1` or `agentledger.inspector.runs.v1`. The package does not include a long-running web server, login system, permission system, or runtime control plane.
 
 `EvidenceStateStoreProtocol` and `EvidenceBlobStoreProtocol` describe the minimal read API for custom database/blob backends.
 

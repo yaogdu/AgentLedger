@@ -56,7 +56,7 @@ Excluded or not applicable:
 | Quickstart docs | Language quickstart and adapter quickstart | README + docs | `go/README.md` | `typescript/README.md` | `rust/README.md` | docs link check | done |
 | Examples | Runnable examples for core runtime and adapter API | Python examples | `go/examples/quickstart/main.go` | `typescript/examples/quickstart/quickstart.js` | `rust/examples/quickstart.rs` | `scripts/check_complete_core_parity.py` | done |
 | Package metadata | Installable package metadata in the current 1.3 release family | PyPI metadata `1.3.x` | `go.mod` tag `go/v1.3.1` for current baseline | npm package `1.3.1` for current baseline | `Cargo.toml` `1.3.1` for current baseline | `scripts/check_complete_core_parity.py` release-family check | done |
-| Package install smoke | Install/import/run from published or built package | PyPI `agentledger-runtime==1.3.4` release smoke after publish for current Inspector patch | `go/v1.3.1` clean external `go get` smoke after tag | npm `agentledger-runtime@1.3.1` release smoke after publish | crates.io `agentledger-runtime==1.3.1` release smoke after publish | publish logs + `scripts/check_complete_core_parity.py` dry-run gates | release-gated |
+| Package install smoke | Install/import/run from published or built package | PyPI `agentledger-runtime==1.3.5` release smoke after publish for current Inspector patch | `go/v1.3.1` clean external `go get` smoke after tag | npm `agentledger-runtime@1.3.1` release smoke after publish | crates.io `agentledger-runtime==1.3.1` release smoke after publish | publish logs + `scripts/check_complete_core_parity.py` dry-run gates | release-gated |
 | Release docs | Changelog, release checklist, status docs reflect exact parity boundary | docs | docs | docs | docs | docs link check | done |
 | Comparison docs | Honest overlap with LangChain/LangGraph/LangSmith/Langfuse/etc. | docs | docs | docs | docs | docs link check | done |
 
@@ -67,7 +67,7 @@ The strict core parity gate now covers the previously weak areas:
 1. CLI baseline is automatically checked for all four language CLIs.
 2. Go, TypeScript, and Rust have runnable quickstart example files.
 3. TypeScript and Rust package surfaces have package dry-run checks (`npm pack --dry-run`, `cargo package --allow-dirty --no-verify`) and post-publish install smokes are required for release.
-4. Package release families are checked across Python, TypeScript, and Rust. The current core release family is `1.3`; Python may carry Inspector-only patch releases such as `1.3.4` without changing non-Python runtime-core baselines.
+4. Package release families are checked across Python, TypeScript, and Rust. The current core release family is `1.3`; Python may carry Inspector-only patch releases such as `1.3.5` without changing non-Python runtime-core baselines.
 5. Go external module consumption is tag/release dependent; each release should repeat the clean external `go get` smoke after pushing the `go/vX.Y.Z` tag.
 6. Real service-backed hardening remains out of scope for core parity and stays documented as optional follow-up work.
 

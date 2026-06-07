@@ -281,7 +281,7 @@ AgentLedger is also not a new LLM SDK, not a workflow engine, not a general obse
 
 ## Current maturity
 
-AgentLedger 1.3.x is a stable runtime-core line with Python as the reference implementation and Go, TypeScript, and Rust covered by shared runtime-core parity gates. The current Python/Inspector patch is 1.3.4; Go, TypeScript, and Rust runtime-core package baselines remain 1.3.1 until their next runtime-core release. It is suitable for local use, framework adapter integration, reliability semantics validation, and production pilot preparation with explicit adapter boundaries.
+AgentLedger 1.3.x is a stable runtime-core line with Python as the reference implementation and Go, TypeScript, and Rust covered by shared runtime-core parity gates. The current Python/Inspector patch is 1.3.5; Go, TypeScript, and Rust runtime-core package baselines remain 1.3.1 until their next runtime-core release. It is suitable for local use, framework adapter integration, reliability semantics validation, and production pilot preparation with explicit adapter boundaries.
 
 The runtime-core contract is stable; optional production adapters and external infrastructure hardening remain separately tracked. See [docs/MATURITY_MODEL.md](docs/MATURITY_MODEL.md), [docs/IMPLEMENTATION_STATUS.md](docs/IMPLEMENTATION_STATUS.md), and [docs/ROADMAP.md](docs/ROADMAP.md).
 

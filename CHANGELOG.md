@@ -8,6 +8,23 @@ This project follows semantic versioning for the stable runtime-core contract. O
 
 No unreleased changes yet.
 
+## 1.3.5 - 2026-06-07
+
+### Added
+
+- Added an Inspector chronological Event Stream view sorted by event timestamp, showing runtime run id, extracted agent run id, step id, event type, summary, and links back to detailed timeline records.
+- Added `agentledger inspector runs` and the `agentledger.inspector.runs.v1` read model for a read-only run index over SQLite/Postgres/MySQL runtime metadata.
+
+### Fixed
+
+- Improved Python static debug HTML layout so large JSON/details payloads and long ids do not expand tables or break the page width.
+- Reworked detailed Inspector, evidence, and time-travel tables so JSON opens in a full-width row below the record instead of a narrow right-side column.
+- Reworked the Inspector run-index HTML from a wide multi-column table into a compact paginated run list with status, timestamps, counters, Inspector links, and folded JSON details.
+
+### Clarified
+
+- This is a Python static debug HTML patch and is not published yet. It does not change the stable runtime-core contract or require Go, TypeScript, or Rust runtime-core changes.
+
 ## 1.3.4
 
 ### Fixed

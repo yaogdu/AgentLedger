@@ -603,10 +603,19 @@ timeline、step、Tool Ledger、approval、policy、artifact row 的稳定 read-
 相关 runtime record 之间的 static HTML section navigation 和内部 cross-link
 ```
 
+`1.3.5` 已实现：
+
+```text
+JSON 和 static HTML report 中的 chronological Event Stream
+只读 run index：status、timestamp、cost summary、failure summary、可选单 run 链接
+event/timeline row 中的 runtime run id 和提取出的 agent run id
+run list static HTML 分页，以及 Inspector、evidence、time-travel 表格中的全宽 JSON/details 行
+```
+
 后续工作：
 
 ```text
-run/session list：status、timestamp、cost summary、failure summary
+只读 run index 的 filtering、search、pagination、saved views
 单个 run timeline：step、event、model call、tool call、approval、artifact、checkpoint
 state diff 和 state-version view
 Tool Ledger view：idempotency key、causal token、side-effect status、request/response refs、unknown-state handling

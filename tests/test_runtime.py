@@ -24,11 +24,11 @@ from agentledger.blobstore_s3 import S3BlobStore, S3BlobStoreConfig
 from agentledger.conformance import BlobStoreConformanceRunner, FrameworkAdapterConformanceRunner, MediaRuntimeConformanceRunner, StateStoreConformanceRunner, WorkerConformanceRunner
 from agentledger.contract import contract_json, runtime_contract
 from agentledger.approval import ApprovalRequired
-from agentledger.cli import build_parser, cmd_adapter_certify, cmd_adapter_conformance, cmd_backup_check, cmd_blob_conformance, cmd_conformance, cmd_corpus_add, cmd_corpus_eval, cmd_corpus_list, cmd_corpus_seed, cmd_cost_report, cmd_debug, cmd_divergence, cmd_evidence, cmd_evidence_regression, cmd_failure_inject, cmd_failure_report, cmd_inspector_evidence, cmd_inspector_run, cmd_lint_boundary, cmd_migrate_status, cmd_migrate_up, cmd_review_checklist, cmd_state_conformance, cmd_timetravel, cmd_tools_manifest, cmd_worker_conformance, cmd_worker_plan, cmd_worker_serve, create_blob_store, create_state_store, main
+from agentledger.cli import build_parser, cmd_adapter_certify, cmd_adapter_conformance, cmd_backup_check, cmd_blob_conformance, cmd_conformance, cmd_corpus_add, cmd_corpus_eval, cmd_corpus_list, cmd_corpus_seed, cmd_cost_report, cmd_debug, cmd_divergence, cmd_evidence, cmd_evidence_regression, cmd_failure_inject, cmd_failure_report, cmd_inspector_evidence, cmd_inspector_run, cmd_inspector_runs, cmd_lint_boundary, cmd_migrate_status, cmd_migrate_up, cmd_review_checklist, cmd_state_conformance, cmd_timetravel, cmd_tools_manifest, cmd_worker_conformance, cmd_worker_plan, cmd_worker_serve, create_blob_store, create_state_store, main
 from agentledger.cost import BudgetController, BudgetExceeded, BudgetLimits, CostAttributionReporter
 from agentledger.failure import FailureAttributionReporter, RetryableAgentError
 from agentledger.failure_injection import FailureInjectionSuite
-from agentledger.inspector import INSPECTOR_SCHEMA_VERSION, InspectorDataSource, InspectorRedactionPolicy, InspectorReportBuilder, ReadOnlyLocalBlobStore, ReadOnlyMySQLStore, ReadOnlyPostgresStore, ReadOnlySQLiteStore
+from agentledger.inspector import INSPECTOR_RUN_INDEX_SCHEMA_VERSION, INSPECTOR_SCHEMA_VERSION, InspectorDataSource, InspectorRedactionPolicy, InspectorReportBuilder, ReadOnlyLocalBlobStore, ReadOnlyMySQLStore, ReadOnlyPostgresStore, ReadOnlySQLiteStore
 from agentledger.lint import RuntimeBoundaryLinter, load_boundary_rules
 from agentledger.media import ArtifactLineage, EventStreamCheckpoint, MediaArtifact, MediaMetadata, StreamChunkRef
 from agentledger.media_tools import media_tool_specs, register_media_tool_conventions
@@ -476,6 +476,81 @@ class RuntimeTests(unittest.TestCase):
             self.assertIn("AgentLedger Inspector", html)
             self.assertIn(run_id, html)
 
+    def test_inspector_run_index_outputs_json_and_static_html(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / ".agentledger"
+            rt, run_id, _ = self._run_side_effect_demo(root)
+            pending_run_id, _ = rt.create_run(initial_state={"agent_run_id": "agent-run-index-2"})
+            source = InspectorDataSource()
+
+            index = source.runs_from_sqlite(
+                db_path=root / "state.db",
+                blob_root=root / "blobs",
+                limit=10,
+                run_link_template="/runs/{run_id}/inspector.html",
+            )
+            data = index.to_dict()
+            self.assertEqual(data["schema_version"], INSPECTOR_RUN_INDEX_SCHEMA_VERSION)
+            self.assertEqual(data["summary"]["run_count"], 2)
+            rows = {row["run_id"]: row for row in data["runs"]}
+            self.assertIn(run_id, rows)
+            self.assertEqual(rows[pending_run_id]["agent_run_id"], "agent-run-index-2")
+            self.assertEqual(rows[pending_run_id]["status"], "pending")
+            self.assertIn({"kind": "inspector", "value": "open", "href": f"/runs/{pending_run_id}/inspector.html"}, rows[pending_run_id]["related_links"])
+
+            html = index.to_html()
+            self.assertIn("AgentLedger Inspector Runs", html)
+            self.assertIn('href="#runs"', html)
+            self.assertIn('class="run-list"', html)
+            self.assertIn('class="run-item', html)
+            self.assertIn("data-run-pager", html)
+            self.assertIn('data-page-size="20"', html)
+            self.assertIn('data-run-index="1"', html)
+            self.assertIn("Open Inspector", html)
+            self.assertIn(f"/runs/{pending_run_id}/inspector.html", html)
+            self.assertIn("run/session", Path("docs/ROADMAP.md").read_text(encoding="utf-8"))
+
+            json_path = Path(tmp) / "runs.json"
+            html_path = Path(tmp) / "runs.html"
+            args = type(
+                "Args",
+                (),
+                {
+                    "root": str(root),
+                    "backend": "sqlite",
+                    "db": None,
+                    "blob_root": None,
+                    "dsn": None,
+                    "schema": "agentledger",
+                    "database": None,
+                    "limit": 10,
+                    "status": None,
+                    "run_link_template": "/runs/{run_id}/inspector.html",
+                    "out": str(json_path),
+                    "html": None,
+                },
+            )()
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                cmd_inspector_runs(args)
+            payload = json.loads(stdout.getvalue())
+            self.assertEqual(payload["schema_version"], INSPECTOR_RUN_INDEX_SCHEMA_VERSION)
+            self.assertEqual(payload["run_count"], 2)
+            written = json.loads(json_path.read_text(encoding="utf-8"))
+            self.assertEqual(written["summary"]["run_count"], 2)
+
+            args.out = None
+            args.html = str(html_path)
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                cmd_inspector_runs(args)
+            payload = json.loads(stdout.getvalue())
+            self.assertEqual(payload["inspector_html"], str(html_path))
+            generated_html = html_path.read_text(encoding="utf-8")
+            self.assertIn("AgentLedger Inspector Runs", generated_html)
+            self.assertIn('class="run-list"', generated_html)
+            self.assertIn("data-run-pager", generated_html)
+
     def test_inspector_read_only_sources_do_not_create_or_write_runtime_data(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             missing_db = Path(tmp) / "missing.db"
@@ -622,7 +697,16 @@ class RuntimeTests(unittest.TestCase):
                     "event_id": "evt-1",
                     "type": "tool_permission_decided",
                     "step_id": "step-1",
-                    "payload": {"tool_name": "email.send", "approval_id": "approval-1", "artifact_id": "art-1"},
+                    "timestamp": 2.0,
+                    "payload": {"tool_name": "email.send", "approval_id": "approval-1", "artifact_id": "art-1", "legal_agent_run_id": "agent-run-1"},
+                },
+                {
+                    "seq": 2,
+                    "event_id": "evt-2",
+                    "type": "step_created",
+                    "step_id": "step-1",
+                    "timestamp": "1970-01-01T00:00:01Z",
+                    "payload": {"step_id": "step-1"},
                 }
             ],
             "tool_ledger": [{"tool_name": "email.send", "status": "SUCCEEDED", "external_id": "msg-1", "response_ref": "blob://response"}],
@@ -646,9 +730,24 @@ class RuntimeTests(unittest.TestCase):
         self.assertIn({"kind": "tool", "value": "email.send", "href": "#tool-email-send"}, data["timeline"][0]["related_links"])
         self.assertIn({"kind": "approval", "value": "approval-1", "href": "#approval-approval-1"}, data["timeline"][0]["related_links"])
         self.assertIn({"kind": "artifact", "value": "art-1", "href": "#artifact-art-1"}, data["timeline"][0]["related_links"])
+        self.assertEqual(data["agent_run_id"], "agent-run-1")
+        self.assertEqual([row["seq"] for row in data["event_stream"]], [2, 1])
+        self.assertEqual(data["event_stream"][0]["time"], "1970-01-01 00:00:01 UTC")
+        self.assertEqual(data["event_stream"][0]["runtime_run_id"], "run-links")
+        self.assertEqual(data["event_stream"][0]["agent_run_id"], "agent-run-1")
+        self.assertIn({"kind": "event", "value": "2", "href": "#event-2"}, data["event_stream"][0]["related_links"])
 
         html = report.to_html()
+        self.assertIn('href="#event-stream"', html)
+        self.assertIn('class="event-list"', html)
+        self.assertIn('class="event-item', html)
         self.assertIn('href="#timeline"', html)
+        self.assertIn('class="table-wrap"', html)
+        self.assertIn('class="details-row', html)
+        self.assertIn('class="record-details"', html)
+        self.assertNotIn("<th>Details</th>", html)
+        self.assertIn('table-layout: fixed', html)
+        self.assertIn('white-space: pre-wrap', html)
         self.assertIn('id="event-1"', html)
         self.assertIn('href="#step-step-1"', html)
         self.assertIn('href="#tool-email-send"', html)
@@ -1341,6 +1440,9 @@ roles:
             self.assertIn(run_id, html)
             self.assertIn("Tool Ledger", html)
             self.assertIn("Media Artifacts", html)
+            self.assertIn('class="details-row', html)
+            self.assertIn('class="record-details"', html)
+            self.assertNotIn("<th>Details</th>", html)
 
             args = type("Args", (), {"root": str(Path(tmp) / ".agentledger"), "policy": None, "sandbox_config": None, "run_id": run_id, "html": str(Path(tmp) / "cli-evidence.html"), "dir": None, "out": None})()
             stdout = io.StringIO()
@@ -2055,6 +2157,9 @@ roles:
             self.assertIn(run_id, html)
             self.assertIn("state_committed", html)
             self.assertIn("&quot;x&quot;", html)
+            self.assertIn('class="details-row', html)
+            self.assertIn('class="record-details"', html)
+            self.assertNotIn("<th>Details</th>", html)
 
     def test_cli_debug_can_emit_state_diff_timeline(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

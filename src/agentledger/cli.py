@@ -171,6 +171,18 @@ def _write_inspector_report(report, args: argparse.Namespace) -> None:
     print(report.to_json())
 
 
+def _write_inspector_run_index(index, args: argparse.Namespace) -> None:
+    if getattr(args, "html", None):
+        path = index.write_html(args.html)
+        print(json.dumps({"schema_version": index.to_dict()["schema_version"], "run_count": index.to_dict()["summary"].get("run_count"), "inspector_html": str(path)}, indent=2, ensure_ascii=False))
+        return
+    if getattr(args, "out", None):
+        path = index.write(args.out)
+        print(json.dumps({"schema_version": index.to_dict()["schema_version"], "run_count": index.to_dict()["summary"].get("run_count"), "inspector_runs": str(path)}, indent=2, ensure_ascii=False))
+        return
+    print(index.to_json())
+
+
 def _inspector_redaction_policy(args: argparse.Namespace) -> InspectorRedactionPolicy | None:
     keys: list[str] = []
     replacement = getattr(args, "redaction_replacement", "<redacted>")
@@ -201,6 +213,24 @@ def cmd_inspector_run(args: argparse.Namespace) -> None:
     else:
         raise ValueError(f"unsupported inspector backend: {args.backend}")
     _write_inspector_report(report, args)
+
+
+def cmd_inspector_runs(args: argparse.Namespace) -> None:
+    source = InspectorDataSource()
+    blob_root = getattr(args, "blob_root", None)
+    if args.backend == "sqlite":
+        db_path = args.db or str(Path(args.root) / "state.db")
+        resolved_blob_root = blob_root if blob_root is not None else str(Path(args.root) / "blobs")
+        index = source.runs_from_sqlite(db_path=db_path, blob_root=resolved_blob_root, limit=args.limit, status=args.status, run_link_template=args.run_link_template)
+    elif args.backend == "postgres":
+        config = PostgresStoreConfig.from_env(dsn=args.dsn, schema=args.schema)
+        index = source.runs_from_postgres(dsn=config.dsn, schema=config.schema, blob_root=blob_root, limit=args.limit, status=args.status, run_link_template=args.run_link_template)
+    elif args.backend == "mysql":
+        config = MySQLStoreConfig.from_env(dsn=args.dsn, database=args.database)
+        index = source.runs_from_mysql(dsn=config.dsn, database=config.database, blob_root=blob_root, limit=args.limit, status=args.status, run_link_template=args.run_link_template)
+    else:
+        raise ValueError(f"unsupported inspector backend: {args.backend}")
+    _write_inspector_run_index(index, args)
 
 
 def cmd_inspector_evidence(args: argparse.Namespace) -> None:
@@ -909,6 +939,20 @@ def build_parser() -> argparse.ArgumentParser:
     inspector_run.add_argument("--out", help="write the Inspector JSON read model")
     inspector_run.add_argument("--html", help="write a static HTML Inspector report")
     inspector_run.set_defaults(func=cmd_inspector_run)
+    inspector_runs = inspector_sub.add_parser("runs", help="inspect recent runs from a read-only runtime store")
+    inspector_runs.add_argument("--root", default=argparse.SUPPRESS, help="runtime data root; accepted here for inspector command ergonomics")
+    inspector_runs.add_argument("--backend", choices=["sqlite", "postgres", "mysql"], default="sqlite")
+    inspector_runs.add_argument("--db", help="SQLite database path; defaults to <root>/state.db")
+    inspector_runs.add_argument("--blob-root", help="optional local blob root used to extract agent run ids from event payloads")
+    inspector_runs.add_argument("--dsn", help="Postgres/MySQL DSN; falls back to AGENTLEDGER_POSTGRES_DSN or AGENTLEDGER_MYSQL_DSN")
+    inspector_runs.add_argument("--schema", default="agentledger", help="Postgres schema; defaults to agentledger")
+    inspector_runs.add_argument("--database", help="MySQL database; falls back to AGENTLEDGER_MYSQL_DATABASE")
+    inspector_runs.add_argument("--limit", type=int, default=100, help="maximum runs to list; capped by the store at 1000")
+    inspector_runs.add_argument("--status", help="optional run status filter")
+    inspector_runs.add_argument("--run-link-template", help="optional single-run Inspector link template, for example /runs/{run_id}/inspector.html")
+    inspector_runs.add_argument("--out", help="write the Inspector run index JSON read model")
+    inspector_runs.add_argument("--html", help="write a static HTML Inspector run index")
+    inspector_runs.set_defaults(func=cmd_inspector_runs)
     inspector_evidence = inspector_sub.add_parser("evidence", help="inspect an exported evidence bundle file or directory")
     inspector_evidence.add_argument("path")
     inspector_evidence.add_argument("--include-payloads", action="store_true", help="include raw event payloads in the report")

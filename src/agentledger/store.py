@@ -467,6 +467,12 @@ class SQLiteStore:
             raise KeyError(f"run not found: {run_id}")
         return row
 
+    def runs(self, *, limit: int = 100, status: str | None = None) -> list[sqlite3.Row]:
+        safe_limit = max(1, min(int(limit), 1000))
+        if status:
+            return list(self.conn.execute("SELECT * FROM runs WHERE status=? ORDER BY updated_at DESC, created_at DESC LIMIT ?", (status, safe_limit)))
+        return list(self.conn.execute("SELECT * FROM runs ORDER BY updated_at DESC, created_at DESC LIMIT ?", (safe_limit,)))
+
     def steps(self, run_id: str) -> list[sqlite3.Row]:
         return list(self.conn.execute("SELECT * FROM steps WHERE run_id=? ORDER BY created_at", (run_id,)))
 

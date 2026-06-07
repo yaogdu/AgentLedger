@@ -1,16 +1,18 @@
 from __future__ import annotations
 
 from collections import Counter
+from datetime import datetime, timezone
 import sqlite3
 from dataclasses import dataclass
 from html import escape
 import json
 from pathlib import Path
 from typing import Any
+from urllib.parse import quote
 
 from .blobstore import LocalBlobStore
 from .diff import load_evidence_path
-from .evidence import EvidenceExporter
+from .evidence import decode_payload, EvidenceExporter
 from .protocol import EvidenceBlobStoreProtocol, EvidenceStateStoreProtocol
 from .storage_mysql import MySQLStore, MySQLStoreConfig
 from .storage_postgres import PostgresStore, PostgresStoreConfig
@@ -18,6 +20,7 @@ from .store import SQLiteStore
 
 
 INSPECTOR_SCHEMA_VERSION = "agentledger.inspector.v1"
+INSPECTOR_RUN_INDEX_SCHEMA_VERSION = "agentledger.inspector.runs.v1"
 
 
 @dataclass(frozen=True)
@@ -52,6 +55,7 @@ class InspectorReport:
         navigation = [
             ("evidence", "Evidence"),
             ("risk-flags", "Risk Flags"),
+            ("event-stream", "Event Stream"),
             ("timeline", "Timeline"),
             ("steps", "Steps"),
             ("tool-ledger", "Tool Ledger"),
@@ -103,6 +107,7 @@ class InspectorReport:
     .status-warn {{ background: var(--warn-bg); }}
     .status-risk {{ background: var(--danger-bg); }}
     .section {{ margin-top: 18px; }}
+    .section-note {{ margin: -4px 0 12px; color: var(--muted); font-size: 13px; }}
     .panel {{ padding: 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }}
     .nav {{ display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 20px; }}
     .nav a, .link-list a {{ color: var(--accent); text-decoration: none; }}
@@ -111,24 +116,46 @@ class InspectorReport:
     .pill-row {{ display: flex; flex-wrap: wrap; gap: 8px; }}
     .pill {{ display: inline-flex; gap: 6px; align-items: center; max-width: 100%; padding: 5px 8px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface-2); color: var(--ink); font-size: 13px; overflow-wrap: anywhere; }}
     .pill.risk {{ border-color: #e4b6b6; background: var(--danger-bg); color: var(--danger); }}
+    .event-list {{ display: grid; gap: 10px; }}
+    .event-item {{ display: grid; grid-template-columns: 190px minmax(0, 1fr); gap: 14px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }}
+    .event-item.risk {{ background: var(--danger-bg); }}
+    .event-item.warn {{ background: var(--warn-bg); }}
+    .event-time-block {{ color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }}
+    .event-seq {{ display: inline-flex; margin-top: 6px; padding: 2px 6px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface-2); color: var(--ink); font-size: 12px; }}
+    .event-main {{ min-width: 0; }}
+    .event-title {{ display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; margin-bottom: 5px; }}
+    .event-type {{ font-weight: 700; overflow-wrap: anywhere; }}
+    .event-summary {{ margin: 3px 0 8px; overflow-wrap: anywhere; }}
+    .event-meta {{ display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }}
+    .event-meta code {{ max-width: 100%; overflow-wrap: anywhere; }}
+    .event-details {{ margin-top: 8px; }}
     .link-list {{ display: flex; flex-wrap: wrap; gap: 6px; min-width: 160px; }}
     .link-list a {{ display: inline-flex; align-items: center; gap: 4px; max-width: 260px; padding: 3px 6px; border: 1px solid var(--line); border-radius: 999px; background: #fbfdfb; font-size: 12px; }}
     .link-list .ref-kind {{ color: var(--muted); }}
-    table {{ width: 100%; border-collapse: collapse; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--surface); }}
-    th, td {{ padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: top; text-align: left; }}
+    .table-wrap {{ width: 100%; max-width: 100%; overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }}
+    table {{ width: 100%; min-width: 760px; table-layout: fixed; border-collapse: collapse; background: var(--surface); }}
+    th, td {{ padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: top; text-align: left; overflow-wrap: anywhere; word-break: break-word; }}
     th {{ background: var(--surface-2); color: #334137; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; }}
+    td.event-time {{ white-space: nowrap; font-variant-numeric: tabular-nums; }}
+    tr.details-row td {{ padding-top: 0; background: #fbfdfb; }}
+    tr.details-row.risk td {{ background: var(--danger-bg); }}
+    tr.details-row.warn td {{ background: var(--warn-bg); }}
+    .record-details {{ margin: 0; }}
     tr.risk td {{ background: var(--danger-bg); }}
     tr.warn td {{ background: var(--warn-bg); }}
     code {{ padding: 2px 5px; border-radius: 6px; background: #e8eee8; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }}
-    details {{ margin-top: 4px; }}
+    details {{ margin-top: 4px; max-width: 100%; }}
     summary {{ cursor: pointer; color: var(--accent); font-weight: 650; }}
-    pre {{ max-height: 300px; overflow: auto; padding: 11px; border: 1px solid var(--line); border-radius: 8px; background: #fbfdfb; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; line-height: 1.45; }}
+    pre {{ max-width: 100%; max-height: 300px; overflow: auto; padding: 11px; border: 1px solid var(--line); border-radius: 8px; background: #fbfdfb; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word; }}
     .grid-2 {{ display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }}
+    .grid-2 > * {{ min-width: 0; }}
+    .section.grid-2 {{ grid-template-columns: minmax(0, 1fr); }}
     :target {{ scroll-margin-top: 14px; outline: 2px solid #82b7ad; outline-offset: 2px; }}
     @media (max-width: 900px) {{
       .cards {{ grid-template-columns: repeat(2, minmax(0, 1fr)); }}
       .grid-2 {{ grid-template-columns: 1fr; }}
-      table {{ display: block; overflow-x: auto; }}
+      .event-item {{ grid-template-columns: 1fr; }}
+      table {{ min-width: 680px; }}
     }}
     @media (max-width: 560px) {{
       main {{ padding: 22px 12px 36px; }}
@@ -162,6 +189,12 @@ class InspectorReport:
     <section class="section" id="risk-flags">
       <h2>Risk Flags</h2>
       {_pills(risk_flags, risk=True) if risk_flags else "<p>No active risk flags detected in the evidence summary.</p>"}
+    </section>
+
+    <section class="section" id="event-stream">
+      <h2>Event Stream</h2>
+      <p class="section-note">Chronological event view keyed by runtime run id and agent run id, with links back to detailed timeline records.</p>
+      {_event_stream(self.data.get("event_stream", []))}
     </section>
 
     <section class="section" id="timeline">
@@ -204,6 +237,160 @@ class InspectorReport:
       {_table(["name", "blob_hash", "blob_ref", "kind", "uri", "content_ref"], self.data.get("artifacts", []))}
     </section>
   </main>
+</body>
+</html>
+"""
+
+
+@dataclass(frozen=True)
+class InspectorRunIndex:
+    """Read-only run index for AgentLedger Inspector."""
+
+    data: dict[str, Any]
+
+    def to_dict(self) -> dict[str, Any]:
+        return self.data
+
+    def to_json(self) -> str:
+        return json.dumps(self.data, ensure_ascii=False, indent=2, sort_keys=True)
+
+    def write(self, path: str | Path) -> Path:
+        target = Path(path)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(self.to_json() + "\n", encoding="utf-8")
+        return target
+
+    def write_html(self, path: str | Path) -> Path:
+        target = Path(path)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(self.to_html(), encoding="utf-8")
+        return target
+
+    def to_html(self) -> str:
+        source = self.data.get("source", {})
+        summary = self.data.get("summary", {})
+        runs = self.data.get("runs", [])
+        navigation = [("runs", "Runs"), ("metadata", "Metadata")]
+        return f"""<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AgentLedger Inspector Runs</title>
+  <style>
+    :root {{
+      --bg: #f7f8f5;
+      --surface: #ffffff;
+      --surface-2: #f0f4ef;
+      --ink: #17211b;
+      --muted: #5d6b61;
+      --line: #d5ded6;
+      --accent: #11695f;
+      --danger: #a23b3b;
+      --danger-bg: #fff1f1;
+      --warn-bg: #fff7df;
+      --ok-bg: #edf8ef;
+    }}
+    * {{ box-sizing: border-box; }}
+    body {{
+      margin: 0;
+      color: var(--ink);
+      background: var(--bg);
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.45;
+    }}
+    main {{ max-width: 1280px; margin: 0 auto; padding: 28px 18px 48px; }}
+    header {{ margin-bottom: 22px; }}
+    h1 {{ margin: 0 0 8px; font-size: clamp(30px, 4vw, 48px); line-height: 1.05; letter-spacing: 0; }}
+    h2 {{ margin: 30px 0 12px; font-size: 20px; letter-spacing: 0; }}
+    .lede {{ margin: 0; max-width: 900px; color: var(--muted); font-size: 16px; }}
+    .cards {{ display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin: 18px 0 16px; }}
+    .card {{ min-width: 0; padding: 13px 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }}
+    .label {{ display: block; color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; }}
+    .value {{ display: block; margin-top: 6px; font-size: 21px; font-weight: 700; overflow-wrap: anywhere; }}
+    .status-ok {{ background: var(--ok-bg); }}
+    .status-warn {{ background: var(--warn-bg); }}
+    .status-risk {{ background: var(--danger-bg); }}
+    .section {{ margin-top: 18px; }}
+    .section-note {{ margin: -4px 0 12px; color: var(--muted); font-size: 13px; }}
+    .panel {{ padding: 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }}
+    .nav {{ display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 20px; }}
+    .nav a, .link-list a {{ color: var(--accent); text-decoration: none; }}
+    .nav a {{ padding: 6px 9px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); font-size: 13px; }}
+    .nav a:hover, .link-list a:hover {{ text-decoration: underline; }}
+    .link-list {{ display: flex; flex-wrap: wrap; gap: 6px; min-width: 160px; }}
+    .link-list a {{ display: inline-flex; align-items: center; gap: 4px; max-width: 260px; padding: 3px 6px; border: 1px solid var(--line); border-radius: 999px; background: #fbfdfb; font-size: 12px; }}
+    .link-list .ref-kind {{ color: var(--muted); }}
+    .run-list {{ display: grid; gap: 12px; }}
+    .pager {{ display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 12px; }}
+    .pager[hidden] {{ display: none; }}
+    .pager button {{ min-height: 30px; padding: 4px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--accent); font: inherit; font-size: 13px; font-weight: 650; cursor: pointer; }}
+    .pager button:disabled {{ cursor: default; color: var(--muted); opacity: 0.55; }}
+    .pager-status {{ color: var(--muted); font-size: 13px; }}
+    .run-item {{ min-width: 0; padding: 12px 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }}
+    .run-item.warn {{ border-color: #e0c46e; background: var(--warn-bg); }}
+    .run-item.risk {{ border-color: #e4b6b6; background: var(--danger-bg); }}
+    .run-head {{ display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 12px; }}
+    .run-title {{ min-width: 0; flex: 1 1 420px; }}
+    .run-title h3 {{ margin: 0; font-size: 16px; line-height: 1.3; letter-spacing: 0; overflow-wrap: anywhere; }}
+    .run-title a {{ color: var(--ink); text-decoration: none; }}
+    .run-title a:hover {{ color: var(--accent); text-decoration: underline; }}
+    .run-sub {{ display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }}
+    .badge {{ display: inline-flex; align-items: center; max-width: 100%; padding: 3px 7px; border: 1px solid var(--line); border-radius: 999px; background: #fbfdfb; color: var(--ink); font-size: 12px; overflow-wrap: anywhere; }}
+    .badge.ok {{ background: var(--ok-bg); }}
+    .badge.warn {{ background: #fff9e8; border-color: #e0c46e; }}
+    .badge.risk {{ background: #fff7f7; border-color: #e4b6b6; color: var(--danger); }}
+    .run-actions {{ display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; max-width: 100%; }}
+    .run-actions a {{ display: inline-flex; align-items: center; min-height: 28px; padding: 4px 8px; border: 1px solid var(--line); border-radius: 999px; background: #fbfdfb; color: var(--accent); font-size: 13px; font-weight: 650; text-decoration: none; }}
+    .run-actions a:hover {{ text-decoration: underline; }}
+    .run-fields {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 6px 16px; margin-top: 10px; padding-top: 9px; border-top: 1px solid var(--line); }}
+    .run-field {{ min-width: 0; }}
+    .run-field .label {{ text-transform: none; letter-spacing: 0; }}
+    .run-field .field-value {{ display: block; margin-top: 3px; font-size: 13px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }}
+    .run-metrics {{ display: flex; flex-wrap: wrap; gap: 7px; margin-top: 10px; }}
+    .metric {{ display: inline-flex; align-items: baseline; gap: 5px; padding: 4px 7px; border: 1px solid var(--line); border-radius: 999px; background: rgba(255, 255, 255, 0.72); font-size: 12px; }}
+    .metric strong {{ font-size: 13px; }}
+    .run-details {{ margin-top: 9px; }}
+    details {{ margin-top: 4px; max-width: 100%; }}
+    summary {{ cursor: pointer; color: var(--accent); font-weight: 650; }}
+    pre {{ max-width: 100%; max-height: 300px; overflow: auto; padding: 11px; border: 1px solid var(--line); border-radius: 8px; background: #fbfdfb; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word; }}
+    :target {{ scroll-margin-top: 14px; outline: 2px solid #82b7ad; outline-offset: 2px; }}
+    @media (max-width: 900px) {{
+      .cards {{ grid-template-columns: repeat(2, minmax(0, 1fr)); }}
+      .run-title {{ flex-basis: 100%; }}
+      .run-actions {{ justify-content: flex-start; }}
+    }}
+    @media (max-width: 560px) {{
+      main {{ padding: 22px 12px 36px; }}
+      .cards {{ grid-template-columns: 1fr; }}
+      .value {{ font-size: 18px; }}
+    }}
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>AgentLedger Inspector Runs</h1>
+      <p class="lede">Read-only run index generated from AgentLedger runtime metadata. It does not start a server, mutate state, call tools, approve requests, or manage users.</p>
+    </header>
+    {_nav(navigation)}
+    <section class="cards">
+      <div class="card"><span class="label">Runs</span><span class="value">{summary.get("run_count", 0)}</span></div>
+      <div class="card status-warn"><span class="label">Active</span><span class="value">{summary.get("active_run_count", 0)}</span></div>
+      <div class="card status-risk"><span class="label">Failed</span><span class="value">{summary.get("failed_run_count", 0)}</span></div>
+      <div class="card"><span class="label">Total USD</span><span class="value">{escape(str(summary.get("total_usd", 0)))}</span></div>
+    </section>
+    <section class="section" id="runs">
+      <h2>Runs</h2>
+      <p class="section-note">Single-run Inspector links are shown when a run link template is configured.</p>
+      {_run_index_list(runs)}
+    </section>
+    <section class="panel" id="metadata">
+      <h2>Metadata</h2>
+      <pre>{_json_block({"schema_version": self.data.get("schema_version"), "source": source, "summary": summary})}</pre>
+    </section>
+  </main>
+  {_run_index_script()}
 </body>
 </html>
 """
@@ -283,6 +470,8 @@ class InspectorReportBuilder:
         policy_decisions = [_policy_decision(event, include_payloads=include_payloads) for event in evidence.get("events", []) if event.get("type") == "tool_permission_decided"]
         policy_decisions = [row for row in policy_decisions if row is not None]
         _decorate_report_links(timeline=timeline, steps=steps, ledger=ledger, approvals=approvals, policy_decisions=policy_decisions, artifacts=artifacts)
+        agent_run_id = _find_agent_run_id(evidence)
+        event_stream = _chronological_event_stream(timeline, runtime_run_id=run.get("run_id"), agent_run_id=agent_run_id)
         failure_events = [event for event in timeline if _is_failure_event(event.get("type"))]
         summary = {
             **_safe_dict(evidence.get("summary")),
@@ -300,6 +489,8 @@ class InspectorReportBuilder:
             "run": run,
             "summary": summary,
             "risk_flags": risk_flags,
+            "agent_run_id": agent_run_id,
+            "event_stream": event_stream,
             "timeline": timeline,
             "steps": steps,
             "tool_ledger": ledger,
@@ -325,6 +516,35 @@ class InspectorReportBuilder:
                 "replacement": redaction.replacement,
             }
         return InspectorReport(data)
+
+    def run_index(
+        self,
+        *,
+        store: EvidenceStateStoreProtocol,
+        blobs: EvidenceBlobStoreProtocol | None = None,
+        limit: int = 100,
+        status: str | None = None,
+        source: dict[str, Any] | None = None,
+        run_link_template: str | None = None,
+    ) -> InspectorRunIndex:
+        rows = [_run_index_row(store=store, blobs=blobs, run=row, run_link_template=run_link_template) for row in store.runs(limit=limit, status=status)]
+        active_statuses = {"pending", "running", "waiting_human", "retry_scheduled"}
+        summary = {
+            "run_count": len(rows),
+            "active_run_count": sum(1 for row in rows if row.get("status") in active_statuses),
+            "failed_run_count": sum(1 for row in rows if row.get("status") == "failed"),
+            "total_usd": round(sum(float(row.get("total_usd") or 0) for row in rows), 6),
+            "limit": limit,
+            "status_filter": status,
+        }
+        return InspectorRunIndex(
+            {
+                "schema_version": INSPECTOR_RUN_INDEX_SCHEMA_VERSION,
+                "source": source or {"kind": "runtime_store"},
+                "summary": summary,
+                "runs": rows,
+            }
+        )
 
 
 class ReadOnlySQLiteStore(SQLiteStore):
@@ -490,6 +710,18 @@ class InspectorDataSource:
         """
         return self.builder.from_runtime(store=store, blobs=blobs, run_id=run_id, include_payloads=include_payloads, redaction_policy=redaction_policy)
 
+    def runs_from_runtime_store(
+        self,
+        *,
+        store: EvidenceStateStoreProtocol,
+        blobs: EvidenceBlobStoreProtocol | None = None,
+        limit: int = 100,
+        status: str | None = None,
+        run_link_template: str | None = None,
+    ) -> InspectorRunIndex:
+        """Build a read-only run index from an application-provided store."""
+        return self.builder.run_index(store=store, blobs=blobs, limit=limit, status=status, source={"kind": "runtime_store"}, run_link_template=run_link_template)
+
     def from_sqlite(
         self,
         *,
@@ -503,6 +735,29 @@ class InspectorDataSource:
         try:
             blobs = ReadOnlyLocalBlobStore(blob_root)
             return self.from_runtime_store(store=store, blobs=blobs, run_id=run_id, include_payloads=include_payloads, redaction_policy=redaction_policy)
+        finally:
+            store.close()
+
+    def runs_from_sqlite(
+        self,
+        *,
+        db_path: str | Path,
+        blob_root: str | Path | None = None,
+        limit: int = 100,
+        status: str | None = None,
+        run_link_template: str | None = None,
+    ) -> InspectorRunIndex:
+        store = ReadOnlySQLiteStore(db_path)
+        try:
+            blobs = _optional_local_blob_store(blob_root)
+            return self.builder.run_index(
+                store=store,
+                blobs=blobs,
+                limit=limit,
+                status=status,
+                source={"kind": "runtime_store", "backend": "sqlite", "db_path": str(db_path)},
+                run_link_template=run_link_template,
+            )
         finally:
             store.close()
 
@@ -524,6 +779,31 @@ class InspectorDataSource:
         finally:
             store.close()
 
+    def runs_from_postgres(
+        self,
+        *,
+        dsn: str,
+        schema: str = "agentledger",
+        blob_root: str | Path | None = None,
+        limit: int = 100,
+        status: str | None = None,
+        run_link_template: str | None = None,
+    ) -> InspectorRunIndex:
+        store = ReadOnlyPostgresStore(PostgresStoreConfig(dsn=dsn, schema=schema))
+        try:
+            store._configure_schema()
+            blobs = _optional_local_blob_store(blob_root)
+            return self.builder.run_index(
+                store=store,
+                blobs=blobs,
+                limit=limit,
+                status=status,
+                source={"kind": "runtime_store", "backend": "postgres", "schema": schema},
+                run_link_template=run_link_template,
+            )
+        finally:
+            store.close()
+
     def from_mysql(
         self,
         *,
@@ -542,10 +822,114 @@ class InspectorDataSource:
         finally:
             store.close()
 
+    def runs_from_mysql(
+        self,
+        *,
+        dsn: str,
+        database: str | None = None,
+        blob_root: str | Path | None = None,
+        limit: int = 100,
+        status: str | None = None,
+        run_link_template: str | None = None,
+    ) -> InspectorRunIndex:
+        store = ReadOnlyMySQLStore(MySQLStoreConfig(dsn=dsn, database=database))
+        try:
+            store._configure_schema()
+            blobs = _optional_local_blob_store(blob_root)
+            return self.builder.run_index(
+                store=store,
+                blobs=blobs,
+                limit=limit,
+                status=status,
+                source={"kind": "runtime_store", "backend": "mysql", "database": database},
+                run_link_template=run_link_template,
+            )
+        finally:
+            store.close()
+
 
 def _run_summary(run: Any) -> dict[str, Any]:
     row = _safe_dict(run)
     return {key: row.get(key) for key in ["run_id", "session_id", "status", "state_version", "created_at", "updated_at", "initial_state"] if key in row}
+
+
+def _run_index_row(
+    *,
+    store: EvidenceStateStoreProtocol,
+    blobs: EvidenceBlobStoreProtocol | None,
+    run: Any,
+    run_link_template: str | None,
+) -> dict[str, Any]:
+    run_row = _plain_dict(run)
+    run_id = str(run_row.get("run_id", ""))
+    steps = [_plain_dict(row) for row in store.steps(run_id)]
+    events = [_plain_dict(row) for row in store.events(run_id)]
+    ledger = [_plain_dict(row) for row in store.ledger(run_id)]
+    approvals = [_plain_dict(row) for row in store.approval_requests(run_id)]
+    cost_summary = _safe_dict(store.cost_summary(run_id))
+    agent_run_id = _find_agent_run_id(run_row)
+    if agent_run_id is None:
+        agent_run_id = _find_agent_run_id(_decode_json_field(run_row.get("state_json")))
+    if agent_run_id is None:
+        agent_run_id = _find_agent_run_id(_decode_json_field(run_row.get("initial_state")))
+    if agent_run_id is None:
+        agent_run_id = _agent_run_id_from_events(events, blobs)
+    failure_count = sum(1 for event in events if _is_failure_event(event.get("type"))) + sum(1 for step in steps if step.get("status") == "failed")
+    status = run_row.get("status")
+    row = {
+        "run_id": run_id,
+        "agent_run_id": agent_run_id or "-",
+        "session_id": run_row.get("session_id", "-"),
+        "status": status or "-",
+        "created_at": _format_timestamp(run_row.get("created_at")),
+        "updated_at": _format_timestamp(run_row.get("updated_at")),
+        "event_count": len(events),
+        "step_count": len(steps),
+        "tool_call_count": len(ledger),
+        "approval_count": len(approvals),
+        "failure_count": failure_count,
+        "total_usd": round(float(cost_summary.get("total_usd") or 0), 6),
+        "severity": "risk" if status in {"failed", "cancelled"} or failure_count else "warn" if status in {"pending", "running", "waiting_human", "retry_scheduled"} else "info",
+        "cost_summary": cost_summary,
+        "raw_created_at": run_row.get("created_at"),
+        "raw_updated_at": run_row.get("updated_at"),
+    }
+    href = _run_link(run_link_template, run_id)
+    if href:
+        row["related_links"] = [{"kind": "inspector", "value": "open", "href": href}]
+    return row
+
+
+def _agent_run_id_from_events(events: list[dict[str, Any]], blobs: EvidenceBlobStoreProtocol | None) -> str | None:
+    for event in events:
+        found = _find_agent_run_id(event)
+        if found:
+            return found
+        payload_ref = event.get("payload_ref")
+        if blobs is not None and isinstance(payload_ref, str):
+            try:
+                payload = decode_payload(blobs, payload_ref)
+            except Exception:
+                payload = None
+            found = _find_agent_run_id(payload)
+            if found:
+                return found
+    return None
+
+
+def _run_link(template: str | None, run_id: str) -> str | None:
+    if not template:
+        return None
+    return template.format(run_id=quote(run_id, safe=""), raw_run_id=run_id)
+
+
+def _optional_local_blob_store(blob_root: str | Path | None) -> ReadOnlyLocalBlobStore | None:
+    if blob_root is None:
+        return None
+    root = Path(blob_root)
+    if not root.exists():
+        return None
+    return ReadOnlyLocalBlobStore(root)
 
 
 def _project_step(row: Any) -> dict[str, Any]:
@@ -573,6 +957,8 @@ def _timeline_event(event: dict[str, Any], *, include_payloads: bool) -> dict[st
     item = {
         "seq": event.get("seq"),
         "event_id": event.get("event_id"),
+        "runtime_run_id": event.get("run_id"),
+        "agent_run_id": _find_agent_run_id(event),
         "type": event.get("type"),
         "step_id": event.get("step_id"),
         "agent_role": event.get("agent_role"),
@@ -587,6 +973,31 @@ def _timeline_event(event: dict[str, Any], *, include_payloads: bool) -> dict[st
     if include_payloads:
         item["payload"] = payload
     return item
+
+
+def _chronological_event_stream(timeline: list[dict[str, Any]], *, runtime_run_id: Any, agent_run_id: str | None) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    for event in timeline:
+        seq = event.get("seq")
+        links = []
+        if event.get("anchor") and seq is not None:
+            links.append({"kind": "event", "value": str(seq), "href": f"#{event['anchor']}"})
+        links.extend(link for link in event.get("related_links", []) if isinstance(link, dict))
+        row = {
+            "time": _format_timestamp(event.get("timestamp")),
+            "timestamp": event.get("timestamp"),
+            "runtime_run_id": event.get("runtime_run_id") or runtime_run_id or "-",
+            "agent_run_id": event.get("agent_run_id") or agent_run_id or "-",
+            "seq": seq,
+            "type": event.get("type"),
+            "step_id": event.get("step_id"),
+            "summary": event.get("summary"),
+            "severity": event.get("severity"),
+        }
+        if links:
+            row["related_links"] = _dedupe_links(links)
+        rows.append(row)
+    return sorted(rows, key=lambda row: (_timestamp_sort_value(row.get("timestamp")), _seq_sort_value(row.get("seq"))))
 
 
 def _policy_decision(event: dict[str, Any], *, include_payloads: bool) -> dict[str, Any] | None:
@@ -798,6 +1209,96 @@ def _payload_summary(payload: Any) -> str:
     return text if len(text) <= 120 else text[:117] + "..."
 
 
+def _find_agent_run_id(value: Any, *, _depth: int = 0) -> str | None:
+    if _depth > 8:
+        return None
+    preferred_keys = ("agent_run_id", "legal_agent_run_id", "business_agent_run_id", "workflow_run_id")
+    if isinstance(value, dict):
+        for key in preferred_keys:
+            candidate = value.get(key)
+            if candidate is not None:
+                return str(candidate)
+        for item in value.values():
+            found = _find_agent_run_id(item, _depth=_depth + 1)
+            if found:
+                return found
+    elif isinstance(value, list):
+        for item in value[:100]:
+            found = _find_agent_run_id(item, _depth=_depth + 1)
+            if found:
+                return found
+    elif isinstance(value, str) and any(key in value for key in preferred_keys):
+        parsed = _parse_json_like_string(value)
+        if parsed is not None:
+            return _find_agent_run_id(parsed, _depth=_depth + 1)
+    return None
+
+
+def _format_timestamp(value: Any) -> str:
+    numeric = _numeric_timestamp(value)
+    if numeric is None:
+        return "-" if value is None else str(value)
+    try:
+        return datetime.fromtimestamp(numeric, tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+    except (OSError, OverflowError, ValueError):
+        return str(value)
+
+
+def _timestamp_sort_value(value: Any) -> float:
+    numeric = _numeric_timestamp(value)
+    return numeric if numeric is not None else float("inf")
+
+
+def _numeric_timestamp(value: Any) -> float | None:
+    if isinstance(value, (int, float)):
+        return _epoch_seconds(float(value))
+    if isinstance(value, str):
+        text = value.strip()
+        try:
+            return _epoch_seconds(float(text))
+        except ValueError:
+            pass
+        normalized = text[:-1] + "+00:00" if text.endswith(("Z", "z")) else text
+        try:
+            parsed = datetime.fromisoformat(normalized)
+        except ValueError:
+            return None
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        return parsed.timestamp()
+    return None
+
+
+def _epoch_seconds(value: float) -> float:
+    absolute = abs(value)
+    if absolute >= 1_000_000_000_000_000:
+        return value / 1_000_000
+    if absolute >= 100_000_000_000:
+        return value / 1_000
+    return value
+
+
+def _seq_sort_value(value: Any) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _dedupe_links(links: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    deduped: list[dict[str, Any]] = []
+    seen: set[tuple[str, str, str]] = set()
+    for link in links:
+        kind = str(link.get("kind", ""))
+        value = str(link.get("value", ""))
+        href = str(link.get("href", ""))
+        key = (kind, value, href)
+        if kind and value and href and key not in seen:
+            seen.add(key)
+            deduped.append({"kind": kind, "value": value, "href": href})
+    return deduped
+
+
 def _is_failure_event(event_type: Any) -> bool:
     return str(event_type) in {"error_raised", "step_failed", "tool_call_failed", "tool_call_blocked", "run_cancelled", "step_cancelled"}
 
@@ -808,6 +1309,27 @@ def _is_wait_event(event_type: Any) -> bool:
 
 def _safe_dict(value: Any) -> dict[str, Any]:
     return value if isinstance(value, dict) else {}
+
+
+def _plain_dict(value: Any) -> dict[str, Any]:
+    if isinstance(value, dict):
+        return dict(value)
+    keys = getattr(value, "keys", None)
+    if callable(keys):
+        try:
+            return {key: value[key] for key in keys()}
+        except Exception:
+            return {}
+    return {}
+
+
+def _decode_json_field(value: Any) -> Any:
+    if isinstance(value, str):
+        try:
+            return json.loads(value)
+        except json.JSONDecodeError:
+            return value
+    return value
 
 
 def _select(row: dict[str, Any], keys: list[str]) -> dict[str, Any]:
@@ -842,18 +1364,161 @@ def _table(
         return "<p>No records.</p>"
     include_links = any(row.get("related_links") for row in rows)
     links_head = "<th>Links</th>" if include_links else ""
-    head = "".join(f"<th>{escape(column)}</th>" for column in columns) + links_head + "<th>Details</th>"
+    head = "".join(f"<th>{escape(column)}</th>" for column in columns) + links_head
     body = "\n".join(_table_row(columns, row, risk_key=risk_key, risk_values=risk_values or set(), warn_values=warn_values or set(), include_links=include_links) for row in rows)
-    return f"<table><thead><tr>{head}</tr></thead><tbody>{body}</tbody></table>"
+    return f"<div class=\"table-wrap\"><table><thead><tr>{head}</tr></thead><tbody>{body}</tbody></table></div>"
+
+
+def _run_index_list(rows: Any) -> str:
+    if not isinstance(rows, list) or not rows:
+        return "<p>No records.</p>"
+    items = [_run_index_item(row, index=index) for index, row in enumerate(rows, start=1) if isinstance(row, dict)]
+    if not items:
+        return "<p>No records.</p>"
+    return f"""<div class="pager" data-run-pager hidden>
+  <button type="button" data-run-prev>Prev</button>
+  <span class="pager-status" data-run-page-status></span>
+  <button type="button" data-run-next>Next</button>
+</div>
+<div class="run-list" data-run-list data-page-size="20">{"".join(items)}</div>"""
+
+
+def _run_index_item(row: dict[str, Any], *, index: int) -> str:
+    severity = str(row.get("severity") or "info")
+    css = " risk" if severity == "risk" else " warn" if severity == "warn" else ""
+    status = _display_value(row.get("status"))
+    status_css = _status_badge_class(status)
+    run_id = _display_value(row.get("run_id"))
+    href = _first_related_href(row.get("related_links"), kind="inspector")
+    title = f"<a href=\"{escape(href, quote=True)}\">{escape(run_id)}</a>" if href else escape(run_id)
+    metrics = [
+        ("events", row.get("event_count", 0)),
+        ("steps", row.get("step_count", 0)),
+        ("tools", row.get("tool_call_count", 0)),
+        ("approvals", row.get("approval_count", 0)),
+        ("failures", row.get("failure_count", 0)),
+        ("usd", row.get("total_usd", 0)),
+    ]
+    metric_html = "".join(f"<span class=\"metric\"><strong>{escape(str(_display_value(value)))}</strong>{escape(label)}</span>" for label, value in metrics)
+    return f"""<article class="run-item{css}" data-run-item data-run-index="{index}">
+  <div class="run-head">
+    <div class="run-title">
+      <h3>{title}</h3>
+      <div class="run-sub">
+        <span class="badge {status_css}">{escape(status)}</span>
+        <span class="badge">agent {_inline_value(row.get("agent_run_id"))}</span>
+        <span class="badge">session {_inline_value(row.get("session_id"))}</span>
+      </div>
+    </div>
+    {_run_actions(row.get("related_links"))}
+  </div>
+  <div class="run-fields">
+    <div class="run-field"><span class="label">Created</span><span class="field-value">{escape(_display_value(row.get("created_at")))}</span></div>
+    <div class="run-field"><span class="label">Updated</span><span class="field-value">{escape(_display_value(row.get("updated_at")))}</span></div>
+    <div class="run-field"><span class="label">Runtime Run</span><span class="field-value">{escape(run_id)}</span></div>
+    <div class="run-field"><span class="label">Agent Run</span><span class="field-value">{escape(_display_value(row.get("agent_run_id")))}</span></div>
+  </div>
+  <div class="run-metrics">{metric_html}</div>
+  <details class="run-details"><summary>Full JSON</summary><pre>{_json_block(row)}</pre></details>
+</article>"""
+
+
+def _run_actions(value: Any) -> str:
+    if not isinstance(value, list) or not value:
+        return "<div class=\"run-actions\"></div>"
+    links = []
+    for item in value:
+        if not isinstance(item, dict):
+            continue
+        href = item.get("href")
+        kind = item.get("kind")
+        ref_value = item.get("value")
+        if not href or kind is None or ref_value is None:
+            continue
+        label = "Open Inspector" if str(kind) == "inspector" else f"{kind}: {ref_value}"
+        links.append(f"<a href=\"{escape(str(href), quote=True)}\">{escape(str(label))}</a>")
+    return "<div class=\"run-actions\">" + "".join(links) + "</div>" if links else "<div class=\"run-actions\"></div>"
+
+
+def _first_related_href(value: Any, *, kind: str) -> str | None:
+    if not isinstance(value, list):
+        return None
+    for item in value:
+        if isinstance(item, dict) and item.get("kind") == kind and item.get("href"):
+            return str(item["href"])
+    return None
+
+
+def _status_badge_class(status: str) -> str:
+    if status in {"completed", "succeeded", "success"}:
+        return "ok"
+    if status in {"failed", "cancelled", "denied"}:
+        return "risk"
+    if status in {"pending", "running", "waiting_human", "retry_scheduled"}:
+        return "warn"
+    return ""
+
+
+def _display_value(value: Any) -> str:
+    if value is None or value == "":
+        return "-"
+    return str(value)
+
+
+def _inline_value(value: Any) -> str:
+    return f"<span>{escape(_display_value(value))}</span>"
+
+
+def _event_stream(rows: Any) -> str:
+    if not isinstance(rows, list) or not rows:
+        return "<p>No records.</p>"
+    items = []
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        severity = str(row.get("severity") or "info")
+        css = " risk" if severity == "risk" else " warn" if severity == "warn" else ""
+        seq = row.get("seq", "-")
+        step = row.get("step_id") or "-"
+        runtime_run_id = row.get("runtime_run_id") or "-"
+        agent_run_id = row.get("agent_run_id") or "-"
+        items.append(
+            f"""<article class="event-item{css}">
+  <div class="event-time-block">
+    <div>{escape(str(row.get("time", "-")))}</div>
+    <span class="event-seq">seq {escape(str(seq))}</span>
+  </div>
+  <div class="event-main">
+    <div class="event-title">
+      <span class="event-type">{escape(str(row.get("type", "-")))}</span>
+    </div>
+    <p class="event-summary">{escape(str(row.get("summary", "-")))}</p>
+    <div class="event-meta">
+      <code>runtime {escape(str(runtime_run_id))}</code>
+      <code>agent {escape(str(agent_run_id))}</code>
+      <code>step {escape(str(step))}</code>
+    </div>
+    {_link_list(row.get("related_links"))}
+    <details class="event-details"><summary>JSON</summary><pre>{_json_block(row)}</pre></details>
+  </div>
+</article>"""
+        )
+    return "<div class=\"event-list\">" + "\n".join(items) + "</div>" if items else "<p>No records.</p>"
 
 
 def _table_row(columns: list[str], row: dict[str, Any], *, risk_key: str | None, risk_values: set[Any], warn_values: set[Any], include_links: bool) -> str:
     status = row.get(risk_key) if risk_key else None
     css = "risk" if status in risk_values else "warn" if status in warn_values else ""
-    cells = "".join(f"<td>{escape(str(row.get(column, '-')))}</td>" for column in columns)
+    cells = "".join(_table_cell(column, row.get(column, "-")) for column in columns)
     links = f"<td>{_link_list(row.get('related_links'))}</td>" if include_links else ""
-    details = f"<td><details><summary>JSON</summary><pre>{_json_block(row)}</pre></details></td>"
-    return f"<tr{_row_attrs(row.get('anchor'), css)}>{cells}{links}{details}</tr>"
+    colspan = len(columns) + (1 if include_links else 0)
+    details_row = f"<tr class=\"details-row{(' ' + css) if css else ''}\"><td colspan=\"{colspan}\"><details class=\"record-details\"><summary>JSON</summary><pre>{_json_block(row)}</pre></details></td></tr>"
+    return f"<tr{_row_attrs(row.get('anchor'), css)}>{cells}{links}</tr>{details_row}"
+
+
+def _table_cell(column: str, value: Any) -> str:
+    css = " class=\"event-time\"" if column in {"time", "timestamp"} else ""
+    return f"<td{css}>{escape(str(value))}</td>"
 
 
 def _row_attrs(anchor: Any, css: str) -> str:
@@ -886,6 +1551,55 @@ def _link_list(value: Any) -> str:
             f"<a href=\"{escape(str(href), quote=True)}\"><span class=\"ref-kind\">{escape(str(kind))}</span>{escape(str(ref_value))}</a>"
         )
     return "<div class=\"link-list\">" + "".join(links) + "</div>" if links else "-"
+
+
+def _run_index_script() -> str:
+    return """<script>
+(function () {
+  var list = document.querySelector('[data-run-list]');
+  var pager = document.querySelector('[data-run-pager]');
+  if (!list || !pager) return;
+  var items = Array.prototype.slice.call(list.querySelectorAll('[data-run-item]'));
+  var pageSize = parseInt(list.getAttribute('data-page-size') || '20', 10);
+  if (!items.length || !isFinite(pageSize) || pageSize <= 0) return;
+  if (items.length <= pageSize) return;
+  var prev = pager.querySelector('[data-run-prev]');
+  var next = pager.querySelector('[data-run-next]');
+  var status = pager.querySelector('[data-run-page-status]');
+  var page = 0;
+  var pages = Math.ceil(items.length / pageSize);
+  function paint() {
+    var start = page * pageSize;
+    var end = start + pageSize;
+    items.forEach(function (item, index) {
+      item.hidden = index < start || index >= end;
+    });
+    if (status) {
+      status.textContent = 'Page ' + (page + 1) + ' / ' + pages + ' - ' + items.length + ' runs';
+    }
+    if (prev) prev.disabled = page <= 0;
+    if (next) next.disabled = page >= pages - 1;
+  }
+  if (prev) {
+    prev.addEventListener('click', function () {
+      if (page > 0) {
+        page -= 1;
+        paint();
+      }
+    });
+  }
+  if (next) {
+    next.addEventListener('click', function () {
+      if (page < pages - 1) {
+        page += 1;
+        paint();
+      }
+    });
+  }
+  pager.hidden = false;
+  paint();
+}());
+</script>"""
 
 
 def _slug(value: Any) -> str:

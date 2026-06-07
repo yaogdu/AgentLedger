@@ -103,14 +103,17 @@ class TimeTravelReport:
     .card {{ padding: 14px 16px; border: 1px solid var(--line); background: rgba(255,250,242,0.86); border-radius: 16px; box-shadow: 0 16px 36px rgba(32,26,22,0.06); }}
     .label {{ display: block; color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; }}
     .value {{ display: block; margin-top: 6px; font-size: 22px; font-weight: 700; overflow-wrap: anywhere; }}
-    table {{ width: 100%; border-collapse: collapse; overflow: hidden; border-radius: 18px; background: var(--panel); box-shadow: 0 18px 46px rgba(32,26,22,0.08); }}
-    th, td {{ padding: 11px 12px; border-bottom: 1px solid var(--line); vertical-align: top; text-align: left; }}
+    table {{ width: 100%; table-layout: fixed; border-collapse: collapse; overflow: hidden; border-radius: 18px; background: var(--panel); box-shadow: 0 18px 46px rgba(32,26,22,0.08); }}
+    th, td {{ padding: 11px 12px; border-bottom: 1px solid var(--line); vertical-align: top; text-align: left; overflow-wrap: anywhere; word-break: break-word; }}
     th {{ background: #eadccc; color: #4a4038; font-size: 12px; text-transform: uppercase; letter-spacing: 0.07em; }}
     tr.changed td {{ background: linear-gradient(90deg, var(--changed), var(--panel) 44%); }}
+    tr.details-row td {{ padding-top: 0; background: #fffdf8; }}
+    tr.details-row.changed td {{ background: linear-gradient(90deg, var(--changed), var(--panel) 44%); }}
+    .record-details {{ margin: 0; }}
     code {{ padding: 2px 5px; border-radius: 7px; background: #efe2d1; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }}
-    details {{ margin-top: 6px; }}
+    details {{ margin-top: 6px; max-width: 100%; }}
     summary {{ cursor: pointer; color: var(--accent); font-weight: 700; }}
-    pre {{ max-height: 260px; overflow: auto; padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: #fffdf8; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; line-height: 1.45; }}
+    pre {{ max-width: 100%; max-height: 260px; overflow: auto; padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: #fffdf8; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word; }}
     .section {{ margin-top: 22px; }}
     @media (max-width: 820px) {{
       .cards {{ grid-template-columns: repeat(2, minmax(0, 1fr)); }}
@@ -131,7 +134,7 @@ class TimeTravelReport:
     <section>
       <table>
         <thead>
-          <tr><th>Seq</th><th>Event</th><th>Step</th><th>Role</th><th>State</th><th>Changed Keys</th><th>Details</th></tr>
+          <tr><th>Seq</th><th>Event</th><th>Step</th><th>Role</th><th>State</th><th>Changed Keys</th></tr>
         </thead>
         <tbody>
 {rows}
@@ -224,6 +227,7 @@ class TimeTravelDebugger:
 
 def _frame_row(frame: TimeTravelFrame) -> str:
     css = " class=\"changed\"" if frame.state_changed else ""
+    details_css = "details-row changed" if frame.state_changed else "details-row"
     changed = ", ".join(frame.changed_keys) if frame.changed_keys else "-"
     state_version = frame.state_version if frame.state_version is not None else "-"
     details = {
@@ -240,7 +244,9 @@ def _frame_row(frame: TimeTravelFrame) -> str:
             <td>{escape(frame.agent_role or "-")}</td>
             <td>{state_version}</td>
             <td>{escape(changed)}</td>
-            <td><details><summary>Inspect</summary><pre>{_json_block(details)}</pre></details></td>
+          </tr>
+          <tr class="{details_css}">
+            <td colspan="6"><details class="record-details"><summary>Inspect</summary><pre>{_json_block(details)}</pre></details></td>
           </tr>"""
 
 
