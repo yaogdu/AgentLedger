@@ -4,6 +4,8 @@
 
 This document makes the cross-language boundary explicit. AgentLedger's complete parity claim means **portable runtime-core parity**, not identical provider or ecosystem adapter implementations in every language.
 
+Patch versions do not need to move in lockstep when a release only changes a language-specific package, companion tool, or adapter wrapper. For example, `1.3.5` publishes the packaged Inspector implementation through Python/PyPI while the Go, TypeScript, and Rust runtime-core baselines remain on their latest shared runtime-core release. That does not weaken the runtime-core parity claim as long as the shared contract, conformance fixtures, and portable runtime semantics are unchanged.
+
 ## How To Read This Table
 
 | Mark | Meaning |

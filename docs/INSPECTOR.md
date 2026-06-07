@@ -35,6 +35,28 @@ The boundary is:
 
 This keeps Inspector outside runtime-core execution semantics while still making all language implementations debuggable through one tool.
 
+## Using Inspector With Non-Python Runtimes
+
+Inspector is language-neutral, but the current official distribution is the Python/PyPI companion package and the `agentledger inspector ...` CLI. A Go, TypeScript, or Rust application does not need to embed Python or install PyPI packages in its runtime process. It only needs to write AgentLedger-compatible metadata or export an AgentLedger evidence bundle.
+
+The normal non-Python workflow is:
+
+1. Run the agent with the native Go, TypeScript, or Rust runtime.
+2. Export evidence or point Inspector at the runtime database/blob root.
+3. Install `agentledger-inspector` on a developer, CI, support, or internal debugging machine.
+4. Generate static HTML or JSON from the shared read model.
+
+Example:
+
+```bash
+pip install agentledger-inspector
+agentledger inspector evidence ./evidence/<run_id> --html ./inspector.html
+```
+
+Without the Python/PyPI package, the non-Python runtimes can still use their own runtime-core evidence, debug-summary, and static debug HTML capabilities. They just do not have the full `1.3.5` Inspector run index and single-run reference UI unless they use the packaged Inspector tool or a custom viewer built on the same read model.
+
+Standalone Inspector distributions are on the roadmap so non-Python users can consume the official viewer without installing through PyPI. Candidate forms include a Docker image, a single executable, a static web viewer over exported evidence JSON, and a Node/npm CLI or viewer package.
+
 ## Data Sources
 
 Inspector supports two read paths.

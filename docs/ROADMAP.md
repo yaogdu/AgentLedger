@@ -574,6 +574,7 @@ Implemented in `1.3.5`:
 Follow-up work:
 
 - richer filtering, search, pagination, and saved views for the read-only run index
+- standalone Inspector distribution for non-Python users: Docker image, single executable, static web viewer over exported evidence JSON, and/or Node/npm CLI/viewer package
 - run timeline for steps, events, model calls, tool calls, approvals, artifacts, and checkpoints
 - state diff and state-version view
 - Tool Ledger view with idempotency key, causal token, side-effect status, request/response refs, and unknown-state handling
@@ -593,6 +594,7 @@ Exit criteria:
 - a developer can point the inspector at a local `.agentledger/state.db` and inspect run timeline, state diff, Tool Ledger, cost, failures, and artifacts
 - the same package can read Postgres/MySQL through documented schema/version checks
 - the UI is useful as a local/internal debug tool without requiring a separate application backend
+- Go, TypeScript, and Rust users can consume the official Inspector viewer without installing a Python package into their application runtime
 - all sensitive fields are redacted by default or explicitly configurable
 
 ## Post-v1 - Model Gateway And Router

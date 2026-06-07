@@ -35,6 +35,28 @@ Inspector 只实现一套，作为 companion evidence consumer 存在。Go、Typ
 
 这样 Inspector 不进入 runtime-core 执行语义，但四种语言实现都能通过同一个工具排查问题。
 
+## 非 Python runtime 如何使用 Inspector
+
+Inspector 是语言无关的，但当前官方分发形态是 Python/PyPI companion package，以及 `agentledger inspector ...` CLI。Go、TypeScript 或 Rust 应用的运行时进程不需要嵌入 Python，也不需要安装 PyPI 包；它只需要写出符合 AgentLedger contract 的 metadata，或者导出 AgentLedger evidence bundle。
+
+非 Python runtime 的常见用法是：
+
+1. 用原生 Go、TypeScript 或 Rust runtime 运行 agent。
+2. 导出 evidence，或者让 Inspector 读取 runtime database / blob root。
+3. 在开发机、CI、支持排查机器或内网 debug 机器上安装 `agentledger-inspector`。
+4. 基于共享 read model 生成静态 HTML 或 JSON。
+
+示例：
+
+```bash
+pip install agentledger-inspector
+agentledger inspector evidence ./evidence/<run_id> --html ./inspector.html
+```
+
+如果完全不安装 Python/PyPI package，非 Python runtime 仍然可以使用自己的 runtime-core evidence、debug summary 和 static debug HTML 能力；只是不能直接使用 `1.3.5` 这套完整的 Inspector run index 和单 run reference UI，除非使用已发布的 Inspector 工具，或者基于同一份 read model 二开 viewer。
+
+Standalone Inspector distribution 已进入 roadmap，目标是让非 Python 用户不通过 PyPI 也能使用官方 viewer。候选形态包括 Docker image、单文件可执行程序、读取导出 evidence JSON 的静态 Web viewer，以及 Node/npm CLI 或 viewer package。
+
 ## 数据来源
 
 Inspector 支持两条只读路径。

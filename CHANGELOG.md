@@ -6,7 +6,11 @@ This project follows semantic versioning for the stable runtime-core contract. O
 
 ## Unreleased
 
-No unreleased changes yet.
+### Clarified
+
+- Clarified that Inspector is language-neutral, while the current official Inspector distribution is packaged through the Python/PyPI CLI.
+- Clarified that patch releases do not need to move every language package in lockstep when runtime-core semantics and shared conformance are unchanged.
+- Added standalone Inspector distribution to the roadmap for non-Python users who want the official viewer without installing a Python package into their application runtime.
 
 ## 1.3.5 - 2026-06-07
 
@@ -17,13 +21,13 @@ No unreleased changes yet.
 
 ### Fixed
 
-- Improved Python static debug HTML layout so large JSON/details payloads and long ids do not expand tables or break the page width.
+- Improved packaged Inspector/static HTML layout so large JSON/details payloads and long ids do not expand tables or break the page width.
 - Reworked detailed Inspector, evidence, and time-travel tables so JSON opens in a full-width row below the record instead of a narrow right-side column.
 - Reworked the Inspector run-index HTML from a wide multi-column table into a compact paginated run list with status, timestamps, counters, Inspector links, and folded JSON details.
 
 ### Clarified
 
-- This is a Python static debug HTML patch and is not published yet. It does not change the stable runtime-core contract or require Go, TypeScript, or Rust runtime-core changes.
+- This is an Inspector companion patch release. Inspector is language-neutral, but the current packaged implementation is distributed through the Python/PyPI CLI. The release does not change the stable runtime-core contract or require Go, TypeScript, or Rust runtime-core package changes.
 
 ## 1.3.4
 
