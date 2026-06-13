@@ -478,6 +478,68 @@ shadow mode comparison workflows
 additional golden evidence fixtures
 ```
 
+## Post-v1 - Agent Failure Lifecycle
+
+状态：部分已实现。AgentLedger 现在已经会记录和报告 runtime 拥有的 failure evidence，包括 worker crash、lease expiry、stale worker fencing、cancellation、retry exhaustion、policy denial、sandbox failure、tool/model/runtime failure、budget failure 和 replay divergence。后续应该把它整理成更清晰的生命周期：classify、attribute、recover、inspect、regress、export。
+
+范围：
+
+```text
+agent execution failure：只有 runtime boundary 才能可靠保证时，属于 runtime-core
+agent answer-quality failure：属于 evidence consumer、eval tool 或 adapter，不直接塞进 runtime-core
+```
+
+当前已实现：
+
+```text
+runtime / agent / tool / model / policy / sandbox / budget / cancellation / retry 的 failure taxonomy
+failure attribution report 和 cost/failure attribution records
+crash、retry、lease fencing、cancellation fencing、side-effect safety 的 failure injection suite
+evidence bundle 中包含 failed step、failure event、Tool Ledger state、cost record、approval/policy decision、artifact 和 replay ref
+Inspector 和 static debug view 可以展示 failure event、risk flag、cost/failure record 和 event timeline
+四语言 conformance 覆盖 failure injection、cost/failure attribution、scheduler recovery、cancellation、replay、shadow/evidence regression
+```
+
+计划中的 runtime-core 工作：
+
+```text
+稳定的 AgentFailure / FailureEnvelope read model：category、severity、recoverability、retryability、owner、causal refs、evidence refs
+failure_detected / failure_classified / failure_recovery_scheduled / failure_recovered / failure_terminal / failure_regressed 等生命周期事件
+更丰富的 recovery policy metadata：retry budget、backoff、manual approval required、sandbox escalation、alternate tool/model fallback、terminal stop reason
+把 model call、tool call、state commit、approval decision、sandbox run、worker lease、child-agent run 串成 failure causal graph
+failure replay mode：复现 evidence path，但不重复不安全副作用
+failure regression fixtures：覆盖 recurring failure、fixed failure、新引入 failure
+面向外部 observability、incident review、eval、support system 的 failure export format
+Inspector failure panels：failure timeline、root-cause candidates、recovery attempts、retry/fallback history、evidence links
+```
+
+计划中的 adapter / evidence-consumer 工作：
+
+```text
+Langfuse / LangSmith / OpenTelemetry failure export mappings
+Temporal / Ray / Kubernetes failure propagation recipes，保证外部 backend 中仍保留 AgentLedger failure evidence
+eval adapter examples：消费 AgentLedger evidence 来识别 answer-quality failure、hallucination、policy miss、task-level correctness regression
+alerting/report sinks：重复 terminal failure、高成本 failure loop、replay divergence、side-effect unknown state
+```
+
+runtime-core 明确非目标：
+
+```text
+不做完整 incident-management system
+不做完整 eval 或 LLM-judge platform
+不宣称 runtime failure attribution 能证明答案正确
+不在缺少 Tool Ledger、approval、sandbox、replay evidence 的情况下自动重试不安全副作用
+不把外部 framework 或 backend failure 从 evidence bundle 中隐藏掉
+```
+
+退出标准：
+
+- 每个 terminal run failure 都有 normalized failure envelope 和 causal evidence refs
+- recoverable failure 可以 retry 或 resume，且不会重复 side effect
+- replay 可以解释历史 failure 是否会再次调用外部系统，还是复用 archived evidence
+- Inspector 可以展示 failure timeline，并链接到相关 model/tool/state/policy/sandbox records
+- 外部 eval 或 observability 系统可以消费 failure evidence，而不需要读取未文档化 runtime tables
+
 ## Post-v1 - Multimodal and Stream Adapters
 
 当前已经有 preview contracts：

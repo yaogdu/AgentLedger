@@ -517,6 +517,60 @@ Exit criteria:
 - media pipeline replay can reuse captured frame/segment artifacts instead of reprocessing raw media
 - regression and external eval results link back to evidence bundles
 
+## Post-v1 - Agent Failure Lifecycle
+
+Status: partially implemented. AgentLedger already records and reports runtime-owned failure evidence, including worker crashes, lease expiry, stale worker fencing, cancellation, retry exhaustion, policy denial, sandbox failure, tool/model/runtime failures, budget failures, and replay divergence. Future work should make this a clearer lifecycle: classify, attribute, recover, inspect, regress, and export.
+
+Scope:
+
+```text
+agent execution failure belongs in runtime-core when the runtime boundary is required
+agent answer-quality failure belongs in evidence consumers, eval tools, or adapters
+```
+
+Implemented today:
+
+- failure taxonomy for runtime, agent, tool, model, policy, sandbox, budget, cancellation, and retry paths
+- failure attribution report and cost/failure attribution records
+- failure injection suite for crash, retry, lease fencing, cancellation fencing, and side-effect safety
+- evidence bundles that include failed steps, failure events, Tool Ledger state, cost records, approval/policy decisions, artifacts, and replay refs
+- Inspector and static debug views that can surface failure events, risk flags, cost/failure records, and event timelines
+- cross-language conformance coverage for failure injection, cost/failure attribution, scheduler recovery, cancellation, replay, and shadow/evidence regression
+
+Planned runtime-core work:
+
+- stable `AgentFailure` / `FailureEnvelope` read model with normalized category, severity, recoverability, retryability, owner, causal refs, and evidence refs
+- failure lifecycle events such as `failure_detected`, `failure_classified`, `failure_recovery_scheduled`, `failure_recovered`, `failure_terminal`, and `failure_regressed`
+- richer recovery policy metadata: retry budget, backoff, manual approval required, sandbox escalation, alternate tool/model fallback, and terminal stop reason
+- causal graph linking model calls, tool calls, state commits, approval decisions, sandbox runs, worker leases, and child-agent runs to one failure chain
+- failure replay mode that can reproduce the evidence path without repeating unsafe side effects
+- failure regression fixtures for recurring failures, fixed failures, and newly introduced failures
+- failure export format for external observability, incident review, eval, and support systems
+- Inspector panels for failure timeline, root-cause candidates, recovery attempts, retry/fallback history, and evidence links
+
+Planned adapter / evidence-consumer work:
+
+- Langfuse/LangSmith/OpenTelemetry failure export mappings
+- Temporal/Ray/Kubernetes failure propagation recipes that preserve AgentLedger failure evidence inside external execution backends
+- eval adapter examples that consume AgentLedger evidence to detect answer-quality failures, hallucination, policy misses, or task-level correctness regressions
+- alerting/report sinks for repeated terminal failures, high-cost failure loops, replay divergence, and side-effect unknown states
+
+Explicit non-goals for runtime-core:
+
+- becoming a full incident-management system
+- becoming a full eval or LLM-judge platform
+- claiming that runtime failure attribution proves answer correctness
+- automatically retrying unsafe side effects without Tool Ledger, approval, sandbox, and replay evidence
+- hiding external framework or backend failures from the evidence bundle
+
+Exit criteria:
+
+- every terminal run failure has a normalized failure envelope and causal evidence refs
+- recoverable failures can be retried or resumed without duplicating side effects
+- replay can explain whether a historical failure would call external systems again or reuse archived evidence
+- Inspector can show a failure timeline that links to the relevant model/tool/state/policy/sandbox records
+- external eval or observability systems can consume failure evidence without reading undocumented runtime tables
+
 ## Post-v1 - Inspector Evolution
 
 Status: partially implemented in `1.3.0`. The current Inspector is a read-only evidence/runtime metadata consumer with static HTML export. Future work should stay in an optional package and remain outside runtime-core execution semantics.
