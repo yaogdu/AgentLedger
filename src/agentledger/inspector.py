@@ -335,7 +335,7 @@ class InspectorRunIndex:
     .pager button {{ min-height: 30px; padding: 4px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--accent); font: inherit; font-size: 13px; font-weight: 650; cursor: pointer; }}
     .pager button:disabled {{ cursor: default; color: var(--muted); opacity: 0.55; }}
     .pager-status {{ color: var(--muted); font-size: 13px; }}
-    .run-item {{ min-width: 0; padding: 12px 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }}
+    .run-item {{ min-width: 0; max-width: 100%; padding: 16px 18px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); overflow: hidden; }}
     .run-item.warn {{ border-color: #e0c46e; background: var(--warn-bg); }}
     .run-item.risk {{ border-color: #e4b6b6; background: var(--danger-bg); }}
     .run-head {{ display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 12px; }}
@@ -343,20 +343,22 @@ class InspectorRunIndex:
     .run-title h3 {{ margin: 0; font-size: 16px; line-height: 1.3; letter-spacing: 0; overflow-wrap: anywhere; }}
     .run-title a {{ color: var(--ink); text-decoration: none; }}
     .run-title a:hover {{ color: var(--accent); text-decoration: underline; }}
-    .run-sub {{ display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }}
-    .badge {{ display: inline-flex; align-items: center; max-width: 100%; padding: 3px 7px; border: 1px solid var(--line); border-radius: 999px; background: #fbfdfb; color: var(--ink); font-size: 12px; overflow-wrap: anywhere; }}
+    .run-sub {{ display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }}
+    .badge {{ display: inline-flex; align-items: center; gap: 6px; min-width: 0; max-width: 100%; padding: 5px 9px; border: 1px solid var(--line); border-radius: 999px; background: #fbfdfb; color: var(--ink); font-size: 12px; overflow-wrap: anywhere; word-break: break-word; white-space: normal; }}
+    .badge-label {{ flex: 0 0 auto; color: var(--muted); }}
+    .badge-value {{ min-width: 0; overflow-wrap: anywhere; word-break: break-word; }}
     .badge.ok {{ background: var(--ok-bg); }}
     .badge.warn {{ background: #fff9e8; border-color: #e0c46e; }}
     .badge.risk {{ background: #fff7f7; border-color: #e4b6b6; color: var(--danger); }}
     .run-actions {{ display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; max-width: 100%; }}
     .run-actions a {{ display: inline-flex; align-items: center; min-height: 28px; padding: 4px 8px; border: 1px solid var(--line); border-radius: 999px; background: #fbfdfb; color: var(--accent); font-size: 13px; font-weight: 650; text-decoration: none; }}
     .run-actions a:hover {{ text-decoration: underline; }}
-    .run-fields {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 6px 16px; margin-top: 10px; padding-top: 9px; border-top: 1px solid var(--line); }}
+    .run-fields {{ display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 20px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }}
     .run-field {{ min-width: 0; }}
     .run-field .label {{ text-transform: none; letter-spacing: 0; }}
     .run-field .field-value {{ display: block; margin-top: 3px; font-size: 13px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }}
-    .run-metrics {{ display: flex; flex-wrap: wrap; gap: 7px; margin-top: 10px; }}
-    .metric {{ display: inline-flex; align-items: baseline; gap: 5px; padding: 4px 7px; border: 1px solid var(--line); border-radius: 999px; background: rgba(255, 255, 255, 0.72); font-size: 12px; }}
+    .run-metrics {{ display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }}
+    .metric {{ display: inline-flex; align-items: baseline; gap: 6px; min-width: 0; padding: 5px 9px; border: 1px solid var(--line); border-radius: 999px; background: rgba(255, 255, 255, 0.72); font-size: 12px; }}
     .metric strong {{ font-size: 13px; }}
     .run-details {{ margin-top: 9px; }}
     details {{ margin-top: 4px; max-width: 100%; }}
@@ -367,6 +369,9 @@ class InspectorRunIndex:
       .cards {{ grid-template-columns: repeat(2, minmax(0, 1fr)); }}
       .run-title {{ flex-basis: 100%; }}
       .run-actions {{ justify-content: flex-start; }}
+    }}
+    @media (max-width: 760px) {{
+      .run-fields {{ grid-template-columns: 1fr; }}
     }}
     @media (max-width: 560px) {{
       main {{ padding: 22px 12px 36px; }}
@@ -1465,9 +1470,9 @@ def _run_index_item(row: dict[str, Any], *, index: int) -> str:
     <div class="run-title">
       <h3>{title}</h3>
       <div class="run-sub">
-        <span class="badge {status_css}">{escape(status)}</span>
-        <span class="badge">agent {_inline_value(row.get("agent_run_id"))}</span>
-        <span class="badge">session {_inline_value(row.get("session_id"))}</span>
+        <span class="badge {status_css}"><span class="badge-value">{escape(status)}</span></span>
+        <span class="badge"><span class="badge-label">agent</span><span class="badge-value">{escape(_display_value(row.get("agent_run_id")))}</span></span>
+        <span class="badge"><span class="badge-label">session</span><span class="badge-value">{escape(_display_value(row.get("session_id")))}</span></span>
       </div>
     </div>
     {_run_actions(row.get("related_links"))}
