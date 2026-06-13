@@ -3,7 +3,7 @@
 [English](README.md) | [中文](README.zh-CN.md)
 
 ![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)
-![Version 1.3.x stable](https://img.shields.io/badge/Version-1.3.x--stable-111827)
+![Version 1.4.x stable](https://img.shields.io/badge/Version-1.4.x--stable-111827)
 ![License Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-0f766e)
 ![Runtime Durable](https://img.shields.io/badge/Runtime-durable%20execution-1f6feb)
 ![Storage SQLite/Postgres/MySQL](https://img.shields.io/badge/Storage-SQLite%20%7C%20Postgres%20%7C%20MySQL-b45309)
@@ -12,7 +12,7 @@
 
 Your agent called a tool. Did it happen? Can you retry safely? Can you prove it later?
 
-AgentLedger `1.3.x` is a runtime reliability layer for Agent Harness stacks. It does not try to teach agents how to reason or replace the surrounding harness ecosystem; it makes agent runs durable, auditable, replayable, policy-governed, and recoverable when workers crash, tools fail, or prompts change.
+AgentLedger `1.4.x` is a runtime reliability layer for Agent Harness stacks. It does not try to teach agents how to reason or replace the surrounding harness ecosystem; it makes agent runs durable, auditable, replayable, policy-governed, and recoverable when workers crash, tools fail, or prompts change.
 
 Most agent frameworks focus on planning, reasoning, and workflow logic. AgentLedger sits underneath or beside LangChain, LangGraph, CrewAI, AutoGen, OpenAI Agents SDK, LlamaIndex, Semantic Kernel, or custom agents to provide runtime guarantees around state, tools, evidence, replay, and recovery.
 
@@ -289,7 +289,7 @@ AgentLedger is also not a new LLM SDK, not a workflow engine, not a general obse
 
 ## Current maturity
 
-AgentLedger 1.3.x is a stable runtime-core line with Python as the reference implementation and Go, TypeScript, and Rust covered by shared runtime-core parity gates. The four language runtimes share the same runtime-core failure semantics: failed steps, retry scheduling, cancellation, lease recovery, Tool Ledger unknown-state handling, cost/failure attribution, evidence, and replay. The current Python/Inspector patch is 1.3.6 and is distributed through Python/PyPI as an official companion tool; Go, TypeScript, and Rust runtime-core package baselines remain 1.3.1 until their next runtime-core release because their runtime-core semantics did not change. It is suitable for local use, framework adapter integration, reliability semantics validation, and production pilot preparation with explicit adapter boundaries.
+AgentLedger 1.4.x is a stable runtime-core line with Python as the reference implementation and Go, TypeScript, and Rust covered by shared runtime-core parity gates. The four language runtimes share the same runtime-core failure semantics: failed steps, retry scheduling, cancellation, lease recovery, Tool Ledger unknown-state handling, cost/failure attribution, evidence, replay, normalized failure envelopes, failure lifecycle, causal graph, replay plan, regression report, alerts, and failure export mappings. The current runtime-core release is 1.4.0 across Python, Go, TypeScript, and Rust; Inspector remains a language-neutral companion viewer distributed through Python/PyPI. It is suitable for local use, framework adapter integration, reliability semantics validation, and production pilot preparation with explicit adapter boundaries.
 
 The runtime-core contract is stable; optional production adapters and external infrastructure hardening remain separately tracked. See [docs/MATURITY_MODEL.md](docs/MATURITY_MODEL.md), [docs/IMPLEMENTATION_STATUS.md](docs/IMPLEMENTATION_STATUS.md), and [docs/ROADMAP.md](docs/ROADMAP.md).
 

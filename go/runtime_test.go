@@ -529,6 +529,15 @@ func TestCostBudgetAndFailureAttribution(t *testing.T) {
 	if failure.Summary["failed_step_count"].(int) != 1 || !eventTypeExists(failure.FailureEvents, "budget_check_failed") || !eventTypeExists(failure.FailureEvents, "failure_classified") {
 		t.Fatalf("unexpected failure attribution: %#v", failure)
 	}
+	if len(failure.FailureEnvelopes) == 0 || failure.FailureLifecycle["schema_version"] != "agentledger.failure.lifecycle.v1" || failure.FailureExport["schema_version"] != "agentledger.failure.export.v1" {
+		t.Fatalf("failure lifecycle/export missing: %#v", failure)
+	}
+	if failure.FailureReplayPlan["safe_to_replay"] != true {
+		t.Fatalf("expected evidence-only replay to be safe for budget failure: %#v", failure.FailureReplayPlan)
+	}
+	if failure.FailureAlerts["alert_count"].(int) == 0 {
+		t.Fatalf("expected failure alerts: %#v", failure.FailureAlerts)
+	}
 }
 
 func TestMediaAndStreamArtifactsParity(t *testing.T) {

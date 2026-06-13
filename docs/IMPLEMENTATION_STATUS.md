@@ -6,7 +6,7 @@ This document tracks what is implemented in runtime-core, what remains planned f
 
 ## Current Baseline
 
-AgentLedger 1.3.x is a stable runtime-core line with Python as the reference implementation and Go/TypeScript/Rust covered by shared runtime-core parity gates. The 1.3 line keeps the stable runtime-core contract and adds a language-neutral, read-only Inspector companion path for evidence and runtime metadata inspection. It is suitable for:
+AgentLedger 1.4.x is a stable runtime-core line with Python as the reference implementation and Go/TypeScript/Rust covered by shared runtime-core parity gates. The 1.4 line keeps the stable runtime-core contract, adds a language-neutral read-only Inspector companion path, and completes the Agent Failure Lifecycle baseline across all four runtime packages. It is suitable for:
 
 - local use
 - runtime design review
@@ -15,7 +15,7 @@ AgentLedger 1.3.x is a stable runtime-core line with Python as the reference imp
 - reliability semantics validation
 - production pilot preparation with explicit adapter boundaries
 
-Release-scope note: 1.3.0 added Inspector as a read-only evidence/runtime metadata consumer. It can read exported evidence bundles or connect to SQLite/Postgres/MySQL AgentLedger metadata with read-only credentials and can export a static HTML debug report. 1.3.2 adds configurable redaction for Inspector JSON/HTML output. 1.3.3 adds static report navigation and read-model cross-links for timeline, tool, approval, policy, and artifact records. 1.3.4 fixes Inspector package release metadata alignment. 1.3.5 improves the packaged Inspector/static HTML layout, adds a chronological event stream, adds a read-only run index, paginates the run list, and moves table JSON/details payloads into full-width rows without changing runtime-core semantics. 1.3.6 adds `agentledger.failure.envelope.v1`, exposes normalized failure envelopes through `agentledger failure report`, and adds an Inspector Failure Envelopes panel for terminal failures, retries, waiting approvals, blocked tools, and unknown side-effect states. MySQL remains the 1.2.2 storage adapter boundary and Langfuse remains the 1.2.3 observability adapter boundary; real-service production claims still require external validation.
+Release-scope note: 1.3.x added and hardened Inspector as a read-only evidence/runtime metadata consumer. It can read exported evidence bundles or connect to SQLite/Postgres/MySQL AgentLedger metadata with read-only credentials and can export static HTML debug reports. 1.4.0 adds the four-language Agent Failure Lifecycle baseline: normalized failure envelopes, lifecycle stages, causal graph, replay plan, regression report, local alert records, and portable failure export mappings. MySQL remains the 1.2.2 storage adapter boundary and Langfuse remains the 1.2.3 observability adapter boundary; real-service production claims still require external validation.
 
 The runtime-core contract is stable. Optional production adapters, external infrastructure hardening, and full eval systems remain outside the stable core boundary; non-Python runtime-core baselines are verified by the shared parity gates.
 
@@ -23,7 +23,7 @@ Scope rule: runtime-core should stay thin but indispensable. It should own only 
 
 ## Current Completion Boundary
 
-For the current 1.3.x goal, "stable runtime-core plus read-only evidence consumers" means the Python reference runtime is usable, documented, tested, release-gated, and contract-frozen, with Go/TypeScript/Rust covered by runtime-core parity gates. It also means first-party adapter boundaries are packaged or importable in each ecosystem where they fit, and the Inspector can consume exported evidence across languages. It does not mean every optional production adapter or external eval integration is production-hardened in every language.
+For the current 1.4.x goal, "stable runtime-core plus failure lifecycle and read-only evidence consumers" means the Python reference runtime is usable, documented, tested, release-gated, and contract-frozen, with Go/TypeScript/Rust covered by runtime-core parity gates. It also means first-party adapter boundaries are packaged or importable in each ecosystem where they fit, and the Inspector can consume exported evidence across languages. It does not mean every optional production adapter or external eval integration is production-hardened in every language.
 
 Included in this boundary:
 

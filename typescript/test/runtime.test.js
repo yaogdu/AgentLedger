@@ -15,8 +15,8 @@ test('adapter subpath exports expose the current package boundary', async () => 
   const docker = await import('../src/adapters/sandbox-docker.js');
   const langgraph = await import('../src/adapters/langgraph.js');
 
-  assert.equal(postgres.adapterPackage.version, '1.3.1');
-  assert.equal(mysql.adapterPackage.version, '1.3.1');
+  assert.equal(postgres.adapterPackage.version, '1.4.0');
+  assert.equal(mysql.adapterPackage.version, '1.4.0');
   assert.equal(typeof postgres.PostgresAdapter, 'function');
   assert.equal(typeof mysql.MySQLAdapter, 'function');
   assert.equal(typeof s3.S3BlobStoreAdapter, 'function');
@@ -313,6 +313,12 @@ test('cost budget and failure attribution are recorded', async () => {
   assert.equal(failure.summary.failed_step_count, 1);
   assert.equal(failure.failure_events.some((event) => event.type === 'budget_check_failed'), true);
   assert.equal(failure.failure_events.some((event) => event.type === 'failure_classified'), true);
+  assert.ok(failure.failure_envelopes.length > 0);
+  assert.equal(failure.failure_lifecycle.schema_version, 'agentledger.failure.lifecycle.v1');
+  assert.equal(failure.failure_export.schema_version, 'agentledger.failure.export.v1');
+  assert.equal(failure.failure_replay_plan.safe_to_replay, true);
+  assert.ok(failure.failure_alerts.alert_count > 0);
+  assert.equal(failure.failure_export.external_mappings.langfuse.trace_id, runId);
 });
 
 test('media and stream artifacts are indexed in evidence and replay', async () => {

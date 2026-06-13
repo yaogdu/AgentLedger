@@ -53,7 +53,7 @@ AgentLedger 负责 execution guarantees / evidence / replay / tool governance / 
 
 ## 当前状态
 
-当前 1.3.x 是 stable runtime-core release，Python 是 reference implementation，Go、TypeScript、Rust 已由共享 runtime-core parity gate 覆盖，并包含 read-only Inspector evidence/runtime metadata consumer，适合：
+当前 1.4.x 是 stable runtime-core release，Python 是 reference implementation，Go、TypeScript、Rust 已由共享 runtime-core parity gate 覆盖，并包含 read-only Inspector evidence/runtime metadata consumer，适合：
 
 - 本地使用
 - runtime 设计评审

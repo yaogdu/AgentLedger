@@ -155,24 +155,25 @@ This view is intended for debugging a single run from top to bottom. It does not
 
 Detailed tables keep compact record columns on the first row and render the folded JSON payload in a full-width row below each record. This keeps long payloads readable without forcing a narrow right-side details column.
 
-## Failure Envelopes
+## Failure Lifecycle
 
-`1.3.6` adds `agentledger.failure.envelope.v1`, a normalized failure read model consumed by `agentledger failure report`, Inspector JSON, and Inspector static HTML.
+`1.4.0` adds the Agent Failure Lifecycle baseline consumed by `agentledger failure report`, `agentledger failure export`, Inspector JSON, and Inspector static HTML.
 
-The runtime still records raw events, step rows, Tool Ledger rows, approval rows, and evidence bundles. Failure envelopes are a read model over those records so business code and support tooling do not need to infer failure semantics from undocumented table details.
+The runtime still records raw events, step rows, Tool Ledger rows, approval rows, cost records, and evidence bundles. Failure lifecycle output is a read model over those records so business code and support tooling do not need to infer failure semantics from undocumented table details.
 
-Each envelope includes:
+The stable failure read model includes:
 
-- `category`: agent, tool, model, policy, approval, sandbox, budget, runtime, retry, or cancellation
-- `status`: terminal, failed, blocked, recovery_scheduled, waiting_human, unknown_side_effect, classified, or recoverable
-- `recoverability`: terminal, auto_retry, recoverable, manual_verification, human_required, manual_intervention, or unknown
-- `retryability`: retryable, not_retryable, or unknown
-- `owner`: the boundary most likely responsible for handling the failure
-- `causal_refs` and `evidence_refs`: stable references back to steps, events, tools, approvals, and blobs
+- `agentledger.failure.envelope.v1`: normalized category, status, severity, recoverability, retryability, owner, causal refs, and evidence refs
+- `agentledger.failure.lifecycle.v1`: detected, classified, recovery scheduled, recovered, terminal, and regressed stages
+- `agentledger.failure.causal_graph.v1`: run, step, event, tool, approval, cost, and failure nodes linked by causal/evidence edges
+- `agentledger.failure.replay_plan.v1`: evidence-only replay guidance that blocks unsafe side-effect replay when manual verification is required
+- `agentledger.failure.regression.v1`: recurring, fixed, and newly introduced failure comparison
+- `agentledger.failure.alerts.v1`: local alert records for terminal failures, unknown side effects, costly failures, and unsafe replay blocks
+- `agentledger.failure.export.v1`: portable export with OpenTelemetry, Langfuse, LangSmith, and Temporal-style mapping hints
 
 This intentionally covers non-happy-path production states, not just terminal failures. For example, `PENDING_VERIFICATION` Tool Ledger rows become `unknown_side_effect` envelopes with `manual_verification` recoverability, because retrying blindly could duplicate an external side effect.
 
-`1.3.6` does not claim the entire future Agent Failure Lifecycle is complete. Richer causal graphs, failure export mappings, alert sinks, and failure regression workflows remain roadmap items. The stable addition in this release is the portable read model and default Inspector panel.
+`1.4.0` does not turn AgentLedger into an incident-management, eval, or observability SaaS. The stable addition is the portable runtime-owned failure contract and Inspector panels that render it. External systems can consume the export without reading internal runtime tables.
 
 ## Navigation And Cross-links
 
@@ -312,12 +313,13 @@ Implemented in `1.3.5`:
 - runtime run id and extracted agent run id in event/timeline read-model rows
 - safer static HTML layout for long ids, full-width JSON details, and paginated run lists
 
-Implemented in `1.3.6`:
+Implemented in `1.4.0`:
 
 - `agentledger.failure.envelope.v1` normalized failure read model
-- failure envelopes in `agentledger failure report`
-- Failure Envelopes panel in Inspector JSON/static HTML
-- non-happy-path coverage for missing payloads, retry scheduling, pending approvals, pending tool verification, blocked tools, and terminal failures
+- `agentledger.failure.lifecycle.v1`, `agentledger.failure.causal_graph.v1`, `agentledger.failure.replay_plan.v1`, `agentledger.failure.regression.v1`, `agentledger.failure.alerts.v1`, and `agentledger.failure.export.v1`
+- failure lifecycle data in `agentledger failure report` and portable export data from `agentledger failure export`
+- Failure Lifecycle, Failure Replay Plan, Failure Alerts, and Failure Causal Graph panels in Inspector JSON/static HTML
+- non-happy-path coverage for missing payloads, retry scheduling, pending approvals, pending tool verification, blocked tools, unsafe replay planning, and terminal failures
 
 Not in this version:
 

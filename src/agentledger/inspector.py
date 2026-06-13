@@ -13,7 +13,7 @@ from urllib.parse import quote
 from .blobstore import LocalBlobStore
 from .diff import load_evidence_path
 from .evidence import decode_payload, EvidenceExporter
-from .failure import FailureEnvelopeBuilder
+from .failure import FailureAlertEvaluator, FailureCausalGraphBuilder, FailureEnvelopeBuilder, FailureExportMapper, FailureLifecycleBuilder, FailureReplayPlanner
 from .protocol import EvidenceBlobStoreProtocol, EvidenceStateStoreProtocol
 from .storage_mysql import MySQLStore, MySQLStoreConfig
 from .storage_postgres import PostgresStore, PostgresStoreConfig
@@ -58,6 +58,10 @@ class InspectorReport:
             ("risk-flags", "Risk Flags"),
             ("event-stream", "Event Stream"),
             ("failures", "Failures"),
+            ("failure-lifecycle", "Failure Lifecycle"),
+            ("failure-replay", "Replay Plan"),
+            ("failure-alerts", "Alerts"),
+            ("failure-causal-graph", "Causal Graph"),
             ("timeline", "Timeline"),
             ("steps", "Steps"),
             ("tool-ledger", "Tool Ledger"),
@@ -205,6 +209,36 @@ class InspectorReport:
       {_table(["failure_id", "category", "status", "recoverability", "retryability", "owner", "message"], self.data.get("failure_envelopes", []), risk_key="severity", risk_values={"risk"}, warn_values={"warn"})}
     </section>
 
+    <section class="section" id="failure-lifecycle">
+      <h2>Failure Lifecycle</h2>
+      <p class="section-note">Runtime-owned failure stages derived from the normalized read model: detected, classified, recovery scheduled, recovered, terminal, and regressed.</p>
+      {_table(["stage", "failure_id", "category", "recoverability", "retryability", "owner", "message"], self.data.get("failure_lifecycle", {}).get("events", []), risk_key="severity", risk_values={"risk"}, warn_values={"warn"})}
+    </section>
+
+    <section class="section grid-2">
+      <div id="failure-replay">
+        <h2>Failure Replay Plan</h2>
+        <p class="section-note">Evidence-only replay guidance that blocks unsafe automatic side-effect replay when manual verification is required.</p>
+        {_table(["failure_id", "category", "status", "replay_action", "replay_safe", "requires_manual_verification", "reason"], self.data.get("failure_replay_plan", {}).get("actions", []), risk_key="replay_safe", risk_values={False, "False", "false"}, warn_values={None})}
+      </div>
+      <div id="failure-alerts">
+        <h2>Failure Alerts</h2>
+        <p class="section-note">Local alert records for downstream sinks. Inspector does not send alerts externally.</p>
+        {_table(["kind", "severity", "message"], self.data.get("failure_alerts", {}).get("alerts", []), risk_key="severity", risk_values={"risk"}, warn_values={"warn"})}
+      </div>
+    </section>
+
+    <section class="section grid-2" id="failure-causal-graph">
+      <div>
+        <h2>Failure Causal Nodes</h2>
+        {_table(["id", "kind", "status", "category", "owner"], self.data.get("failure_causal_graph", {}).get("nodes", []), risk_key="kind", risk_values={"failure"})}
+      </div>
+      <div>
+        <h2>Failure Causal Edges</h2>
+        {_table(["source", "target", "kind"], self.data.get("failure_causal_graph", {}).get("edges", []))}
+      </div>
+    </section>
+
     <section class="section" id="timeline">
       <h2>Run Timeline</h2>
       {_table(["seq", "type", "step_id", "agent_role", "state_version", "summary"], self.data.get("timeline", []), risk_key="severity", risk_values={"risk"}, warn_values={"warn"})}
@@ -330,7 +364,7 @@ class InspectorRunIndex:
     .link-list {{ display: flex; flex-wrap: wrap; gap: 6px; min-width: 160px; }}
     .link-list a {{ display: inline-flex; align-items: center; gap: 4px; max-width: 260px; padding: 3px 6px; border: 1px solid var(--line); border-radius: 999px; background: #fbfdfb; font-size: 12px; }}
     .link-list .ref-kind {{ color: var(--muted); }}
-    .run-list {{ display: grid; gap: 24px; }}
+    .run-list {{ display: grid; gap: 28px; }}
     .pager {{ display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 12px; }}
     .pager[hidden] {{ display: none; }}
     .pager button {{ min-height: 30px; padding: 4px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--accent); font: inherit; font-size: 13px; font-weight: 650; cursor: pointer; }}
@@ -361,7 +395,7 @@ class InspectorRunIndex:
     .run-metrics {{ display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }}
     .metric {{ display: inline-flex; align-items: baseline; gap: 6px; min-width: 0; padding: 5px 9px; border: 1px solid var(--line); border-radius: 999px; background: rgba(255, 255, 255, 0.72); font-size: 12px; }}
     .metric strong {{ font-size: 13px; }}
-    .run-details {{ margin: 14px 0 2px; }}
+    .run-details {{ margin: 16px 0 6px; }}
     details {{ margin-top: 4px; max-width: 100%; }}
     summary {{ cursor: pointer; color: var(--accent); font-weight: 650; }}
     pre {{ max-width: 100%; max-height: 300px; overflow: auto; padding: 11px; border: 1px solid var(--line); border-radius: 8px; background: #fbfdfb; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word; }}
@@ -496,6 +530,34 @@ class InspectorReportBuilder:
             approvals=approvals,
             events=events,
         )
+        failure_lifecycle = FailureLifecycleBuilder().from_envelopes(
+            run_id=str(run.get("run_id") or ""),
+            run_status=str(run.get("status") or ""),
+            envelopes=failure_envelopes,
+            events=events,
+        )
+        failure_causal_graph = FailureCausalGraphBuilder().from_snapshot(
+            run_id=str(run.get("run_id") or ""),
+            run_status=str(run.get("status") or ""),
+            envelopes=failure_envelopes,
+            steps=steps,
+            ledger=ledger,
+            approvals=approvals,
+            events=events,
+            cost_records=cost_records,
+        )
+        failure_replay_plan = FailureReplayPlanner().plan(
+            run_id=str(run.get("run_id") or ""),
+            envelopes=failure_envelopes,
+            ledger=ledger,
+            events=events,
+        )
+        failure_alerts = FailureAlertEvaluator().evaluate(
+            run_id=str(run.get("run_id") or ""),
+            envelopes=failure_envelopes,
+            replay_plan=failure_replay_plan,
+            cost_records=cost_records,
+        )
         _decorate_failure_envelope_links(failure_envelopes=failure_envelopes, timeline=timeline, steps=steps, ledger=ledger, approvals=approvals)
         summary = {
             **_safe_dict(evidence.get("summary")),
@@ -505,10 +567,23 @@ class InspectorReportBuilder:
             "approval_status_counts": dict(Counter(row.get("status", "-") for row in approvals)),
             "failure_event_count": len(failure_events),
             "failure_envelope_count": len(failure_envelopes),
+            "failure_lifecycle_event_count": len(failure_lifecycle.get("events", [])),
+            "failure_alert_count": failure_alerts.get("alert_count", 0),
+            "unsafe_replay_side_effect_count": failure_replay_plan.get("unsafe_side_effect_count", 0),
             "terminal_failure_count": sum(1 for item in failure_envelopes if item.get("status") == "terminal"),
             "recoverable_failure_count": sum(1 for item in failure_envelopes if item.get("recoverability") in {"auto_retry", "recoverable", "manual_verification", "human_required"}),
             "policy_decision_count": len(policy_decisions),
         }
+        failure_export = FailureExportMapper().export(
+            run_id=str(run.get("run_id") or ""),
+            run_status=str(run.get("status") or ""),
+            summary=summary,
+            envelopes=failure_envelopes,
+            lifecycle=failure_lifecycle,
+            causal_graph=failure_causal_graph,
+            replay_plan=failure_replay_plan,
+            alerts=failure_alerts,
+        )
         risk_flags = _risk_flags(summary, steps, ledger, approvals, failure_events, policy_decisions)
         data = {
             "schema_version": INSPECTOR_SCHEMA_VERSION,
@@ -526,6 +601,11 @@ class InspectorReportBuilder:
             "cost_records": cost_records,
             "failure_events": failure_events,
             "failure_envelopes": failure_envelopes,
+            "failure_lifecycle": failure_lifecycle,
+            "failure_causal_graph": failure_causal_graph,
+            "failure_replay_plan": failure_replay_plan,
+            "failure_alerts": failure_alerts,
+            "failure_export": failure_export,
             "artifacts": artifacts,
             "evidence": {
                 "schema_version": evidence.get("schema_version"),

@@ -155,24 +155,25 @@ Postgres/MySQL 建议使用只读数据库账号。AgentLedger 不为 Inspector 
 
 详细表格会把紧凑记录列放在第一行，折叠 JSON payload 放到当前记录下面的全宽行中。这样长 payload 可读性更好，也不会被挤在右侧很窄的 details 列里。
 
-## Failure Envelopes
+## Failure Lifecycle
 
-`1.3.6` 增加 `agentledger.failure.envelope.v1`，这是 `agentledger failure report`、Inspector JSON 和 Inspector static HTML 共用的 normalized failure read model。
+`1.4.0` 增加 Agent Failure Lifecycle baseline，这是 `agentledger failure report`、`agentledger failure export`、Inspector JSON 和 Inspector static HTML 共用的 failure read model。
 
-runtime 仍然记录原始 events、step rows、Tool Ledger rows、approval rows 和 evidence bundle。Failure envelope 是这些记录上的 read model，让业务代码、支持工具、内部排查页面不需要直接从未文档化表结构里推断 failure 语义。
+runtime 仍然记录原始 events、step rows、Tool Ledger rows、approval rows、cost records 和 evidence bundle。Failure lifecycle 是这些记录上的 read model，让业务代码、支持工具、内部排查页面不需要直接从未文档化表结构里推断 failure 语义。
 
-每个 envelope 包含：
+稳定 failure read model 包含：
 
-- `category`：agent、tool、model、policy、approval、sandbox、budget、runtime、retry 或 cancellation
-- `status`：terminal、failed、blocked、recovery_scheduled、waiting_human、unknown_side_effect、classified 或 recoverable
-- `recoverability`：terminal、auto_retry、recoverable、manual_verification、human_required、manual_intervention 或 unknown
-- `retryability`：retryable、not_retryable 或 unknown
-- `owner`：最应该处理这个 failure 的边界
-- `causal_refs` 和 `evidence_refs`：指回 step、event、tool、approval、blob 的稳定引用
+- `agentledger.failure.envelope.v1`：normalized category、status、severity、recoverability、retryability、owner、causal refs、evidence refs
+- `agentledger.failure.lifecycle.v1`：detected、classified、recovery scheduled、recovered、terminal、regressed stages
+- `agentledger.failure.causal_graph.v1`：run、step、event、tool、approval、cost、failure 节点和 causal/evidence 边
+- `agentledger.failure.replay_plan.v1`：evidence-only replay guidance，遇到需要人工确认的副作用时阻止 unsafe replay
+- `agentledger.failure.regression.v1`：recurring、fixed、新引入 failure 的对比
+- `agentledger.failure.alerts.v1`：terminal failure、unknown side effect、costly failure、unsafe replay block 的本地 alert records
+- `agentledger.failure.export.v1`：带 OpenTelemetry、Langfuse、LangSmith、Temporal-style mapping hints 的 portable export
 
 它刻意覆盖生产里常见的非 happy path，不只是 terminal failure。例如 `PENDING_VERIFICATION` 的 Tool Ledger 记录会变成 `unknown_side_effect` envelope，并标记 `manual_verification` recoverability，因为盲目 retry 可能造成外部副作用重复。
 
-`1.3.6` 不宣称完整 Agent Failure Lifecycle 已经全部完成。更丰富的 causal graph、failure export mapping、alert sink、failure regression workflow 仍然在 roadmap 中。本版本稳定新增的是 portable read model 和默认 Inspector panel。
+`1.4.0` 不把 AgentLedger 变成 incident-management、eval 或 observability SaaS。稳定新增的是 runtime-owned portable failure contract，以及 Inspector 对这套 contract 的展示。外部系统可以消费 export，不需要读取内部 runtime tables。
 
 ## 导航和交叉链接
 
@@ -312,12 +313,13 @@ data = report.to_dict()
 - event/timeline read-model row 中的 runtime run id 和提取出的 agent run id
 - 对长 id、全宽 JSON details 和分页 run list 更稳的 static HTML 布局
 
-`1.3.6` 已实现：
+`1.4.0` 已实现：
 
 - `agentledger.failure.envelope.v1` normalized failure read model
-- `agentledger failure report` 输出 failure envelopes
-- Inspector JSON/static HTML 的 Failure Envelopes panel
-- missing payload、retry scheduling、pending approval、pending tool verification、blocked tool、terminal failure 等非 happy path 覆盖
+- `agentledger.failure.lifecycle.v1`、`agentledger.failure.causal_graph.v1`、`agentledger.failure.replay_plan.v1`、`agentledger.failure.regression.v1`、`agentledger.failure.alerts.v1`、`agentledger.failure.export.v1`
+- `agentledger failure report` 输出 failure lifecycle 数据，`agentledger failure export` 输出 portable export
+- Inspector JSON/static HTML 的 Failure Lifecycle、Failure Replay Plan、Failure Alerts、Failure Causal Graph panels
+- missing payload、retry scheduling、pending approval、pending tool verification、blocked tool、unsafe replay planning、terminal failure 等非 happy path 覆盖
 
 本版本不包含：
 

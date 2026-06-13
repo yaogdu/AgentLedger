@@ -165,6 +165,7 @@ export class AgentContext {
 export function exportEvidence(store: JSONStore, runId: string): JSONObject;
 export function replay(store: JSONStore, runId: string): JSONObject;
 export function costAttribution(store: JSONStore, runId: string): JSONObject;
+export type FailureAttributionReport = JSONObject;
 export function failureAttribution(store: JSONStore, runId: string): JSONObject;
 
 export function traceSpans(bundle: any): any[];

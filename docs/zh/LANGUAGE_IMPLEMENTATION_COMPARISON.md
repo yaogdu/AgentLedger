@@ -4,7 +4,7 @@
 
 本文明确四种语言的实现边界。AgentLedger 的“完全对齐”指 **portable runtime-core parity**，不是要求每种语言都有完全相同的 provider、云 SDK、沙箱执行器或生态框架 adapter。
 
-Patch 版本不需要在所有语言里强行同步。当某个 release 只修改某个语言的 package、companion tool、read model 或 adapter wrapper 时，只发布受影响的包即可。例如 `1.3.6` 通过 Python/PyPI 发布 packaged Inspector 和 normalized failure-envelope read model，而 Go、TypeScript、Rust runtime-core baseline 保持在最近一次共享 runtime-core release。只要共享 contract、conformance fixture 和 portable runtime 语义没有变化，这不影响 runtime-core parity claim。
+Patch 版本不需要在所有语言里强行同步。当某个 release 只修改某个语言的 package、companion tool、read model 或 adapter wrapper 时，只发布受影响的包即可。`1.4.0` 不同：它是 Agent Failure Lifecycle 的四语言 runtime-core feature release，所以 Python、Go、TypeScript、Rust 都进入同一个 runtime-core release family。Inspector 仍是通过 Python/PyPI 分发的 language-neutral companion viewer，但 failure lifecycle contract 本身已经在四种 runtime package 中实现。
 
 ## 表格说明
 

@@ -13,10 +13,10 @@ from agentledger_s3 import S3BlobStore, S3BlobStoreConfig
 blobs = S3BlobStore(S3BlobStoreConfig.from_env())
 ```
 
-This package supports AWS S3 and S3-compatible services such as MinIO through `endpoint_url`. It re-exports the stable adapter classes from `agentledger.blobstore_s3` in the current `1.3.x` release train.
+This package supports AWS S3 and S3-compatible services such as MinIO through `endpoint_url`. It re-exports the stable adapter classes from `agentledger.blobstore_s3` in the current `1.4.x` release train.
 
 Certification:
 
 ```bash
-python3 -m agentledger adapter certify --kind s3 --adapter-version 1.3.1
+python3 -m agentledger adapter certify --kind s3 --adapter-version 1.4.0
 ```

@@ -135,7 +135,7 @@ Each adapter package should provide:
 
 ## First Adapter Packages
 
-| Package | Owns in current `1.3.x` release train | Dependency status |
+| Package | Owns in current `1.4.x` release train | Dependency status |
 | --- | --- | --- |
 | `agentledger-postgres` | `PostgresStore`, `PostgresStoreConfig`, migration/conformance helpers | Requires `psycopg[binary]`; production rollout still needs real-service drills. |
 | `agentledger-mysql` | `MySQLStore`, `MySQLStoreConfig`, migration/conformance helpers | Requires `pymysql`; production rollout still needs real-service drills. |
@@ -240,8 +240,8 @@ The packaging release is expected to pass:
 
 ```bash
 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m unittest discover -s tests -q
-PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m agentledger adapter certify --kind postgres --adapter-version 1.3.1
-PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m agentledger adapter certify --kind mysql --adapter-version 1.3.1
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m agentledger adapter certify --kind postgres --adapter-version 1.4.0
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m agentledger adapter certify --kind mysql --adapter-version 1.4.0
 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 scripts/check_adapter_packages.py
 go test ./...
 cd typescript && npm test

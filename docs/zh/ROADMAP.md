@@ -334,10 +334,11 @@ complete core parity/package dry-run script
 1.2.x  adapter packaging fixes、framework-native smoke、package docs polish
 1.3.0  language-neutral Inspector：read-only DB/evidence consumer 和 static HTML debug report
 1.3.x  richer Inspector/report UX、redaction、evidence-driven replay/regression lab
-1.4.0  sub-agent/multi-agent runtime semantics：parent-child runs、spawn/join、cancellation/failure/cost attribution
-1.5.0  media adapter release：frame/audio/video refs、transcription/embedding adapters、stream transports
-1.6.0  ModelGateway/ModelRouter contract：ctx.call_model、model events、provider injection、fallback/budget/replay semantics
-1.6.x  optional model provider/router adapters，继续保持在 runtime-core 之外
+1.4.0  Agent Failure Lifecycle：normalized failures、lifecycle、causal graph、replay plan、regression、alerts、export mappings
+1.5.0  sub-agent/multi-agent runtime semantics：parent-child runs、spawn/join、cancellation/failure/cost attribution
+1.6.0  media adapter release：frame/audio/video refs、transcription/embedding adapters、stream transports
+1.7.0  ModelGateway/ModelRouter contract：ctx.call_model、model events、provider injection、fallback/budget/replay semantics
+1.7.x  optional model provider/router adapters，继续保持在 runtime-core 之外
 ```
 
 ## v1.1.0 - Adapter Certification And Reliability Gate Upgrade
@@ -478,9 +479,9 @@ shadow mode comparison workflows
 additional golden evidence fixtures
 ```
 
-## Post-v1 - Agent Failure Lifecycle
+## 1.4.0 - Agent Failure Lifecycle
 
-状态：部分已实现。AgentLedger 现在已经会记录和报告 runtime 拥有的 failure evidence，包括 worker crash、lease expiry、stale worker fencing、cancellation、retry exhaustion、policy denial、sandbox failure、tool/model/runtime failure、budget failure 和 replay divergence。后续应该把它整理成更清晰的生命周期：classify、attribute、recover、inspect、regress、export。
+状态：1.4.0 已作为 runtime-core baseline 在 Python、Go、TypeScript、Rust 四种语言中实现。AgentLedger 现在会记录和报告 runtime 拥有的 failure evidence，包括 worker crash、lease expiry、stale worker fencing、cancellation、retry exhaustion、policy denial、sandbox failure、tool/model/runtime failure、budget failure、unknown side-effect state 和 replay divergence。1.4.0 把它整理成可移植生命周期：classify、attribute、recover、inspect、regress、export。
 
 范围：
 
@@ -489,7 +490,7 @@ agent execution failure：只有 runtime boundary 才能可靠保证时，属于
 agent answer-quality failure：属于 evidence consumer、eval tool 或 adapter，不直接塞进 runtime-core
 ```
 
-当前已实现：
+1.4.0 已实现：
 
 ```text
 runtime / agent / tool / model / policy / sandbox / budget / cancellation / retry 的 failure taxonomy
@@ -498,28 +499,23 @@ crash、retry、lease fencing、cancellation fencing、side-effect safety 的 fa
 evidence bundle 中包含 failed step、failure event、Tool Ledger state、cost record、approval/policy decision、artifact 和 replay ref
 Inspector 和 static debug view 可以展示 failure event、risk flag、cost/failure record 和 event timeline
 四语言 conformance 覆盖 failure injection、cost/failure attribution、scheduler recovery、cancellation、replay、shadow/evidence regression
-```
-
-计划中的 runtime-core 工作：
-
-```text
 稳定的 AgentFailure / FailureEnvelope read model：category、severity、recoverability、retryability、owner、causal refs、evidence refs
 failure_detected / failure_classified / failure_recovery_scheduled / failure_recovered / failure_terminal / failure_regressed 等生命周期事件
-更丰富的 recovery policy metadata：retry budget、backoff、manual approval required、sandbox escalation、alternate tool/model fallback、terminal stop reason
-把 model call、tool call、state commit、approval decision、sandbox run、worker lease、child-agent run 串成 failure causal graph
-failure replay mode：复现 evidence path，但不重复不安全副作用
-failure regression fixtures：覆盖 recurring failure、fixed failure、新引入 failure
+把 model call、tool call、state commit、approval decision、sandbox run、worker lease 和 runtime evidence 串成 failure causal graph
+failure replay plan：解释排查时能否复用 archived evidence，或者必须阻止 unsafe side-effect replay
+failure regression analyzer：覆盖 recurring failure、fixed failure、新引入 failure
 面向外部 observability、incident review、eval、support system 的 failure export format
-Inspector failure panels：failure timeline、root-cause candidates、recovery attempts、retry/fallback history、evidence links
+terminal failure、unknown side-effect state、costly failure、unsafe replay block 的本地 alert records
+Inspector failure panels：failure lifecycle、replay plan、alert records、causal graph、evidence links
 ```
 
-计划中的 adapter / evidence-consumer 工作：
+后续 adapter / evidence-consumer 工作：
 
 ```text
-Langfuse / LangSmith / OpenTelemetry failure export mappings
+更深入的 Langfuse / LangSmith / OpenTelemetry live exporter integrations，不只是本地 JSON mapping
 Temporal / Ray / Kubernetes failure propagation recipes，保证外部 backend 中仍保留 AgentLedger failure evidence
 eval adapter examples：消费 AgentLedger evidence 来识别 answer-quality failure、hallucination、policy miss、task-level correctness regression
-alerting/report sinks：重复 terminal failure、高成本 failure loop、replay divergence、side-effect unknown state
+alerting/report sinks：把本地 alert records 发送到具体外部系统
 ```
 
 runtime-core 明确非目标：
@@ -674,13 +670,15 @@ event/timeline row 中的 runtime run id 和提取出的 agent run id
 run list static HTML 分页，以及 Inspector、evidence、time-travel 表格中的全宽 JSON/details 行
 ```
 
-`1.3.6` 已实现：
+`1.4.0` 已实现：
 
 ```text
 agentledger.failure.envelope.v1 normalized failure read model
-agentledger failure report 输出 failure envelopes
-Inspector Failure Envelopes panel，覆盖 terminal failure、retry、waiting approval、blocked tool、unknown side-effect state
-missing event payload、retry scheduling、pending approval、pending tool verification、blocked tool、terminal failure report、Inspector HTML rendering 的非 happy path 测试
+agentledger.failure.lifecycle.v1、agentledger.failure.causal_graph.v1、agentledger.failure.replay_plan.v1、agentledger.failure.regression.v1、agentledger.failure.alerts.v1、agentledger.failure.export.v1
+agentledger failure report 输出 failure lifecycle 数据，agentledger failure export 输出 portable export
+agentledger failure regress 提供 failure regression comparison
+Inspector Failure Lifecycle、Failure Replay Plan、Failure Alerts、Failure Causal Graph panels
+missing event payload、retry scheduling、pending approval、pending tool verification、blocked tool、unsafe replay planning、terminal failure report、export mappings、Inspector HTML rendering 的非 happy path 测试
 ```
 
 后续工作：

@@ -330,10 +330,11 @@ Follow-up versions:
 1.2.x  adapter packaging fixes, framework-native smoke, and package docs polish
 1.3.0  language-neutral Inspector: read-only DB/evidence consumer and static HTML debug report
 1.3.x  richer Inspector/report UX, redaction, and evidence-driven replay/regression lab
-1.4.0  sub-agent/multi-agent runtime semantics: parent-child runs, spawn/join, cancellation/failure/cost attribution
-1.5.0  media adapter release: frame/audio/video refs, transcription/embedding adapters, stream transports
-1.6.0  ModelGateway/ModelRouter contract: ctx.call_model, model events, provider injection, fallback/budget/replay semantics
-1.6.x  optional model provider/router adapters, kept outside runtime-core
+1.4.0  Agent Failure Lifecycle: normalized failures, lifecycle, causal graph, replay plan, regression, alerts, export mappings
+1.5.0  sub-agent/multi-agent runtime semantics: parent-child runs, spawn/join, cancellation/failure/cost attribution
+1.6.0  media adapter release: frame/audio/video refs, transcription/embedding adapters, stream transports
+1.7.0  ModelGateway/ModelRouter contract: ctx.call_model, model events, provider injection, fallback/budget/replay semantics
+1.7.x  optional model provider/router adapters, kept outside runtime-core
 ```
 
 ## v1.1.0 - Adapter Certification And Reliability Gate Upgrade
@@ -517,9 +518,9 @@ Exit criteria:
 - media pipeline replay can reuse captured frame/segment artifacts instead of reprocessing raw media
 - regression and external eval results link back to evidence bundles
 
-## Post-v1 - Agent Failure Lifecycle
+## 1.4.0 - Agent Failure Lifecycle
 
-Status: partially implemented. AgentLedger already records and reports runtime-owned failure evidence, including worker crashes, lease expiry, stale worker fencing, cancellation, retry exhaustion, policy denial, sandbox failure, tool/model/runtime failures, budget failures, and replay divergence. Future work should make this a clearer lifecycle: classify, attribute, recover, inspect, regress, and export.
+Status: implemented as a runtime-core baseline in 1.4.0 across Python, Go, TypeScript, and Rust. AgentLedger records and reports runtime-owned failure evidence, including worker crashes, lease expiry, stale worker fencing, cancellation, retry exhaustion, policy denial, sandbox failure, tool/model/runtime failures, budget failures, unknown side-effect states, and replay divergence. The 1.4.0 baseline makes this a portable lifecycle: classify, attribute, recover, inspect, regress, and export.
 
 Scope:
 
@@ -528,7 +529,7 @@ agent execution failure belongs in runtime-core when the runtime boundary is req
 agent answer-quality failure belongs in evidence consumers, eval tools, or adapters
 ```
 
-Implemented today:
+Implemented in 1.4.0:
 
 - failure taxonomy for runtime, agent, tool, model, policy, sandbox, budget, cancellation, and retry paths
 - failure attribution report and cost/failure attribution records
@@ -536,24 +537,21 @@ Implemented today:
 - evidence bundles that include failed steps, failure events, Tool Ledger state, cost records, approval/policy decisions, artifacts, and replay refs
 - Inspector and static debug views that can surface failure events, risk flags, cost/failure records, and event timelines
 - cross-language conformance coverage for failure injection, cost/failure attribution, scheduler recovery, cancellation, replay, and shadow/evidence regression
-
-Planned runtime-core work:
-
 - stable `AgentFailure` / `FailureEnvelope` read model with normalized category, severity, recoverability, retryability, owner, causal refs, and evidence refs
 - failure lifecycle events such as `failure_detected`, `failure_classified`, `failure_recovery_scheduled`, `failure_recovered`, `failure_terminal`, and `failure_regressed`
-- richer recovery policy metadata: retry budget, backoff, manual approval required, sandbox escalation, alternate tool/model fallback, and terminal stop reason
-- causal graph linking model calls, tool calls, state commits, approval decisions, sandbox runs, worker leases, and child-agent runs to one failure chain
-- failure replay mode that can reproduce the evidence path without repeating unsafe side effects
-- failure regression fixtures for recurring failures, fixed failures, and newly introduced failures
+- causal graph linking model calls, tool calls, state commits, approval decisions, sandbox runs, worker leases, and runtime evidence to one failure chain
+- failure replay plan that can explain whether investigation can reuse archived evidence or must block unsafe side-effect replay
+- failure regression analyzer for recurring failures, fixed failures, and newly introduced failures
 - failure export format for external observability, incident review, eval, and support systems
-- Inspector panels for failure timeline, root-cause candidates, recovery attempts, retry/fallback history, and evidence links
+- local alert records for terminal failures, unknown side-effect states, costly failures, and unsafe replay blocks
+- Inspector panels for failure lifecycle, replay plan, alert records, causal graph, and evidence links
 
-Planned adapter / evidence-consumer work:
+Follow-up adapter / evidence-consumer work:
 
-- Langfuse/LangSmith/OpenTelemetry failure export mappings
+- deeper Langfuse/LangSmith/OpenTelemetry live exporter integrations beyond local JSON mapping
 - Temporal/Ray/Kubernetes failure propagation recipes that preserve AgentLedger failure evidence inside external execution backends
 - eval adapter examples that consume AgentLedger evidence to detect answer-quality failures, hallucination, policy misses, or task-level correctness regressions
-- alerting/report sinks for repeated terminal failures, high-cost failure loops, replay divergence, and side-effect unknown states
+- alerting/report sinks that send local alert records to concrete external systems
 
 Explicit non-goals for runtime-core:
 
@@ -625,12 +623,14 @@ Implemented in `1.3.5`:
 - runtime run id and extracted agent run id in event/timeline rows
 - paginated run-list static HTML and full-width JSON/details rows for Inspector, evidence, and time-travel tables
 
-Implemented in `1.3.6`:
+Implemented in `1.4.0`:
 
 - `agentledger.failure.envelope.v1` normalized failure read model
-- failure envelopes in `agentledger failure report`
-- Inspector Failure Envelopes panel for terminal failures, retries, waiting approvals, blocked tools, and unknown side-effect states
-- non-happy-path tests for missing event payloads, retry scheduling, pending approvals, pending tool verification, blocked tools, terminal failure reports, and Inspector HTML rendering
+- `agentledger.failure.lifecycle.v1`, `agentledger.failure.causal_graph.v1`, `agentledger.failure.replay_plan.v1`, `agentledger.failure.regression.v1`, `agentledger.failure.alerts.v1`, and `agentledger.failure.export.v1`
+- failure lifecycle data in `agentledger failure report` and portable export data from `agentledger failure export`
+- failure regression comparison through `agentledger failure regress`
+- Inspector Failure Lifecycle, Failure Replay Plan, Failure Alerts, and Failure Causal Graph panels
+- non-happy-path tests for missing event payloads, retry scheduling, pending approvals, pending tool verification, blocked tools, unsafe replay planning, terminal failure reports, export mappings, and Inspector HTML rendering
 
 Follow-up work:
 

@@ -1317,11 +1317,157 @@ export function costAttribution(store, runId) {
 
 export function failureAttribution(store, runId) {
   const run = store.run(runId);
+  const steps = store.steps(runId);
+  const ledger = store.ledger(runId);
+  const approvals = store.approvalRequests(runId);
+  const events = store.events(runId);
   const failedSteps = store.steps(runId).filter((step) => step.status === 'failed');
   const pendingVerification = store.ledger(runId).filter((entry) => entry.status === 'PENDING_VERIFICATION');
   const pendingApprovals = store.approvalRequests(runId).filter((entry) => entry.status === 'PENDING');
-  const failureEvents = store.events(runId).filter((event) => failureEventTypes.has(event.type));
-  return { run_id: runId, run_status: run.status, failed_steps: failedSteps, pending_verification: pendingVerification, pending_approvals: pendingApprovals, failure_events: failureEvents, summary: { failed_step_count: failedSteps.length, pending_verification_count: pendingVerification.length, pending_approval_count: pendingApprovals.length, failure_event_count: failureEvents.length } };
+  const failureEvents = events.filter((event) => failureEventTypes.has(event.type));
+  const failureEnvelopes = buildFailureEnvelopes({ runId, runStatus: run.status, steps, ledger, approvals, events: failureEvents });
+  const failureLifecycle = buildFailureLifecycle(runId, run.status, failureEnvelopes);
+  const failureCausalGraph = buildFailureCausalGraph(runId, run.status, failureEnvelopes, steps, ledger, approvals, events, store.costRecords(runId));
+  const failureReplayPlan = buildFailureReplayPlan(runId, failureEnvelopes, ledger, events);
+  const failureAlerts = buildFailureAlerts(runId, failureEnvelopes, failureReplayPlan);
+  const summary = {
+    failed_step_count: failedSteps.length,
+    pending_verification_count: pendingVerification.length,
+    pending_approval_count: pendingApprovals.length,
+    failure_event_count: failureEvents.length,
+    failure_envelope_count: failureEnvelopes.length,
+    failure_lifecycle_event_count: failureLifecycle.events.length,
+    failure_alert_count: failureAlerts.alert_count,
+    unsafe_replay_side_effect_count: failureReplayPlan.unsafe_side_effect_count,
+    terminal_failure_count: failureEnvelopes.filter((item) => item.status === 'terminal').length,
+    recoverable_failure_count: failureEnvelopes.filter((item) => ['auto_retry', 'recoverable', 'manual_verification', 'human_required'].includes(item.recoverability)).length,
+  };
+  const failureExport = buildFailureExport(runId, run.status, summary, failureEnvelopes, failureLifecycle, failureCausalGraph, failureReplayPlan, failureAlerts);
+  return { run_id: runId, run_status: run.status, failed_steps: failedSteps, pending_verification: pendingVerification, pending_approvals: pendingApprovals, failure_events: failureEvents, failure_envelopes: failureEnvelopes, failure_lifecycle: failureLifecycle, failure_causal_graph: failureCausalGraph, failure_replay_plan: failureReplayPlan, failure_alerts: failureAlerts, failure_export: failureExport, summary };
+}
+
+function buildFailureEnvelopes({ runId, runStatus, steps, ledger, approvals, events }) {
+  const rows = [];
+  for (const step of steps) {
+    if (['failed', 'retry_scheduled', 'waiting_human'].includes(step.status)) {
+      const retry = step.status === 'retry_scheduled';
+      const waiting = step.status === 'waiting_human';
+      rows.push(failureEnvelope({
+        runId, sourceKind: 'step', sourceId: step.step_id, category: failureCategory(`${step.last_error_type ?? ''} ${step.last_error ?? ''}`, 'agent'),
+        status: retry ? 'recovery_scheduled' : waiting ? 'waiting_human' : 'terminal',
+        severity: retry || waiting ? 'warn' : 'risk',
+        recoverability: retry ? 'auto_retry' : waiting ? 'human_required' : 'terminal',
+        retryability: retry ? 'retryable' : 'not_retryable',
+        owner: 'agent', message: firstText(step.last_error, step.last_error_type, 'step failure'),
+        extra: { step_id: step.step_id, occurred_at: step.updated_at },
+        refs: [{ kind: 'step', value: step.step_id }],
+      }));
+    }
+  }
+  for (const entry of ledger) {
+    if (['PENDING_VERIFICATION', 'FAILED', 'ERROR'].includes(entry.status)) {
+      const terminal = ['FAILED', 'ERROR'].includes(entry.status);
+      rows.push(failureEnvelope({
+        runId, sourceKind: 'tool_ledger', sourceId: firstText(entry.ledger_id, entry.tool_name, entry.step_id), category: 'tool',
+        status: terminal ? 'terminal' : 'unknown_side_effect',
+        severity: terminal ? 'risk' : 'warn',
+        recoverability: terminal ? 'terminal' : 'manual_verification',
+        retryability: terminal ? 'not_retryable' : 'unknown',
+        owner: 'tool', message: firstText(entry.error_type, entry.error, 'tool side effect requires verification'),
+        extra: { step_id: entry.step_id, tool_name: entry.tool_name, occurred_at: entry.updated_at },
+        refs: [{ kind: 'step', value: entry.step_id }, { kind: 'tool', value: entry.tool_name }],
+      }));
+    }
+  }
+  for (const approval of approvals) {
+    if (['PENDING', 'DENIED'].includes(approval.status)) {
+      const denied = approval.status === 'DENIED';
+      rows.push(failureEnvelope({
+        runId, sourceKind: 'approval', sourceId: firstText(approval.approval_id, approval.tool_name, approval.step_id), category: denied ? 'policy' : 'approval',
+        status: denied ? 'blocked' : 'waiting_human',
+        severity: denied ? 'risk' : 'warn',
+        recoverability: denied ? 'terminal' : 'human_required',
+        retryability: denied ? 'not_retryable' : 'unknown',
+        owner: 'policy', message: firstText(approval.decision_reason, approval.reason, denied ? 'approval denied' : 'approval pending'),
+        extra: { step_id: approval.step_id, tool_name: approval.tool_name, approval_id: approval.approval_id, occurred_at: approval.updated_at },
+        refs: [{ kind: 'step', value: approval.step_id }, { kind: 'tool', value: approval.tool_name }, { kind: 'approval', value: approval.approval_id }],
+      }));
+    }
+  }
+  for (const event of events) {
+    const category = eventFailureCategory(event);
+    const status = eventFailureStatus(event.type, runStatus);
+    rows.push(failureEnvelope({
+      runId, sourceKind: 'event', sourceId: String(event.seq ?? event.type), category,
+      status, severity: ['terminal', 'blocked', 'failed'].includes(status) ? 'risk' : 'warn',
+      recoverability: eventRecoverability(event.type, runStatus),
+      retryability: eventRetryability(event.type),
+      owner: ownerForFailureCategory(category),
+      message: firstText(event.payload?.error, event.payload?.reason, event.payload?.error_type, event.type),
+      extra: { step_id: event.step_id, event_seq: event.seq, event_type: event.type, occurred_at: event.timestamp },
+      refs: [{ kind: 'event', value: String(event.seq) }, { kind: 'step', value: event.step_id }],
+    }));
+  }
+  return dedupeBy(rows, 'failure_id');
+}
+
+function failureEnvelope({ runId, sourceKind, sourceId, category, status, severity, recoverability, retryability, owner, message, extra = {}, refs = [] }) {
+  const env = { schema_version: 'agentledger.failure.envelope.v1', failure_id: `failure-${slug(`${runId}-${sourceKind}-${sourceId}`)}`, run_id: runId, source_kind: sourceKind, source_id: sourceId, category, status, severity, recoverability, retryability, owner, message, causal_refs: cleanRefs(refs), evidence_refs: cleanRefs(refs) };
+  for (const [key, value] of Object.entries(extra)) if (value !== undefined && value !== null && value !== '') env[key] = value;
+  return env;
+}
+
+function buildFailureLifecycle(runId, runStatus, envelopes) {
+  const events = [];
+  for (const env of envelopes) {
+    events.push(lifecycleRow(runId, env, 'failure_detected', env.message, env.severity));
+    events.push(lifecycleRow(runId, env, 'failure_classified', env.category, env.severity));
+    if (['recovery_scheduled', 'waiting_human', 'unknown_side_effect'].includes(env.status) || ['auto_retry', 'human_required', 'manual_verification'].includes(env.recoverability)) events.push(lifecycleRow(runId, env, 'failure_recovery_scheduled', 'recovery scheduled', 'warn'));
+    if (['terminal', 'blocked'].includes(env.status) || env.recoverability === 'terminal') events.push(lifecycleRow(runId, env, 'failure_terminal', env.message, 'risk'));
+  }
+  return { schema_version: 'agentledger.failure.lifecycle.v1', run_id: runId, run_status: runStatus, events, terminal: events.some((row) => row.stage === 'failure_terminal'), recoverable: events.some((row) => row.stage === 'failure_recovery_scheduled') };
+}
+
+function lifecycleRow(runId, env, stage, message, severity) {
+  return { schema_version: 'agentledger.failure.lifecycle.v1', stage, run_id: runId, failure_id: env.failure_id, category: env.category, recoverability: env.recoverability, retryability: env.retryability, owner: env.owner, message: String(message ?? ''), severity: String(severity ?? 'warn'), causal_refs: env.causal_refs };
+}
+
+function buildFailureCausalGraph(runId, runStatus, envelopes, steps, ledger, approvals, events, costs) {
+  const nodes = [{ id: `run:${slug(runId)}`, kind: 'run', status: runStatus }];
+  const edges = [];
+  for (const step of steps) { nodes.push({ id: `step:${slug(step.step_id)}`, kind: 'step', status: step.status }); edges.push({ source: `run:${slug(runId)}`, target: `step:${slug(step.step_id)}`, kind: 'contains_step' }); }
+  for (const event of events) { nodes.push({ id: `event:${event.seq}`, kind: 'event', event_type: event.type }); edges.push({ source: `run:${slug(runId)}`, target: `event:${event.seq}`, kind: 'emitted_event' }); }
+  for (const entry of ledger) nodes.push({ id: `tool:${slug(entry.tool_name)}`, kind: 'tool', status: entry.status });
+  for (const approval of approvals) nodes.push({ id: `approval:${slug(approval.approval_id)}`, kind: 'approval', status: approval.status });
+  for (const cost of costs) nodes.push({ id: `cost:${slug(cost.cost_id)}`, kind: 'cost', category: cost.category, amount: cost.amount, unit: cost.unit });
+  for (const env of envelopes) { const id = `failure:${slug(env.failure_id)}`; nodes.push({ id, kind: 'failure', category: env.category, status: env.status, owner: env.owner }); edges.push({ source: `run:${slug(runId)}`, target: id, kind: 'has_failure' }); }
+  const deduped = dedupeBy(nodes, 'id');
+  return { schema_version: 'agentledger.failure.causal_graph.v1', run_id: runId, nodes: deduped, edges, summary: { node_count: deduped.length, edge_count: edges.length, failure_node_count: deduped.filter((row) => row.kind === 'failure').length } };
+}
+
+function buildFailureReplayPlan(runId, envelopes, ledger, events) {
+  let unsafe = 0; let manual = 0;
+  const actions = envelopes.map((env) => {
+    const action = { failure_id: env.failure_id, category: env.category, status: env.status, replay_action: 'reuse_recorded_evidence', replay_safe: true, requires_manual_verification: false, reason: 'recorded runtime evidence can be inspected without calling external systems' };
+    if (env.status === 'unknown_side_effect' || env.recoverability === 'manual_verification') { action.replay_action = 'manual_verify_side_effect'; action.replay_safe = false; action.requires_manual_verification = true; action.reason = 'Tool Ledger recorded an unknown side-effect state'; unsafe += 1; manual += 1; }
+    else if (env.status === 'waiting_human') action.replay_action = 'resume_after_approval';
+    else if (env.status === 'recovery_scheduled') action.replay_action = 'retry_from_checkpoint';
+    else if (['terminal', 'blocked'].includes(env.status)) action.replay_action = 'terminal_stop';
+    return action;
+  });
+  return { schema_version: 'agentledger.failure.replay_plan.v1', run_id: runId, mode: 'evidence_only', safe_to_replay: unsafe === 0, unsafe_side_effect_count: unsafe, manual_verification_count: manual, recorded_tool_call_count: ledger.length, recorded_event_count: events.length, actions };
+}
+
+function buildFailureAlerts(runId, envelopes, replayPlan) {
+  const alerts = [];
+  if (envelopes.some((item) => item.status === 'terminal')) alerts.push({ schema_version: 'agentledger.failure.alerts.v1', run_id: runId, kind: 'terminal_failure', severity: 'risk', message: 'terminal failure recorded' });
+  if (envelopes.some((item) => item.status === 'unknown_side_effect')) alerts.push({ schema_version: 'agentledger.failure.alerts.v1', run_id: runId, kind: 'unknown_side_effect', severity: 'risk', message: 'tool side-effect state requires manual verification' });
+  if (replayPlan.unsafe_side_effect_count) alerts.push({ schema_version: 'agentledger.failure.alerts.v1', run_id: runId, kind: 'unsafe_replay_blocked', severity: 'risk', message: 'failure replay plan blocks unsafe automatic replay' });
+  return { schema_version: 'agentledger.failure.alerts.v1', run_id: runId, alerts, alert_count: alerts.length };
+}
+
+function buildFailureExport(runId, runStatus, summary, envelopes, lifecycle, graph, replayPlan, alerts) {
+  return { schema_version: 'agentledger.failure.export.v1', run_id: runId, run_status: runStatus, summary, failure_envelopes: envelopes, failure_lifecycle: lifecycle, failure_causal_graph: graph, failure_replay_plan: replayPlan, failure_alerts: alerts, external_mappings: { opentelemetry: { span_event_count: lifecycle.events.length }, langfuse: { trace_id: runId, observation_count: envelopes.length }, langsmith: { run_id: runId, feedback_count: envelopes.length }, temporal: { workflow_id: runId, failure_count: envelopes.length, safe_to_replay: replayPlan.safe_to_replay } } };
 }
 
 function emptyData() {
@@ -1436,6 +1582,87 @@ function failureSource(errorType) {
 }
 
 const failureEventTypes = new Set(['failure_classified', 'error_raised', 'step_failed', 'step_retry_scheduled', 'step_waiting_human', 'lease_expired', 'run_cancel_requested', 'run_cancelled', 'tool_call_failed', 'tool_approval_required', 'budget_check_failed']);
+
+function failureCategory(text, fallback = 'agent') {
+  const lower = String(text ?? '').toLowerCase();
+  for (const category of ['sandbox', 'budget', 'policy', 'model', 'tool', 'runtime']) if (lower.includes(category)) return category;
+  if (lower.includes('approval') || lower.includes('permission') || lower.includes('denied')) return 'policy';
+  if (lower.includes('lease') || lower.includes('worker')) return 'runtime';
+  if (lower.includes('cancel')) return 'cancellation';
+  return fallback;
+}
+
+function eventFailureCategory(event) {
+  if (['tool_call_failed', 'tool_call_blocked', 'tool_approval_required'].includes(event.type)) return 'tool';
+  if (['run_cancel_requested', 'run_cancelled', 'step_cancelled'].includes(event.type)) return 'cancellation';
+  if (event.type === 'lease_expired') return 'runtime';
+  if (event.type === 'step_retry_scheduled') return 'retry';
+  if (event.type === 'step_waiting_human') return 'approval';
+  return failureCategory(`${event.type ?? ''} ${event.payload?.error_type ?? ''} ${event.payload?.error ?? ''} ${event.payload?.reason ?? ''}`, 'agent');
+}
+
+function eventFailureStatus(type, runStatus) {
+  if (['step_failed', 'run_cancelled', 'step_cancelled'].includes(type) || (runStatus === 'failed' && type === 'error_raised')) return 'terminal';
+  if (type === 'tool_call_blocked') return 'blocked';
+  if (['step_retry_scheduled', 'lease_expired'].includes(type)) return 'recovery_scheduled';
+  if (['step_waiting_human', 'tool_approval_required'].includes(type)) return 'waiting_human';
+  if (type === 'failure_classified') return 'classified';
+  return 'failed';
+}
+
+function eventRecoverability(type, runStatus) {
+  if (runStatus === 'failed' && ['step_failed', 'run_cancelled', 'step_cancelled'].includes(type)) return 'terminal';
+  if (['step_retry_scheduled', 'lease_expired'].includes(type)) return 'auto_retry';
+  if (['step_waiting_human', 'tool_approval_required'].includes(type)) return 'human_required';
+  if (type === 'tool_call_blocked') return 'manual_intervention';
+  return 'unknown';
+}
+
+function eventRetryability(type) {
+  if (['step_retry_scheduled', 'lease_expired'].includes(type)) return 'retryable';
+  if (['tool_call_blocked', 'run_cancelled', 'step_cancelled'].includes(type)) return 'not_retryable';
+  return 'unknown';
+}
+
+function ownerForFailureCategory(category) {
+  if (['tool', 'model', 'policy', 'sandbox', 'budget', 'runtime'].includes(category)) return category;
+  if (['approval', 'cancellation', 'retry'].includes(category)) return 'runtime';
+  return 'agent';
+}
+
+function firstText(...values) {
+  for (const value of values) if (value !== undefined && value !== null && value !== '') return String(value);
+  return 'failure signal';
+}
+
+function cleanRefs(refs) {
+  const out = [];
+  const seen = new Set();
+  for (const ref of refs) {
+    if (!ref || ref.value === undefined || ref.value === null || ref.value === '') continue;
+    const key = `${ref.kind}:${ref.value}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({ kind: String(ref.kind), value: String(ref.value) });
+  }
+  return out;
+}
+
+function slug(value) {
+  return String(value ?? 'unknown').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'unknown';
+}
+
+function dedupeBy(rows, key) {
+  const out = [];
+  const seen = new Set();
+  for (const row of rows) {
+    const value = String(row[key] ?? '');
+    if (!value || seen.has(value)) continue;
+    seen.add(value);
+    out.push(row);
+  }
+  return out;
+}
 
 const MEDIA_SCHEMA_VERSION = 'agentledger.media.v0';
 const STREAM_SCHEMA_VERSION = 'agentledger.stream.v0';

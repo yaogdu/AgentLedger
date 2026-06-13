@@ -37,7 +37,7 @@ failed run inspector: /tmp/agentledger-inspector-failure-.../failed-run-inspecto
 failed run json: /tmp/agentledger-inspector-failure-.../failed-run-inspector.json
 ```
 
-Open `runs.html` to verify the list page and open `failed-run-inspector.html` to verify the single-run Event Stream and Failure Envelopes panel.
+Open `runs.html` to verify the list page and open `failed-run-inspector.html` to verify the single-run Event Stream, Failure Envelopes, lifecycle, replay plan, alerts, and causal graph panels.
 
 ## Production Notes
 

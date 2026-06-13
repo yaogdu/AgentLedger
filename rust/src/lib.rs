@@ -2567,6 +2567,12 @@ pub struct FailureAttributionReport {
     pub pending_verification: Vec<ToolLedgerEntry>,
     pub pending_approvals: Vec<ApprovalRequest>,
     pub failure_events: Vec<Event>,
+    pub failure_envelopes: Vec<State>,
+    pub failure_lifecycle: State,
+    pub failure_causal_graph: State,
+    pub failure_replay_plan: State,
+    pub failure_alerts: State,
+    pub failure_export: State,
     pub summary: State,
 }
 
@@ -2592,6 +2598,16 @@ pub fn failure_attribution(store: &MemoryStore, run_id: &str) -> Result<FailureA
         .into_iter()
         .filter(|event| is_failure_event(&event.event_type))
         .collect();
+    let steps = store.steps(run_id);
+    let ledger = store.ledger(run_id);
+    let approvals = store.approval_requests(run_id);
+    let events = store.events(run_id);
+    let costs = store.cost_records(run_id);
+    let failure_envelopes = failure_envelopes(run_id, &run.status, &steps, &ledger, &approvals, &failure_events);
+    let failure_lifecycle = failure_lifecycle(run_id, &run.status, &failure_envelopes);
+    let failure_causal_graph = failure_causal_graph(run_id, &run.status, &failure_envelopes, &steps, &ledger, &approvals, &events, &costs);
+    let failure_replay_plan = failure_replay_plan(run_id, &failure_envelopes, &ledger, &events);
+    let failure_alerts = failure_alerts(run_id, &failure_envelopes, &failure_replay_plan);
     let mut summary = State::new();
     summary.insert(
         "failed_step_count".to_string(),
@@ -2609,6 +2625,46 @@ pub fn failure_attribution(store: &MemoryStore, run_id: &str) -> Result<FailureA
         "failure_event_count".to_string(),
         Value::Number(failure_events.len() as f64),
     );
+    summary.insert(
+        "failure_envelope_count".to_string(),
+        Value::Number(failure_envelopes.len() as f64),
+    );
+    summary.insert(
+        "failure_lifecycle_event_count".to_string(),
+        Value::Number(state_array_len(&failure_lifecycle, "events") as f64),
+    );
+    summary.insert(
+        "failure_alert_count".to_string(),
+        failure_alerts
+            .get("alert_count")
+            .cloned()
+            .unwrap_or(Value::Number(0.0)),
+    );
+    summary.insert(
+        "unsafe_replay_side_effect_count".to_string(),
+        failure_replay_plan
+            .get("unsafe_side_effect_count")
+            .cloned()
+            .unwrap_or(Value::Number(0.0)),
+    );
+    summary.insert(
+        "terminal_failure_count".to_string(),
+        Value::Number(count_state_field(&failure_envelopes, "status", "terminal") as f64),
+    );
+    summary.insert(
+        "recoverable_failure_count".to_string(),
+        Value::Number(count_recoverable_failures(&failure_envelopes) as f64),
+    );
+    let failure_export = failure_export(
+        run_id,
+        &run.status,
+        &summary,
+        &failure_envelopes,
+        &failure_lifecycle,
+        &failure_causal_graph,
+        &failure_replay_plan,
+        &failure_alerts,
+    );
     Ok(FailureAttributionReport {
         run_id: run_id.to_string(),
         run_status: run.status,
@@ -2616,8 +2672,378 @@ pub fn failure_attribution(store: &MemoryStore, run_id: &str) -> Result<FailureA
         pending_verification,
         pending_approvals,
         failure_events,
+        failure_envelopes,
+        failure_lifecycle,
+        failure_causal_graph,
+        failure_replay_plan,
+        failure_alerts,
+        failure_export,
         summary,
     })
+}
+
+fn failure_envelopes(
+    run_id: &str,
+    run_status: &str,
+    steps: &[Step],
+    ledger: &[ToolLedgerEntry],
+    approvals: &[ApprovalRequest],
+    events: &[Event],
+) -> Vec<State> {
+    let mut rows = Vec::new();
+    for step in steps {
+        if step.status == "failed" || step.status == "retry_scheduled" || step.status == "waiting_human" {
+            let (status, severity, recoverability, retryability) = if step.status == "retry_scheduled" {
+                ("recovery_scheduled", "warn", "auto_retry", "retryable")
+            } else if step.status == "waiting_human" {
+                ("waiting_human", "warn", "human_required", "unknown")
+            } else {
+                ("terminal", "risk", "terminal", "not_retryable")
+            };
+            rows.push(failure_envelope(
+                run_id,
+                "step",
+                &step.step_id,
+                &failure_category(&format!(
+                    "{} {}",
+                    step.last_error_type.clone().unwrap_or_default(),
+                    step.last_error.clone().unwrap_or_default()
+                ), "agent"),
+                status,
+                severity,
+                recoverability,
+                retryability,
+                "agent",
+                &first_text(&[
+                    step.last_error.as_deref(),
+                    step.last_error_type.as_deref(),
+                    Some("step failure"),
+                ]),
+                state(&[
+                    ("step_id", step.step_id.clone().into()),
+                    ("occurred_at", Value::Number(step.updated_at)),
+                ]),
+                vec![ref_state("step", &step.step_id)],
+            ));
+        }
+    }
+    for entry in ledger {
+        if entry.status == "PENDING_VERIFICATION" || entry.status == "FAILED" || entry.status == "ERROR" {
+            let terminal = entry.status == "FAILED" || entry.status == "ERROR";
+            rows.push(failure_envelope(
+                run_id,
+                "tool_ledger",
+                &first_text(&[Some(&entry.ledger_id), Some(&entry.tool_name), Some(&entry.step_id)]),
+                "tool",
+                if terminal { "terminal" } else { "unknown_side_effect" },
+                if terminal { "risk" } else { "warn" },
+                if terminal { "terminal" } else { "manual_verification" },
+                if terminal { "not_retryable" } else { "unknown" },
+                "tool",
+                &first_text(&[entry.error_type.as_deref(), Some("tool side effect requires verification")]),
+                state(&[
+                    ("step_id", entry.step_id.clone().into()),
+                    ("tool_name", entry.tool_name.clone().into()),
+                    ("occurred_at", Value::Number(entry.updated_at)),
+                ]),
+                vec![ref_state("step", &entry.step_id), ref_state("tool", &entry.tool_name)],
+            ));
+        }
+    }
+    for approval in approvals {
+        if approval.status == "PENDING" || approval.status == "DENIED" {
+            let denied = approval.status == "DENIED";
+            rows.push(failure_envelope(
+                run_id,
+                "approval",
+                &first_text(&[Some(&approval.approval_id), Some(&approval.tool_name), Some(&approval.step_id)]),
+                if denied { "policy" } else { "approval" },
+                if denied { "blocked" } else { "waiting_human" },
+                if denied { "risk" } else { "warn" },
+                if denied { "terminal" } else { "human_required" },
+                if denied { "not_retryable" } else { "unknown" },
+                "policy",
+                &first_text(&[
+                    approval.decision_reason.as_deref(),
+                    Some(&approval.reason),
+                    Some(if denied { "approval denied" } else { "approval pending" }),
+                ]),
+                state(&[
+                    ("step_id", approval.step_id.clone().into()),
+                    ("tool_name", approval.tool_name.clone().into()),
+                    ("approval_id", approval.approval_id.clone().into()),
+                    ("occurred_at", Value::Number(approval.updated_at)),
+                ]),
+                vec![
+                    ref_state("step", &approval.step_id),
+                    ref_state("tool", &approval.tool_name),
+                    ref_state("approval", &approval.approval_id),
+                ],
+            ));
+        }
+    }
+    for event in events {
+        let category = event_failure_category(event);
+        let status = event_failure_status(&event.event_type, run_status);
+        let message = first_text(&[
+            state_string(&event.payload, "error").as_deref(),
+            state_string(&event.payload, "reason").as_deref(),
+            state_string(&event.payload, "error_type").as_deref(),
+            Some(&event.event_type),
+        ]);
+        rows.push(failure_envelope(
+            run_id,
+            "event",
+            &event.seq.to_string(),
+            &category,
+            &status,
+            if status == "terminal" || status == "blocked" || status == "failed" { "risk" } else { "warn" },
+            &event_recoverability(&event.event_type, run_status),
+            &event_retryability(&event.event_type),
+            &owner_for_failure_category(&category),
+            &message,
+            state(&[
+                ("step_id", event.step_id.clone().unwrap_or_default().into()),
+                ("event_seq", Value::Number(event.seq as f64)),
+                ("event_type", event.event_type.clone().into()),
+                ("occurred_at", Value::Number(event.timestamp)),
+            ]),
+            vec![
+                ref_state("event", &event.seq.to_string()),
+                ref_state("step", event.step_id.as_deref().unwrap_or("")),
+            ],
+        ));
+    }
+    dedupe_states(rows, "failure_id")
+}
+
+fn failure_envelope(
+    run_id: &str,
+    source_kind: &str,
+    source_id: &str,
+    category: &str,
+    status: &str,
+    severity: &str,
+    recoverability: &str,
+    retryability: &str,
+    owner: &str,
+    message: &str,
+    extra: State,
+    refs: Vec<State>,
+) -> State {
+    let mut row = state(&[
+        ("schema_version", "agentledger.failure.envelope.v1".into()),
+        ("failure_id", format!("failure-{}", slug(&format!("{run_id}-{source_kind}-{source_id}"))).into()),
+        ("run_id", run_id.into()),
+        ("source_kind", source_kind.into()),
+        ("source_id", source_id.into()),
+        ("category", category.into()),
+        ("status", status.into()),
+        ("severity", severity.into()),
+        ("recoverability", recoverability.into()),
+        ("retryability", retryability.into()),
+        ("owner", owner.into()),
+        ("message", message.into()),
+        ("causal_refs", Value::Array(refs.iter().cloned().map(Value::Object).collect())),
+        ("evidence_refs", Value::Array(refs.into_iter().map(Value::Object).collect())),
+    ]);
+    for (key, value) in extra {
+        if value != Value::String(String::new()) && value != Value::Null {
+            row.insert(key, value);
+        }
+    }
+    row
+}
+
+fn failure_lifecycle(run_id: &str, run_status: &str, envelopes: &[State]) -> State {
+    let mut events = Vec::new();
+    for env in envelopes {
+        events.push(lifecycle_row(run_id, env, "failure_detected", state_value_string(env, "message"), state_value_string(env, "severity")));
+        events.push(lifecycle_row(run_id, env, "failure_classified", state_value_string(env, "category"), state_value_string(env, "severity")));
+        let status = state_value_string(env, "status");
+        let recoverability = state_value_string(env, "recoverability");
+        if ["recovery_scheduled", "waiting_human", "unknown_side_effect"].contains(&status.as_str()) || ["auto_retry", "human_required", "manual_verification"].contains(&recoverability.as_str()) {
+            events.push(lifecycle_row(run_id, env, "failure_recovery_scheduled", "recovery scheduled".to_string(), "warn".to_string()));
+        }
+        if ["terminal", "blocked"].contains(&status.as_str()) || recoverability == "terminal" {
+            events.push(lifecycle_row(run_id, env, "failure_terminal", state_value_string(env, "message"), "risk".to_string()));
+        }
+    }
+    state(&[
+        ("schema_version", "agentledger.failure.lifecycle.v1".into()),
+        ("run_id", run_id.into()),
+        ("run_status", run_status.into()),
+        ("events", Value::Array(events.iter().cloned().map(Value::Object).collect())),
+        ("terminal", Value::Bool(events.iter().any(|row| state_value_string(row, "stage") == "failure_terminal"))),
+        ("recoverable", Value::Bool(events.iter().any(|row| state_value_string(row, "stage") == "failure_recovery_scheduled"))),
+    ])
+}
+
+fn lifecycle_row(run_id: &str, env: &State, stage: &str, message: String, severity: String) -> State {
+    state(&[
+        ("schema_version", "agentledger.failure.lifecycle.v1".into()),
+        ("stage", stage.into()),
+        ("run_id", run_id.into()),
+        ("failure_id", state_value_string(env, "failure_id").into()),
+        ("category", state_value_string(env, "category").into()),
+        ("recoverability", state_value_string(env, "recoverability").into()),
+        ("retryability", state_value_string(env, "retryability").into()),
+        ("owner", state_value_string(env, "owner").into()),
+        ("message", message.into()),
+        ("severity", severity.into()),
+        ("causal_refs", env.get("causal_refs").cloned().unwrap_or(Value::Array(vec![]))),
+    ])
+}
+
+fn failure_causal_graph(
+    run_id: &str,
+    run_status: &str,
+    envelopes: &[State],
+    steps: &[Step],
+    ledger: &[ToolLedgerEntry],
+    approvals: &[ApprovalRequest],
+    events: &[Event],
+    costs: &[CostRecord],
+) -> State {
+    let mut nodes = vec![state(&[("id", format!("run:{}", slug(run_id)).into()), ("kind", "run".into()), ("status", run_status.into())])];
+    let mut edges = Vec::new();
+    for step in steps {
+        nodes.push(state(&[("id", format!("step:{}", slug(&step.step_id)).into()), ("kind", "step".into()), ("status", step.status.clone().into())]));
+        edges.push(state(&[("source", format!("run:{}", slug(run_id)).into()), ("target", format!("step:{}", slug(&step.step_id)).into()), ("kind", "contains_step".into())]));
+    }
+    for event in events {
+        nodes.push(state(&[("id", format!("event:{}", event.seq).into()), ("kind", "event".into()), ("event_type", event.event_type.clone().into())]));
+        edges.push(state(&[("source", format!("run:{}", slug(run_id)).into()), ("target", format!("event:{}", event.seq).into()), ("kind", "emitted_event".into())]));
+    }
+    for entry in ledger {
+        nodes.push(state(&[("id", format!("tool:{}", slug(&entry.tool_name)).into()), ("kind", "tool".into()), ("status", entry.status.clone().into())]));
+    }
+    for approval in approvals {
+        nodes.push(state(&[("id", format!("approval:{}", slug(&approval.approval_id)).into()), ("kind", "approval".into()), ("status", approval.status.clone().into())]));
+    }
+    for cost in costs {
+        nodes.push(state(&[("id", format!("cost:{}", slug(&cost.cost_id)).into()), ("kind", "cost".into()), ("category", cost.category.clone().into()), ("amount", Value::Number(cost.amount)), ("unit", cost.unit.clone().into())]));
+    }
+    for env in envelopes {
+        let id = format!("failure:{}", slug(&state_value_string(env, "failure_id")));
+        nodes.push(state(&[("id", id.clone().into()), ("kind", "failure".into()), ("category", state_value_string(env, "category").into()), ("status", state_value_string(env, "status").into()), ("owner", state_value_string(env, "owner").into())]));
+        edges.push(state(&[("source", format!("run:{}", slug(run_id)).into()), ("target", id.into()), ("kind", "has_failure".into())]));
+    }
+    let nodes = dedupe_states(nodes, "id");
+    state(&[
+        ("schema_version", "agentledger.failure.causal_graph.v1".into()),
+        ("run_id", run_id.into()),
+        ("nodes", Value::Array(nodes.iter().cloned().map(Value::Object).collect())),
+        ("edges", Value::Array(edges.iter().cloned().map(Value::Object).collect())),
+        ("summary", Value::Object(state(&[
+            ("node_count", Value::Number(nodes.len() as f64)),
+            ("edge_count", Value::Number(edges.len() as f64)),
+            ("failure_node_count", Value::Number(count_state_field(&nodes, "kind", "failure") as f64)),
+        ]))),
+    ])
+}
+
+fn failure_replay_plan(run_id: &str, envelopes: &[State], ledger: &[ToolLedgerEntry], events: &[Event]) -> State {
+    let mut actions = Vec::new();
+    let mut unsafe_count = 0;
+    let mut manual_count = 0;
+    for env in envelopes {
+        let status = state_value_string(env, "status");
+        let recoverability = state_value_string(env, "recoverability");
+        let mut action = state(&[
+            ("failure_id", state_value_string(env, "failure_id").into()),
+            ("category", state_value_string(env, "category").into()),
+            ("status", status.clone().into()),
+            ("replay_action", "reuse_recorded_evidence".into()),
+            ("replay_safe", Value::Bool(true)),
+            ("requires_manual_verification", Value::Bool(false)),
+            ("reason", "recorded runtime evidence can be inspected without calling external systems".into()),
+        ]);
+        if status == "unknown_side_effect" || recoverability == "manual_verification" {
+            action.insert("replay_action".into(), "manual_verify_side_effect".into());
+            action.insert("replay_safe".into(), Value::Bool(false));
+            action.insert("requires_manual_verification".into(), Value::Bool(true));
+            action.insert("reason".into(), "Tool Ledger recorded an unknown side-effect state".into());
+            unsafe_count += 1;
+            manual_count += 1;
+        } else if status == "waiting_human" {
+            action.insert("replay_action".into(), "resume_after_approval".into());
+        } else if status == "recovery_scheduled" {
+            action.insert("replay_action".into(), "retry_from_checkpoint".into());
+        } else if status == "terminal" || status == "blocked" {
+            action.insert("replay_action".into(), "terminal_stop".into());
+        }
+        actions.push(action);
+    }
+    state(&[
+        ("schema_version", "agentledger.failure.replay_plan.v1".into()),
+        ("run_id", run_id.into()),
+        ("mode", "evidence_only".into()),
+        ("safe_to_replay", Value::Bool(unsafe_count == 0)),
+        ("unsafe_side_effect_count", Value::Number(unsafe_count as f64)),
+        ("manual_verification_count", Value::Number(manual_count as f64)),
+        ("recorded_tool_call_count", Value::Number(ledger.len() as f64)),
+        ("recorded_event_count", Value::Number(events.len() as f64)),
+        ("actions", Value::Array(actions.into_iter().map(Value::Object).collect())),
+    ])
+}
+
+fn failure_alerts(run_id: &str, envelopes: &[State], replay_plan: &State) -> State {
+    let mut alerts = Vec::new();
+    if count_state_field(envelopes, "status", "terminal") > 0 {
+        alerts.push(alert_state(run_id, "terminal_failure", "risk", "terminal failure recorded"));
+    }
+    if count_state_field(envelopes, "status", "unknown_side_effect") > 0 {
+        alerts.push(alert_state(run_id, "unknown_side_effect", "risk", "tool side-effect state requires manual verification"));
+    }
+    if state_number(replay_plan, "unsafe_side_effect_count") > 0.0 {
+        alerts.push(alert_state(run_id, "unsafe_replay_blocked", "risk", "failure replay plan blocks unsafe automatic replay"));
+    }
+    state(&[
+        ("schema_version", "agentledger.failure.alerts.v1".into()),
+        ("run_id", run_id.into()),
+        ("alerts", Value::Array(alerts.iter().cloned().map(Value::Object).collect())),
+        ("alert_count", Value::Number(alerts.len() as f64)),
+    ])
+}
+
+fn alert_state(run_id: &str, kind: &str, severity: &str, message: &str) -> State {
+    state(&[
+        ("schema_version", "agentledger.failure.alerts.v1".into()),
+        ("run_id", run_id.into()),
+        ("kind", kind.into()),
+        ("severity", severity.into()),
+        ("message", message.into()),
+    ])
+}
+
+fn failure_export(
+    run_id: &str,
+    run_status: &str,
+    summary: &State,
+    envelopes: &[State],
+    lifecycle: &State,
+    graph: &State,
+    replay_plan: &State,
+    alerts: &State,
+) -> State {
+    state(&[
+        ("schema_version", "agentledger.failure.export.v1".into()),
+        ("run_id", run_id.into()),
+        ("run_status", run_status.into()),
+        ("summary", Value::Object(summary.clone())),
+        ("failure_envelopes", Value::Array(envelopes.iter().cloned().map(Value::Object).collect())),
+        ("failure_lifecycle", Value::Object(lifecycle.clone())),
+        ("failure_causal_graph", Value::Object(graph.clone())),
+        ("failure_replay_plan", Value::Object(replay_plan.clone())),
+        ("failure_alerts", Value::Object(alerts.clone())),
+        ("external_mappings", Value::Object(state(&[
+            ("opentelemetry", Value::Object(state(&[("span_event_count", Value::Number(state_array_len(lifecycle, "events") as f64))]))),
+            ("langfuse", Value::Object(state(&[("trace_id", run_id.into()), ("observation_count", Value::Number(envelopes.len() as f64))]))),
+            ("langsmith", Value::Object(state(&[("run_id", run_id.into()), ("feedback_count", Value::Number(envelopes.len() as f64))]))),
+            ("temporal", Value::Object(state(&[("workflow_id", run_id.into()), ("failure_count", Value::Number(envelopes.len() as f64)), ("safe_to_replay", replay_plan.get("safe_to_replay").cloned().unwrap_or(Value::Bool(false)))]))),
+        ]))),
+    ])
 }
 
 fn encode_store(store: &MemoryStore) -> String {
@@ -3454,6 +3880,182 @@ fn is_failure_event(kind: &str) -> bool {
     )
 }
 
+fn failure_category(text: &str, fallback: &str) -> String {
+    let lower = text.to_lowercase();
+    for category in ["sandbox", "budget", "policy", "model", "tool", "runtime"] {
+        if lower.contains(category) {
+            return category.to_string();
+        }
+    }
+    if lower.contains("approval") || lower.contains("permission") || lower.contains("denied") {
+        return "policy".to_string();
+    }
+    if lower.contains("lease") || lower.contains("worker") {
+        return "runtime".to_string();
+    }
+    if lower.contains("cancel") {
+        return "cancellation".to_string();
+    }
+    fallback.to_string()
+}
+
+fn event_failure_category(event: &Event) -> String {
+    match event.event_type.as_str() {
+        "tool_call_failed" | "tool_call_blocked" | "tool_approval_required" => "tool".to_string(),
+        "run_cancel_requested" | "run_cancelled" | "step_cancelled" => "cancellation".to_string(),
+        "lease_expired" => "runtime".to_string(),
+        "step_retry_scheduled" => "retry".to_string(),
+        "step_waiting_human" => "approval".to_string(),
+        _ => failure_category(
+            &format!(
+                "{} {} {} {}",
+                event.event_type,
+                state_value_string(&event.payload, "error_type"),
+                state_value_string(&event.payload, "error"),
+                state_value_string(&event.payload, "reason")
+            ),
+            "agent",
+        ),
+    }
+}
+
+fn event_failure_status(kind: &str, run_status: &str) -> String {
+    match kind {
+        "step_failed" | "run_cancelled" | "step_cancelled" => "terminal".to_string(),
+        "tool_call_blocked" => "blocked".to_string(),
+        "step_retry_scheduled" | "lease_expired" => "recovery_scheduled".to_string(),
+        "step_waiting_human" | "tool_approval_required" => "waiting_human".to_string(),
+        "failure_classified" => "classified".to_string(),
+        "error_raised" if run_status == "failed" => "terminal".to_string(),
+        _ => "failed".to_string(),
+    }
+}
+
+fn event_recoverability(kind: &str, run_status: &str) -> String {
+    if run_status == "failed" && matches!(kind, "step_failed" | "run_cancelled" | "step_cancelled") {
+        return "terminal".to_string();
+    }
+    match kind {
+        "step_retry_scheduled" | "lease_expired" => "auto_retry".to_string(),
+        "step_waiting_human" | "tool_approval_required" => "human_required".to_string(),
+        "tool_call_blocked" => "manual_intervention".to_string(),
+        _ => "unknown".to_string(),
+    }
+}
+
+fn event_retryability(kind: &str) -> String {
+    match kind {
+        "step_retry_scheduled" | "lease_expired" => "retryable".to_string(),
+        "tool_call_blocked" | "run_cancelled" | "step_cancelled" => "not_retryable".to_string(),
+        _ => "unknown".to_string(),
+    }
+}
+
+fn owner_for_failure_category(category: &str) -> String {
+    match category {
+        "tool" | "model" | "policy" | "sandbox" | "budget" | "runtime" => category.to_string(),
+        "approval" | "cancellation" | "retry" => "runtime".to_string(),
+        _ => "agent".to_string(),
+    }
+}
+
+fn first_text(values: &[Option<&str>]) -> String {
+    for value in values {
+        if let Some(text) = value {
+            if !text.is_empty() {
+                return (*text).to_string();
+            }
+        }
+    }
+    "failure signal".to_string()
+}
+
+fn ref_state(kind: &str, value: &str) -> State {
+    if value.is_empty() {
+        return State::new();
+    }
+    state(&[("kind", kind.into()), ("value", value.into())])
+}
+
+fn state_value_string(row: &State, key: &str) -> String {
+    match row.get(key) {
+        Some(Value::String(value)) => value.clone(),
+        Some(Value::Number(value)) => value.to_string(),
+        Some(Value::Bool(value)) => value.to_string(),
+        Some(value) => format_value(value),
+        None => String::new(),
+    }
+}
+
+fn state_string(row: &State, key: &str) -> Option<String> {
+    let value = state_value_string(row, key);
+    if value.is_empty() {
+        None
+    } else {
+        Some(value)
+    }
+}
+
+fn state_number(row: &State, key: &str) -> f64 {
+    match row.get(key) {
+        Some(Value::Number(value)) => *value,
+        _ => 0.0,
+    }
+}
+
+fn state_array_len(row: &State, key: &str) -> usize {
+    match row.get(key) {
+        Some(Value::Array(values)) => values.len(),
+        _ => 0,
+    }
+}
+
+fn dedupe_states(rows: Vec<State>, key: &str) -> Vec<State> {
+    let mut out = Vec::new();
+    let mut seen = std::collections::HashSet::new();
+    for row in rows {
+        let value = state_value_string(&row, key);
+        if value.is_empty() || seen.contains(&value) {
+            continue;
+        }
+        seen.insert(value);
+        out.push(row);
+    }
+    out
+}
+
+fn count_state_field(rows: &[State], key: &str, expected: &str) -> usize {
+    rows.iter()
+        .filter(|row| state_value_string(row, key) == expected)
+        .count()
+}
+
+fn count_recoverable_failures(rows: &[State]) -> usize {
+    rows.iter()
+        .filter(|row| matches!(state_value_string(row, "recoverability").as_str(), "auto_retry" | "recoverable" | "manual_verification" | "human_required"))
+        .count()
+}
+
+fn slug(value: &str) -> String {
+    let mut out = String::new();
+    let mut previous_dash = false;
+    for ch in value.chars() {
+        if ch.is_ascii_alphanumeric() {
+            out.push(ch.to_ascii_lowercase());
+            previous_dash = false;
+        } else if !previous_dash {
+            out.push('-');
+            previous_dash = true;
+        }
+    }
+    let trimmed = out.trim_matches('-').to_string();
+    if trimmed.is_empty() {
+        "unknown".to_string()
+    } else {
+        trimmed
+    }
+}
+
 fn format_state(state: &State) -> String {
     let mut keys: Vec<&String> = state.keys().collect();
     keys.sort();
@@ -3943,6 +4545,17 @@ mod tests {
         assert_eq!(failure.failed_steps.len(), 1);
         assert!(event_exists(&failure.failure_events, "budget_check_failed"));
         assert!(event_exists(&failure.failure_events, "failure_classified"));
+        assert!(!failure.failure_envelopes.is_empty());
+        assert_eq!(
+            failure.failure_lifecycle["schema_version"],
+            Value::String("agentledger.failure.lifecycle.v1".to_string())
+        );
+        assert_eq!(
+            failure.failure_export["schema_version"],
+            Value::String("agentledger.failure.export.v1".to_string())
+        );
+        assert_eq!(failure.failure_replay_plan["safe_to_replay"], Value::Bool(true));
+        assert!(state_number(&failure.failure_alerts, "alert_count") > 0.0);
     }
 
     #[test]

@@ -24,9 +24,9 @@ from agentledger.blobstore_s3 import S3BlobStore, S3BlobStoreConfig
 from agentledger.conformance import BlobStoreConformanceRunner, FrameworkAdapterConformanceRunner, MediaRuntimeConformanceRunner, StateStoreConformanceRunner, WorkerConformanceRunner
 from agentledger.contract import contract_json, runtime_contract
 from agentledger.approval import ApprovalRequired
-from agentledger.cli import build_parser, cmd_adapter_certify, cmd_adapter_conformance, cmd_backup_check, cmd_blob_conformance, cmd_conformance, cmd_corpus_add, cmd_corpus_eval, cmd_corpus_list, cmd_corpus_seed, cmd_cost_report, cmd_debug, cmd_divergence, cmd_evidence, cmd_evidence_regression, cmd_failure_inject, cmd_failure_report, cmd_inspector_evidence, cmd_inspector_run, cmd_inspector_runs, cmd_lint_boundary, cmd_migrate_status, cmd_migrate_up, cmd_review_checklist, cmd_state_conformance, cmd_timetravel, cmd_tools_manifest, cmd_worker_conformance, cmd_worker_plan, cmd_worker_serve, create_blob_store, create_state_store, main
+from agentledger.cli import build_parser, cmd_adapter_certify, cmd_adapter_conformance, cmd_backup_check, cmd_blob_conformance, cmd_conformance, cmd_corpus_add, cmd_corpus_eval, cmd_corpus_list, cmd_corpus_seed, cmd_cost_report, cmd_debug, cmd_divergence, cmd_evidence, cmd_evidence_regression, cmd_failure_export, cmd_failure_inject, cmd_failure_regress, cmd_failure_report, cmd_inspector_evidence, cmd_inspector_run, cmd_inspector_runs, cmd_lint_boundary, cmd_migrate_status, cmd_migrate_up, cmd_review_checklist, cmd_state_conformance, cmd_timetravel, cmd_tools_manifest, cmd_worker_conformance, cmd_worker_plan, cmd_worker_serve, create_blob_store, create_state_store, main
 from agentledger.cost import BudgetController, BudgetExceeded, BudgetLimits, CostAttributionReporter
-from agentledger.failure import FAILURE_ENVELOPE_SCHEMA_VERSION, FailureAttributionReporter, RetryableAgentError
+from agentledger.failure import FAILURE_ENVELOPE_SCHEMA_VERSION, FAILURE_EXPORT_SCHEMA_VERSION, FAILURE_LIFECYCLE_SCHEMA_VERSION, FailureAttributionReporter, FailureRegressionAnalyzer, RetryableAgentError
 from agentledger.failure_injection import FailureInjectionSuite
 from agentledger.inspector import INSPECTOR_RUN_INDEX_SCHEMA_VERSION, INSPECTOR_SCHEMA_VERSION, InspectorDataSource, InspectorRedactionPolicy, InspectorReportBuilder, ReadOnlyLocalBlobStore, ReadOnlyMySQLStore, ReadOnlyPostgresStore, ReadOnlySQLiteStore
 from agentledger.lint import RuntimeBoundaryLinter, load_boundary_rules
@@ -503,7 +503,7 @@ class RuntimeTests(unittest.TestCase):
             self.assertIn('href="#runs"', html)
             self.assertIn('class="run-list"', html)
             self.assertIn('class="run-item', html)
-            self.assertIn(".run-list { display: grid; gap: 24px; }", html)
+            self.assertIn(".run-list { display: grid; gap: 28px; }", html)
             self.assertIn(".metadata-panel { margin-top: 36px; }", html)
             self.assertIn('class="panel metadata-panel"', html)
             self.assertIn("data-run-pager", html)
@@ -827,12 +827,27 @@ class RuntimeTests(unittest.TestCase):
         self.assertIn("recovery_scheduled", {row["status"] for row in envelopes})
         self.assertIn("blocked", {row["status"] for row in envelopes})
         self.assertIn("waiting_human", {row["status"] for row in envelopes})
+        self.assertEqual(data["failure_lifecycle"]["schema_version"], FAILURE_LIFECYCLE_SCHEMA_VERSION)
+        self.assertIn("failure_detected", {row["stage"] for row in data["failure_lifecycle"]["events"]})
+        self.assertIn("failure_recovery_scheduled", {row["stage"] for row in data["failure_lifecycle"]["events"]})
+        self.assertIn("failure_terminal", {row["stage"] for row in data["failure_lifecycle"]["events"]})
+        self.assertGreater(data["failure_causal_graph"]["summary"]["failure_node_count"], 0)
+        self.assertFalse(data["failure_replay_plan"]["safe_to_replay"])
+        self.assertGreaterEqual(data["failure_replay_plan"]["manual_verification_count"], 1)
+        self.assertTrue(any(row["kind"] == "unknown_side_effect" for row in data["failure_alerts"]["alerts"]))
+        self.assertEqual(data["failure_export"]["schema_version"], FAILURE_EXPORT_SCHEMA_VERSION)
+        self.assertIn("langfuse", data["failure_export"]["external_mappings"])
+        self.assertIn("opentelemetry", data["failure_export"]["external_mappings"])
         self.assertTrue(any(row.get("source_kind") == "event" and row.get("message") == "tool_call_failed" for row in envelopes))
         self.assertTrue(any({"kind": "step", "value": "step-retry", "href": "#step-step-retry"} in row.get("related_links", []) for row in envelopes))
         self.assertTrue(any({"kind": "event", "value": "3", "href": "#event-3"} in row.get("related_links", []) for row in envelopes))
 
         html = report.to_html()
         self.assertIn("Failure Envelopes", html)
+        self.assertIn("Failure Lifecycle", html)
+        self.assertIn("Failure Replay Plan", html)
+        self.assertIn("Failure Alerts", html)
+        self.assertIn("Failure Causal Nodes", html)
         self.assertIn("unknown_side_effect", html)
         self.assertIn("manual_verification", html)
         self.assertIn('href="#failures"', html)
@@ -1484,6 +1499,13 @@ roles:
             self.assertTrue(any(event["type"] == "failure_classified" for event in report["failure_events"]))
             self.assertTrue(any(row["schema_version"] == FAILURE_ENVELOPE_SCHEMA_VERSION for row in report["failure_envelopes"]))
             self.assertTrue(any(row["status"] == "terminal" and row["step_id"] for row in report["failure_envelopes"]))
+            self.assertEqual(report["failure_lifecycle"]["schema_version"], FAILURE_LIFECYCLE_SCHEMA_VERSION)
+            self.assertIn("failure_terminal", {row["stage"] for row in report["failure_lifecycle"]["events"]})
+            self.assertGreater(report["failure_causal_graph"]["summary"]["failure_node_count"], 0)
+            self.assertTrue(report["failure_replay_plan"]["safe_to_replay"])
+            self.assertGreaterEqual(report["failure_alerts"]["alert_count"], 1)
+            self.assertEqual(report["failure_export"]["schema_version"], FAILURE_EXPORT_SCHEMA_VERSION)
+            self.assertIn("temporal", report["failure_export"]["external_mappings"])
 
             args = type("Args", (), {"root": str(Path(tmp) / ".agentledger"), "policy": None, "sandbox_config": None, "run_id": run_id})()
             stdout = io.StringIO()
@@ -1493,6 +1515,49 @@ roles:
             self.assertEqual(payload["run_id"], run_id)
             self.assertEqual(payload["summary"]["root_cause_count"], 1)
             self.assertEqual(payload["summary"]["failure_envelope_count"], report["summary"]["failure_envelope_count"])
+
+            export_path = Path(tmp) / "failure-export.json"
+            export_args = type("Args", (), {"root": str(Path(tmp) / ".agentledger"), "policy": None, "sandbox_config": None, "run_id": run_id, "out": str(export_path)})()
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                cmd_failure_export(export_args)
+            export_payload = json.loads(stdout.getvalue())
+            self.assertEqual(export_payload["schema_version"], FAILURE_EXPORT_SCHEMA_VERSION)
+            self.assertTrue(export_path.exists())
+
+    def test_failure_regression_analyzer_classifies_new_fixed_and_recurring_failures(self) -> None:
+        baseline = {
+            "failure_envelopes": [
+                {"failure_id": "old", "category": "tool", "status": "terminal", "owner": "tool", "message": "timeout", "tool_name": "search"},
+                {"failure_id": "fixed", "category": "policy", "status": "blocked", "owner": "policy", "message": "denied", "tool_name": "refund"},
+            ]
+        }
+        current = {
+            "failure_envelopes": [
+                {"failure_id": "new-id", "category": "tool", "status": "terminal", "owner": "tool", "message": "timeout", "tool_name": "search"},
+                {"failure_id": "new", "category": "model", "status": "terminal", "owner": "model", "message": "rate limit", "tool_name": None},
+            ]
+        }
+        report = FailureRegressionAnalyzer().compare(baseline, current)
+        self.assertFalse(report["same"])
+        self.assertEqual(report["summary"]["recurring_failure_count"], 1)
+        self.assertEqual(report["summary"]["fixed_failure_count"], 1)
+        self.assertEqual(report["summary"]["new_failure_count"], 1)
+
+        with tempfile.TemporaryDirectory() as tmp:
+            baseline_path = Path(tmp) / "baseline.json"
+            current_path = Path(tmp) / "current.json"
+            out_path = Path(tmp) / "regression.json"
+            baseline_path.write_text(json.dumps(baseline), encoding="utf-8")
+            current_path.write_text(json.dumps(current), encoding="utf-8")
+            args = type("Args", (), {"baseline": str(baseline_path), "current": str(current_path), "out": str(out_path), "fail_on_regression": False})()
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                cmd_failure_regress(args)
+            payload = json.loads(stdout.getvalue())
+            self.assertEqual(payload["failure_regression"], str(out_path))
+            written = json.loads(out_path.read_text(encoding="utf-8"))
+            self.assertEqual(written["summary"]["new_failure_count"], 1)
 
     def test_scheduler_status_reports_runtime_control_plane_state(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -2735,7 +2800,7 @@ roles:
         release_family = ".".join(AGENTLEDGER_VERSION.split(".")[:2]) + ".x"
         self.assertIn("[English](README.md) | [中文](README.zh-CN.md)", readme)
         self.assertIn(f"![Version {release_family} stable]", readme)
-        self.assertIn(f"current Python/Inspector patch is {AGENTLEDGER_VERSION}", readme)
+        self.assertIn(f"current runtime-core release is {AGENTLEDGER_VERSION}", readme)
         self.assertIn("python3 -m pip install agentledger-runtime", readme)
         self.assertIn("https://github.com/yaogdu/AgentLedger", readme)
         self.assertIn("docs/assets/agentledger-runtime-architecture.svg", readme)

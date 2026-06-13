@@ -21,7 +21,7 @@ from .eval import EvidenceRegressionRunner
 from .diff import DivergenceReporter, EvidenceDiffer, load_evidence_path
 from .evidence import EvidenceExporter
 from .examples import crash_once_agent, recovery_agent, register_fake_github
-from .failure import FailureAttributionReporter, RetryableAgentError
+from .failure import FailureAttributionReporter, FailureRegressionAnalyzer, RetryableAgentError
 from .failure_injection import FailureInjectionSuite
 from .inspector import InspectorDataSource, InspectorRedactionPolicy
 from .lint import RuntimeBoundaryLinter, load_boundary_rules
@@ -840,6 +840,33 @@ def cmd_failure_report(args: argparse.Namespace) -> None:
     print(json.dumps(report.to_dict(), indent=2, ensure_ascii=False))
 
 
+def cmd_failure_export(args: argparse.Namespace) -> None:
+    rt = runtime_from_root(args.root, args.policy, getattr(args, "sandbox_config", None))
+    payload = FailureAttributionReporter(rt.store).report(args.run_id).to_dict()["failure_export"]
+    if args.out:
+        path = Path(args.out)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+        print(json.dumps({"run_id": args.run_id, "failure_export": str(path), "schema_version": payload["schema_version"]}, indent=2, ensure_ascii=False))
+        return
+    print(json.dumps(payload, indent=2, ensure_ascii=False))
+
+
+def cmd_failure_regress(args: argparse.Namespace) -> None:
+    baseline = json.loads(Path(args.baseline).read_text(encoding="utf-8"))
+    current = json.loads(Path(args.current).read_text(encoding="utf-8"))
+    report = FailureRegressionAnalyzer().compare(baseline, current)
+    if args.out:
+        path = Path(args.out)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+        print(json.dumps({"failure_regression": str(path), "same": report["same"], "schema_version": report["schema_version"]}, indent=2, ensure_ascii=False))
+        return
+    print(json.dumps(report, indent=2, ensure_ascii=False))
+    if args.fail_on_regression and report["summary"]["new_failure_count"]:
+        raise SystemExit(1)
+
+
 def _corpus(args: argparse.Namespace) -> GoldenCorpus:
     return GoldenCorpus(args.corpus_dir or (Path(args.root) / "golden-corpus"))
 
@@ -1174,6 +1201,16 @@ def build_parser() -> argparse.ArgumentParser:
     failure_report = failure_sub.add_parser("report")
     failure_report.add_argument("run_id")
     failure_report.set_defaults(func=cmd_failure_report)
+    failure_export = failure_sub.add_parser("export")
+    failure_export.add_argument("run_id")
+    failure_export.add_argument("--out", help="write portable failure export JSON")
+    failure_export.set_defaults(func=cmd_failure_export)
+    failure_regress = failure_sub.add_parser("regress")
+    failure_regress.add_argument("baseline", help="baseline failure export/report JSON")
+    failure_regress.add_argument("current", help="current failure export/report JSON")
+    failure_regress.add_argument("--out", help="write failure regression JSON")
+    failure_regress.add_argument("--fail-on-regression", action="store_true", help="exit non-zero when new failures are present")
+    failure_regress.set_defaults(func=cmd_failure_regress)
 
     corpus = sub.add_parser("corpus")
     corpus_sub = corpus.add_subparsers(dest="corpus_cmd", required=True)

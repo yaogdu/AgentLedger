@@ -8,24 +8,27 @@ This project follows semantic versioning for the stable runtime-core contract. O
 
 No unreleased changes.
 
-## 1.3.6 - 2026-06-13
+## 1.4.0 - 2026-06-13
 
 ### Added
 
+- Added the Agent Failure Lifecycle baseline across Python, Go, TypeScript, and Rust runtime-core packages.
 - Added `agentledger.failure.envelope.v1`, a normalized failure read model for terminal failures, recoverable retries, approval waits, blocked tools, and unknown side-effect states.
-- Added failure envelopes to `agentledger failure report` output and Inspector JSON/static HTML reports.
-- Added an Inspector Failure Envelopes panel with links back to related timeline, step, tool, and approval records.
+- Added `agentledger.failure.lifecycle.v1`, `agentledger.failure.causal_graph.v1`, `agentledger.failure.replay_plan.v1`, `agentledger.failure.regression.v1`, `agentledger.failure.alerts.v1`, and `agentledger.failure.export.v1`.
+- Added failure lifecycle, causal graph, replay plan, local alert records, regression comparison, and external export mappings for OpenTelemetry, Langfuse, LangSmith, and Temporal-style consumers.
+- Added `agentledger failure export` and `agentledger failure regress` CLI commands.
+- Added Inspector panels for Failure Lifecycle, Failure Replay Plan, Failure Alerts, and Failure Causal Graph.
 
 ### Tested
 
-- Added non-happy-path tests for missing event payloads, retry-scheduled steps, pending approvals, pending tool verification, blocked tools, terminal failure reports, and Inspector HTML rendering.
+- Added non-happy-path tests for missing event payloads, retry-scheduled steps, pending approvals, pending tool verification, blocked tools, terminal failure reports, Inspector HTML rendering, unsafe replay planning, local failure alerts, export mappings, and failure regression classification.
+- Added matching failure lifecycle assertions to Go, TypeScript, and Rust runtime-core tests.
 
 ### Clarified
 
-- Clarified that Inspector is language-neutral, while the current official Inspector distribution is packaged through the Python/PyPI CLI.
-- Clarified that patch releases do not need to move every language package in lockstep when runtime-core semantics and shared conformance are unchanged.
-- Added standalone Inspector distribution to the roadmap for non-Python users who want the official viewer without installing a Python package into their application runtime.
-- This is a Python/PyPI Inspector and failure-read-model patch. It does not change the stable runtime-core contract or require Go, TypeScript, or Rust runtime-core package changes.
+- This is a runtime-core feature release, not an Inspector-only patch. Python, Go, TypeScript, and Rust share the 1.4.0 failure lifecycle contract.
+- Inspector remains a language-neutral read-only companion viewer distributed through Python/PyPI.
+- Failure export mappings are local JSON contracts. They do not send data to external SaaS systems or replace incident management, eval, or observability platforms.
 
 ## 1.3.5 - 2026-06-07
 
