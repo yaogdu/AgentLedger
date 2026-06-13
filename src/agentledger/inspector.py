@@ -111,6 +111,7 @@ class InspectorReport:
     .section {{ margin-top: 18px; }}
     .section-note {{ margin: -4px 0 12px; color: var(--muted); font-size: 13px; }}
     .panel {{ padding: 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }}
+    .metadata-panel {{ margin-top: 28px; }}
     .nav {{ display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 20px; }}
     .nav a, .link-list a {{ color: var(--accent); text-decoration: none; }}
     .nav a {{ padding: 6px 9px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); font-size: 13px; }}
@@ -398,7 +399,7 @@ class InspectorRunIndex:
       <p class="section-note">Single-run Inspector links are shown when a run link template is configured.</p>
       {_run_index_list(runs)}
     </section>
-    <section class="panel" id="metadata">
+    <section class="panel metadata-panel" id="metadata">
       <h2>Metadata</h2>
       <pre>{_json_block({"schema_version": self.data.get("schema_version"), "source": source, "summary": summary})}</pre>
     </section>
