@@ -53,7 +53,7 @@ pip install agentledger-inspector
 agentledger inspector evidence ./evidence/<run_id> --html ./inspector.html
 ```
 
-如果完全不安装 Python/PyPI package，非 Python runtime 仍然可以使用自己的 runtime-core evidence、debug summary 和 static debug HTML 能力；只是不能直接使用 `1.3.5` 这套完整的 Inspector run index 和单 run reference UI，除非使用已发布的 Inspector 工具，或者基于同一份 read model 二开 viewer。
+如果完全不安装 Python/PyPI package，非 Python runtime 仍然支持共享 runtime-core failure semantics，也可以导出兼容 evidence。它们目前没有内置的是等价的 native Inspector viewer 命令，也就是不安装 companion Inspector tool 时，不能直接渲染同一套官方 run index、single-run HTML 和 normalized failure envelopes。这是分发/viewer 的差异，不是 runtime failure 能力缺失。
 
 Standalone Inspector distribution 已进入 roadmap，目标是让非 Python 用户不通过 PyPI 也能使用官方 viewer。候选形态包括 Docker image、单文件可执行程序、读取导出 evidence JSON 的静态 Web viewer，以及 Node/npm CLI 或 viewer package。
 
@@ -154,6 +154,25 @@ Postgres/MySQL 建议使用只读数据库账号。AgentLedger 不为 Inspector 
 这个视图用于从头到尾排查单个 run。它不替代分块详情页，而是给 operator 一条按时间查看详情的路径。
 
 详细表格会把紧凑记录列放在第一行，折叠 JSON payload 放到当前记录下面的全宽行中。这样长 payload 可读性更好，也不会被挤在右侧很窄的 details 列里。
+
+## Failure Envelopes
+
+`1.3.6` 增加 `agentledger.failure.envelope.v1`，这是 `agentledger failure report`、Inspector JSON 和 Inspector static HTML 共用的 normalized failure read model。
+
+runtime 仍然记录原始 events、step rows、Tool Ledger rows、approval rows 和 evidence bundle。Failure envelope 是这些记录上的 read model，让业务代码、支持工具、内部排查页面不需要直接从未文档化表结构里推断 failure 语义。
+
+每个 envelope 包含：
+
+- `category`：agent、tool、model、policy、approval、sandbox、budget、runtime、retry 或 cancellation
+- `status`：terminal、failed、blocked、recovery_scheduled、waiting_human、unknown_side_effect、classified 或 recoverable
+- `recoverability`：terminal、auto_retry、recoverable、manual_verification、human_required、manual_intervention 或 unknown
+- `retryability`：retryable、not_retryable 或 unknown
+- `owner`：最应该处理这个 failure 的边界
+- `causal_refs` 和 `evidence_refs`：指回 step、event、tool、approval、blob 的稳定引用
+
+它刻意覆盖生产里常见的非 happy path，不只是 terminal failure。例如 `PENDING_VERIFICATION` 的 Tool Ledger 记录会变成 `unknown_side_effect` envelope，并标记 `manual_verification` recoverability，因为盲目 retry 可能造成外部副作用重复。
+
+`1.3.6` 不宣称完整 Agent Failure Lifecycle 已经全部完成。更丰富的 causal graph、failure export mapping、alert sink、failure regression workflow 仍然在 roadmap 中。本版本稳定新增的是 portable read model 和默认 Inspector panel。
 
 ## 导航和交叉链接
 
@@ -292,6 +311,13 @@ data = report.to_dict()
 - 面向自定义 viewer 的 `agentledger.inspector.runs.v1` run-index read model
 - event/timeline read-model row 中的 runtime run id 和提取出的 agent run id
 - 对长 id、全宽 JSON details 和分页 run list 更稳的 static HTML 布局
+
+`1.3.6` 已实现：
+
+- `agentledger.failure.envelope.v1` normalized failure read model
+- `agentledger failure report` 输出 failure envelopes
+- Inspector JSON/static HTML 的 Failure Envelopes panel
+- missing payload、retry scheduling、pending approval、pending tool verification、blocked tool、terminal failure 等非 happy path 覆盖
 
 本版本不包含：
 

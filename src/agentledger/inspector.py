@@ -13,6 +13,7 @@ from urllib.parse import quote
 from .blobstore import LocalBlobStore
 from .diff import load_evidence_path
 from .evidence import decode_payload, EvidenceExporter
+from .failure import FailureEnvelopeBuilder
 from .protocol import EvidenceBlobStoreProtocol, EvidenceStateStoreProtocol
 from .storage_mysql import MySQLStore, MySQLStoreConfig
 from .storage_postgres import PostgresStore, PostgresStoreConfig
@@ -56,6 +57,7 @@ class InspectorReport:
             ("evidence", "Evidence"),
             ("risk-flags", "Risk Flags"),
             ("event-stream", "Event Stream"),
+            ("failures", "Failures"),
             ("timeline", "Timeline"),
             ("steps", "Steps"),
             ("tool-ledger", "Tool Ledger"),
@@ -195,6 +197,12 @@ class InspectorReport:
       <h2>Event Stream</h2>
       <p class="section-note">Chronological event view keyed by runtime run id and agent run id, with links back to detailed timeline records.</p>
       {_event_stream(self.data.get("event_stream", []))}
+    </section>
+
+    <section class="section" id="failures">
+      <h2>Failure Envelopes</h2>
+      <p class="section-note">Normalized failure read model for terminal failures, recoverable retries, approval waits, blocked tools, and unknown side-effect states.</p>
+      {_table(["failure_id", "category", "status", "recoverability", "retryability", "owner", "message"], self.data.get("failure_envelopes", []), risk_key="severity", risk_values={"risk"}, warn_values={"warn"})}
     </section>
 
     <section class="section" id="timeline">
@@ -466,20 +474,33 @@ class InspectorReportBuilder:
         approvals = [_project_approval(row) for row in evidence.get("approval_requests", [])]
         artifacts = _artifacts(evidence)
         cost_records = [_project_cost(row) for row in evidence.get("cost_records", [])]
-        timeline = [_timeline_event(event, include_payloads=include_payloads) for event in evidence.get("events", [])]
-        policy_decisions = [_policy_decision(event, include_payloads=include_payloads) for event in evidence.get("events", []) if event.get("type") == "tool_permission_decided"]
+        events = [_safe_dict(event) for event in evidence.get("events", [])]
+        timeline = [_timeline_event(event, include_payloads=include_payloads) for event in events]
+        policy_decisions = [_policy_decision(event, include_payloads=include_payloads) for event in events if event.get("type") == "tool_permission_decided"]
         policy_decisions = [row for row in policy_decisions if row is not None]
         _decorate_report_links(timeline=timeline, steps=steps, ledger=ledger, approvals=approvals, policy_decisions=policy_decisions, artifacts=artifacts)
         agent_run_id = _find_agent_run_id(evidence)
         event_stream = _chronological_event_stream(timeline, runtime_run_id=run.get("run_id"), agent_run_id=agent_run_id)
         failure_events = [event for event in timeline if _is_failure_event(event.get("type"))]
+        failure_envelopes = FailureEnvelopeBuilder().from_snapshot(
+            run_id=str(run.get("run_id") or ""),
+            run_status=str(run.get("status") or ""),
+            steps=steps,
+            ledger=ledger,
+            approvals=approvals,
+            events=events,
+        )
+        _decorate_failure_envelope_links(failure_envelopes=failure_envelopes, timeline=timeline, steps=steps, ledger=ledger, approvals=approvals)
         summary = {
             **_safe_dict(evidence.get("summary")),
-            "event_type_counts": dict(Counter(event.get("type", "-") for event in evidence.get("events", []))),
+            "event_type_counts": dict(Counter(event.get("type", "-") for event in events)),
             "step_status_counts": dict(Counter(row.get("status", "-") for row in steps)),
             "tool_ledger_status_counts": dict(Counter(row.get("status", "-") for row in ledger)),
             "approval_status_counts": dict(Counter(row.get("status", "-") for row in approvals)),
             "failure_event_count": len(failure_events),
+            "failure_envelope_count": len(failure_envelopes),
+            "terminal_failure_count": sum(1 for item in failure_envelopes if item.get("status") == "terminal"),
+            "recoverable_failure_count": sum(1 for item in failure_envelopes if item.get("recoverability") in {"auto_retry", "recoverable", "manual_verification", "human_required"}),
             "policy_decision_count": len(policy_decisions),
         }
         risk_flags = _risk_flags(summary, steps, ledger, approvals, failure_events, policy_decisions)
@@ -498,6 +519,7 @@ class InspectorReportBuilder:
             "policy_decisions": policy_decisions,
             "cost_records": cost_records,
             "failure_events": failure_events,
+            "failure_envelopes": failure_envelopes,
             "artifacts": artifacts,
             "evidence": {
                 "schema_version": evidence.get("schema_version"),
@@ -1096,6 +1118,44 @@ def _decorate_report_links(
         if row.get("content_ref") is not None:
             refs.append({"kind": "content", "value": str(row["content_ref"])})
         row["related_refs"] = _merge_related_refs(row.get("related_refs"), refs)
+
+
+def _decorate_failure_envelope_links(
+    *,
+    failure_envelopes: list[dict[str, Any]],
+    timeline: list[dict[str, Any]],
+    steps: list[dict[str, Any]],
+    ledger: list[dict[str, Any]],
+    approvals: list[dict[str, Any]],
+) -> None:
+    anchors: dict[tuple[str, str], str] = {}
+    _collect_existing_anchor(steps, kind="step", key="step_id", anchors=anchors)
+    _collect_existing_anchor(ledger, kind="tool", key="tool_name", anchors=anchors)
+    _collect_existing_anchor(approvals, kind="approval", key="approval_id", anchors=anchors)
+    _collect_existing_anchor(timeline, kind="event", key="seq", anchors=anchors)
+    for row in failure_envelopes:
+        refs = []
+        for key, kind in [("step_id", "step"), ("tool_name", "tool"), ("approval_id", "approval"), ("event_seq", "event")]:
+            if row.get(key) is not None:
+                refs.append({"kind": kind, "value": str(row[key])})
+        for ref_list_key in ["causal_refs", "evidence_refs"]:
+            for ref in row.get(ref_list_key, []):
+                if not isinstance(ref, dict):
+                    continue
+                kind = ref.get("kind")
+                value = ref.get("value")
+                if kind is not None and value is not None:
+                    refs.append({"kind": str(kind), "value": str(value)})
+        row["related_refs"] = _merge_related_refs(row.get("related_refs"), refs)
+        _attach_related_links(row, anchors)
+
+
+def _collect_existing_anchor(rows: list[dict[str, Any]], *, kind: str, key: str, anchors: dict[tuple[str, str], str]) -> None:
+    for row in rows:
+        value = row.get(key)
+        anchor = row.get("anchor")
+        if value is not None and anchor:
+            anchors[(kind, str(value))] = str(anchor)
 
 
 def _anchor_rows(rows: list[dict[str, Any]], *, kind: str, key: str, anchors: dict[tuple[str, str], str]) -> None:

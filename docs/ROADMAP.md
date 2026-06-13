@@ -625,6 +625,13 @@ Implemented in `1.3.5`:
 - runtime run id and extracted agent run id in event/timeline rows
 - paginated run-list static HTML and full-width JSON/details rows for Inspector, evidence, and time-travel tables
 
+Implemented in `1.3.6`:
+
+- `agentledger.failure.envelope.v1` normalized failure read model
+- failure envelopes in `agentledger failure report`
+- Inspector Failure Envelopes panel for terminal failures, retries, waiting approvals, blocked tools, and unknown side-effect states
+- non-happy-path tests for missing event payloads, retry scheduling, pending approvals, pending tool verification, blocked tools, terminal failure reports, and Inspector HTML rendering
+
 Follow-up work:
 
 - richer filtering, search, pagination, and saved views for the read-only run index

@@ -6,11 +6,26 @@ This project follows semantic versioning for the stable runtime-core contract. O
 
 ## Unreleased
 
+No unreleased changes.
+
+## 1.3.6 - 2026-06-13
+
+### Added
+
+- Added `agentledger.failure.envelope.v1`, a normalized failure read model for terminal failures, recoverable retries, approval waits, blocked tools, and unknown side-effect states.
+- Added failure envelopes to `agentledger failure report` output and Inspector JSON/static HTML reports.
+- Added an Inspector Failure Envelopes panel with links back to related timeline, step, tool, and approval records.
+
+### Tested
+
+- Added non-happy-path tests for missing event payloads, retry-scheduled steps, pending approvals, pending tool verification, blocked tools, terminal failure reports, and Inspector HTML rendering.
+
 ### Clarified
 
 - Clarified that Inspector is language-neutral, while the current official Inspector distribution is packaged through the Python/PyPI CLI.
 - Clarified that patch releases do not need to move every language package in lockstep when runtime-core semantics and shared conformance are unchanged.
 - Added standalone Inspector distribution to the roadmap for non-Python users who want the official viewer without installing a Python package into their application runtime.
+- This is a Python/PyPI Inspector and failure-read-model patch. It does not change the stable runtime-core contract or require Go, TypeScript, or Rust runtime-core package changes.
 
 ## 1.3.5 - 2026-06-07
 

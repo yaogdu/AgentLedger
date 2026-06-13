@@ -26,7 +26,7 @@ from agentledger.contract import contract_json, runtime_contract
 from agentledger.approval import ApprovalRequired
 from agentledger.cli import build_parser, cmd_adapter_certify, cmd_adapter_conformance, cmd_backup_check, cmd_blob_conformance, cmd_conformance, cmd_corpus_add, cmd_corpus_eval, cmd_corpus_list, cmd_corpus_seed, cmd_cost_report, cmd_debug, cmd_divergence, cmd_evidence, cmd_evidence_regression, cmd_failure_inject, cmd_failure_report, cmd_inspector_evidence, cmd_inspector_run, cmd_inspector_runs, cmd_lint_boundary, cmd_migrate_status, cmd_migrate_up, cmd_review_checklist, cmd_state_conformance, cmd_timetravel, cmd_tools_manifest, cmd_worker_conformance, cmd_worker_plan, cmd_worker_serve, create_blob_store, create_state_store, main
 from agentledger.cost import BudgetController, BudgetExceeded, BudgetLimits, CostAttributionReporter
-from agentledger.failure import FailureAttributionReporter, RetryableAgentError
+from agentledger.failure import FAILURE_ENVELOPE_SCHEMA_VERSION, FailureAttributionReporter, RetryableAgentError
 from agentledger.failure_injection import FailureInjectionSuite
 from agentledger.inspector import INSPECTOR_RUN_INDEX_SCHEMA_VERSION, INSPECTOR_SCHEMA_VERSION, InspectorDataSource, InspectorRedactionPolicy, InspectorReportBuilder, ReadOnlyLocalBlobStore, ReadOnlyMySQLStore, ReadOnlyPostgresStore, ReadOnlySQLiteStore
 from agentledger.lint import RuntimeBoundaryLinter, load_boundary_rules
@@ -754,6 +754,86 @@ class RuntimeTests(unittest.TestCase):
         self.assertIn('href="#approval-approval-1"', html)
         self.assertIn('href="#artifact-art-1"', html)
 
+    def test_inspector_failure_envelopes_cover_non_happy_path_evidence(self) -> None:
+        evidence = {
+            "schema_version": "agentledger.evidence.v1",
+            "bundle_hash": "sha256:failure-read-model",
+            "run": {"run_id": "run-failure", "status": "failed", "state_version": 3},
+            "steps": [
+                {
+                    "step_id": "step-retry",
+                    "run_id": "run-failure",
+                    "status": "retry_scheduled",
+                    "attempt": 1,
+                    "last_error_type": "TimeoutError",
+                    "last_error": "provider timeout",
+                    "updated_at": 1.0,
+                },
+                {
+                    "step_id": "step-denied",
+                    "run_id": "run-failure",
+                    "status": "failed",
+                    "attempt": 1,
+                    "last_error_type": "ApprovalDenied",
+                    "last_error": "operator denied",
+                    "updated_at": 4.0,
+                },
+            ],
+            "events": [
+                {"seq": 1, "event_id": "evt-1", "type": "step_retry_scheduled", "step_id": "step-retry", "timestamp": 1.0, "payload": {"step_id": "step-retry", "attempt": 1}},
+                {"seq": 2, "event_id": "evt-2", "type": "tool_call_failed", "step_id": "step-retry", "timestamp": 2.0},
+                {"seq": 3, "event_id": "evt-3", "type": "tool_call_blocked", "step_id": "step-denied", "timestamp": 3.0, "payload": {"tool": "payments.refund", "reason": "policy denied"}},
+            ],
+            "tool_ledger": [
+                {
+                    "ledger_id": "ledger-1",
+                    "step_id": "step-retry",
+                    "tool_name": "payments.charge",
+                    "status": "PENDING_VERIFICATION",
+                    "idempotency_key": "idem-1",
+                    "response_ref": "blob://unknown-response",
+                    "updated_at": 2.5,
+                }
+            ],
+            "approval_requests": [
+                {
+                    "approval_id": "approval-1",
+                    "step_id": "step-denied",
+                    "tool_name": "payments.refund",
+                    "risk_level": "high",
+                    "status": "PENDING",
+                    "reason": "needs human review",
+                    "updated_at": 3.5,
+                }
+            ],
+            "artifacts": [],
+            "media_artifacts": [],
+            "stream_checkpoints": [],
+            "cost_records": [],
+            "summary": {"event_count": 3},
+            "final_state": {},
+        }
+        report = InspectorReportBuilder().from_evidence(evidence)
+        data = report.to_dict()
+        envelopes = data["failure_envelopes"]
+
+        self.assertGreaterEqual(data["summary"]["failure_envelope_count"], 6)
+        self.assertTrue(all(row["schema_version"] == FAILURE_ENVELOPE_SCHEMA_VERSION for row in envelopes))
+        self.assertIn("unknown_side_effect", {row["status"] for row in envelopes})
+        self.assertIn("manual_verification", {row["recoverability"] for row in envelopes})
+        self.assertIn("recovery_scheduled", {row["status"] for row in envelopes})
+        self.assertIn("blocked", {row["status"] for row in envelopes})
+        self.assertIn("waiting_human", {row["status"] for row in envelopes})
+        self.assertTrue(any(row.get("source_kind") == "event" and row.get("message") == "tool_call_failed" for row in envelopes))
+        self.assertTrue(any({"kind": "step", "value": "step-retry", "href": "#step-step-retry"} in row.get("related_links", []) for row in envelopes))
+        self.assertTrue(any({"kind": "event", "value": "3", "href": "#event-3"} in row.get("related_links", []) for row in envelopes))
+
+        html = report.to_html()
+        self.assertIn("Failure Envelopes", html)
+        self.assertIn("unknown_side_effect", html)
+        self.assertIn("manual_verification", html)
+        self.assertIn('href="#failures"', html)
+
     def test_inspector_redaction_policy_applies_to_json_and_html(self) -> None:
         evidence = {
             "schema_version": "agentledger.evidence.v1",
@@ -1394,9 +1474,13 @@ roles:
             report = FailureAttributionReporter(rt.store).report(run_id).to_dict()
             self.assertEqual(report["run_status"], "failed")
             self.assertEqual(report["summary"]["failed_step_count"], 1)
+            self.assertGreaterEqual(report["summary"]["failure_envelope_count"], 3)
+            self.assertGreaterEqual(report["summary"]["terminal_failure_count"], 1)
             self.assertEqual(report["root_causes"][0]["kind"], "failed_step")
             self.assertEqual(report["root_causes"][0]["error_type"], "RetryableAgentError")
             self.assertTrue(any(event["type"] == "failure_classified" for event in report["failure_events"]))
+            self.assertTrue(any(row["schema_version"] == FAILURE_ENVELOPE_SCHEMA_VERSION for row in report["failure_envelopes"]))
+            self.assertTrue(any(row["status"] == "terminal" and row["step_id"] for row in report["failure_envelopes"]))
 
             args = type("Args", (), {"root": str(Path(tmp) / ".agentledger"), "policy": None, "sandbox_config": None, "run_id": run_id})()
             stdout = io.StringIO()
@@ -1405,6 +1489,7 @@ roles:
             payload = json.loads(stdout.getvalue())
             self.assertEqual(payload["run_id"], run_id)
             self.assertEqual(payload["summary"]["root_cause_count"], 1)
+            self.assertEqual(payload["summary"]["failure_envelope_count"], report["summary"]["failure_envelope_count"])
 
     def test_scheduler_status_reports_runtime_control_plane_state(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

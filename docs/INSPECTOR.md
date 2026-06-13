@@ -53,7 +53,7 @@ pip install agentledger-inspector
 agentledger inspector evidence ./evidence/<run_id> --html ./inspector.html
 ```
 
-Without the Python/PyPI package, the non-Python runtimes can still use their own runtime-core evidence, debug-summary, and static debug HTML capabilities. They just do not have the full `1.3.5` Inspector run index and single-run reference UI unless they use the packaged Inspector tool or a custom viewer built on the same read model.
+Without the Python/PyPI package, the non-Python runtimes still support the shared runtime-core failure semantics and can export compatible evidence. What they do not currently ship is an equivalent native Inspector viewer command that renders the same official run index, single-run HTML, and normalized failure envelopes without installing the companion Inspector tool. This is a distribution/viewer gap, not a runtime failure-support gap.
 
 Standalone Inspector distributions are on the roadmap so non-Python users can consume the official viewer without installing through PyPI. Candidate forms include a Docker image, a single executable, a static web viewer over exported evidence JSON, and a Node/npm CLI or viewer package.
 
@@ -154,6 +154,25 @@ For `agentledger inspector runs`, `--blob-root` is optional. When present, Inspe
 This view is intended for debugging a single run from top to bottom. It does not replace the detailed section views; it gives operators a time-ordered path through them.
 
 Detailed tables keep compact record columns on the first row and render the folded JSON payload in a full-width row below each record. This keeps long payloads readable without forcing a narrow right-side details column.
+
+## Failure Envelopes
+
+`1.3.6` adds `agentledger.failure.envelope.v1`, a normalized failure read model consumed by `agentledger failure report`, Inspector JSON, and Inspector static HTML.
+
+The runtime still records raw events, step rows, Tool Ledger rows, approval rows, and evidence bundles. Failure envelopes are a read model over those records so business code and support tooling do not need to infer failure semantics from undocumented table details.
+
+Each envelope includes:
+
+- `category`: agent, tool, model, policy, approval, sandbox, budget, runtime, retry, or cancellation
+- `status`: terminal, failed, blocked, recovery_scheduled, waiting_human, unknown_side_effect, classified, or recoverable
+- `recoverability`: terminal, auto_retry, recoverable, manual_verification, human_required, manual_intervention, or unknown
+- `retryability`: retryable, not_retryable, or unknown
+- `owner`: the boundary most likely responsible for handling the failure
+- `causal_refs` and `evidence_refs`: stable references back to steps, events, tools, approvals, and blobs
+
+This intentionally covers non-happy-path production states, not just terminal failures. For example, `PENDING_VERIFICATION` Tool Ledger rows become `unknown_side_effect` envelopes with `manual_verification` recoverability, because retrying blindly could duplicate an external side effect.
+
+`1.3.6` does not claim the entire future Agent Failure Lifecycle is complete. Richer causal graphs, failure export mappings, alert sinks, and failure regression workflows remain roadmap items. The stable addition in this release is the portable read model and default Inspector panel.
 
 ## Navigation And Cross-links
 
@@ -292,6 +311,13 @@ Implemented in `1.3.5`:
 - `agentledger.inspector.runs.v1` run-index read model for custom viewers
 - runtime run id and extracted agent run id in event/timeline read-model rows
 - safer static HTML layout for long ids, full-width JSON details, and paginated run lists
+
+Implemented in `1.3.6`:
+
+- `agentledger.failure.envelope.v1` normalized failure read model
+- failure envelopes in `agentledger failure report`
+- Failure Envelopes panel in Inspector JSON/static HTML
+- non-happy-path coverage for missing payloads, retry scheduling, pending approvals, pending tool verification, blocked tools, and terminal failures
 
 Not in this version:
 

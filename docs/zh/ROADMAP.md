@@ -674,6 +674,15 @@ event/timeline row 中的 runtime run id 和提取出的 agent run id
 run list static HTML 分页，以及 Inspector、evidence、time-travel 表格中的全宽 JSON/details 行
 ```
 
+`1.3.6` 已实现：
+
+```text
+agentledger.failure.envelope.v1 normalized failure read model
+agentledger failure report 输出 failure envelopes
+Inspector Failure Envelopes panel，覆盖 terminal failure、retry、waiting approval、blocked tool、unknown side-effect state
+missing event payload、retry scheduling、pending approval、pending tool verification、blocked tool、terminal failure report、Inspector HTML rendering 的非 happy path 测试
+```
+
 后续工作：
 
 ```text
