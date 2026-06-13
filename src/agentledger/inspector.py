@@ -111,7 +111,6 @@ class InspectorReport:
     .section {{ margin-top: 18px; }}
     .section-note {{ margin: -4px 0 12px; color: var(--muted); font-size: 13px; }}
     .panel {{ padding: 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }}
-    .metadata-panel {{ margin-top: 28px; }}
     .nav {{ display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 20px; }}
     .nav a, .link-list a {{ color: var(--accent); text-decoration: none; }}
     .nav a {{ padding: 6px 9px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); font-size: 13px; }}
@@ -323,6 +322,7 @@ class InspectorRunIndex:
     .section {{ margin-top: 18px; }}
     .section-note {{ margin: -4px 0 12px; color: var(--muted); font-size: 13px; }}
     .panel {{ padding: 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }}
+    .metadata-panel {{ margin-top: 36px; }}
     .nav {{ display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 20px; }}
     .nav a, .link-list a {{ color: var(--accent); text-decoration: none; }}
     .nav a {{ padding: 6px 9px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); font-size: 13px; }}
@@ -330,7 +330,7 @@ class InspectorRunIndex:
     .link-list {{ display: flex; flex-wrap: wrap; gap: 6px; min-width: 160px; }}
     .link-list a {{ display: inline-flex; align-items: center; gap: 4px; max-width: 260px; padding: 3px 6px; border: 1px solid var(--line); border-radius: 999px; background: #fbfdfb; font-size: 12px; }}
     .link-list .ref-kind {{ color: var(--muted); }}
-    .run-list {{ display: grid; gap: 12px; }}
+    .run-list {{ display: grid; gap: 24px; }}
     .pager {{ display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 12px; }}
     .pager[hidden] {{ display: none; }}
     .pager button {{ min-height: 30px; padding: 4px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--accent); font: inherit; font-size: 13px; font-weight: 650; cursor: pointer; }}
@@ -361,7 +361,7 @@ class InspectorRunIndex:
     .run-metrics {{ display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }}
     .metric {{ display: inline-flex; align-items: baseline; gap: 6px; min-width: 0; padding: 5px 9px; border: 1px solid var(--line); border-radius: 999px; background: rgba(255, 255, 255, 0.72); font-size: 12px; }}
     .metric strong {{ font-size: 13px; }}
-    .run-details {{ margin-top: 9px; }}
+    .run-details {{ margin: 14px 0 2px; }}
     details {{ margin-top: 4px; max-width: 100%; }}
     summary {{ cursor: pointer; color: var(--accent); font-weight: 650; }}
     pre {{ max-width: 100%; max-height: 300px; overflow: auto; padding: 11px; border: 1px solid var(--line); border-radius: 8px; background: #fbfdfb; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word; }}
