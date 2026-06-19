@@ -66,7 +66,13 @@ These are the adoption problems AgentLedger is designed to make easier:
 
 ## The 3-Minute Demo
 
-Start with the side-effect safety demo. It intentionally simulates a worker crash after a tool changes the outside world. In this controlled flow, the tool is routed through AgentLedger with an idempotency key, so the retry can reuse the recorded side effect instead of creating another one.
+Start with the side-effect safety showcase if you want the quickest visual proof. It intentionally contrasts a naive retry that duplicates an external email with an AgentLedger-managed retry that records the side effect once, resumes safely, and exports Inspector HTML.
+
+```bash
+PYTHONPATH=src python3 examples/showcase/duplicate_side_effect_crash/demo.py
+```
+
+For cross-language parity, run the smaller side-effect safety demos:
 
 ```bash
 PYTHONPATH=src python3 examples/three_minute_demo/demo.py
@@ -80,13 +86,14 @@ cd typescript && node examples/three_minute_demo/three_minute_demo.js
 cd rust && cargo run --example three_minute_demo
 ```
 
-Expected result:
+Expected result across both paths:
 
 - the first attempt fails after the external side effect
 - the retry succeeds
 - the external write count stays at `1`
 - there is one Tool Ledger record for the side effect
 - replay validates evidence without calling the real tool again
+- the showcase also writes `runs.html` and `inspector.html` for visual review
 
 That is the shortest way to see the core value: AgentLedger makes a dangerous retry observable, reviewable, and safer to execute when the integration follows the runtime boundary.
 

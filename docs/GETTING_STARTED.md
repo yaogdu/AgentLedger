@@ -88,6 +88,7 @@ The crate is published as `agentledger-runtime`; the library crate is imported a
 
 | Goal | Example |
 |---|---|
+| See the side-effect safety problem visually | `../examples/showcase/duplicate_side_effect_crash/README.md` |
 | Understand the core value in 3 minutes | `../examples/three_minute_demo/README.md`; Go `../go/examples/three_minute_demo`; TypeScript `../typescript/examples/three_minute_demo`; Rust `../rust/examples/three_minute_demo.rs` |
 | Smallest Python run | `../examples/hello_world/hello.py` |
 | Idempotent side effects | `../examples/side_effect_idempotency/README.md` |

@@ -24,6 +24,7 @@ Python remains the reference implementation, and Go, TypeScript, and Rust now ha
 
 | Need | Go to |
 | --- | --- |
+| See the core value in 3 minutes | [examples/showcase/duplicate_side_effect_crash](examples/showcase/duplicate_side_effect_crash/README.md) |
 | Install and run the first example | [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md) |
 | Decide whether AgentLedger fits your use case | [docs/USE_CASES.md](docs/USE_CASES.md) |
 | Choose Python / Go / TypeScript / Rust | [docs/LANGUAGE_QUICKSTART.md](docs/LANGUAGE_QUICKSTART.md) |
@@ -61,7 +62,7 @@ Inspector exports self-contained, read-only HTML for local or internal debugging
 
 Use AgentLedger when an agent starts doing work you may need to recover, prove, or replay later: creating tickets, sending emails, changing files, calling internal APIs, querying sensitive systems, waiting for human approval, or running long enough that a worker crash is realistic.
 
-The fastest way to validate the value is the [3-minute side-effect safety demo](examples/three_minute_demo/README.md). In that controlled demo, a tool side effect succeeds, the worker crashes before commit, and the retry resumes through AgentLedger without duplicating the external write. For concrete production scenarios, guarantee boundaries, and adoption guidance, see [docs/USE_CASES.md](docs/USE_CASES.md).
+The fastest way to validate the value is the [3-minute side-effect safety showcase](examples/showcase/duplicate_side_effect_crash/README.md). It contrasts a naive retry that sends an external email twice with an AgentLedger-managed retry that records the side effect once, resumes safely, and exports Inspector HTML evidence. For concrete production scenarios, guarantee boundaries, and adoption guidance, see [docs/USE_CASES.md](docs/USE_CASES.md).
 
 ## Scope principle
 
@@ -140,6 +141,7 @@ The repository includes cross-language 3-minute side-effect safety demos, MCP go
 
 | Goal | Demo | Run |
 | --- | --- | --- |
+| Shareable crash/retry showcase | Python | `PYTHONPATH=src python3 examples/showcase/duplicate_side_effect_crash/demo.py` |
 | 3-minute side-effect safety | Python / Go / Rust / TypeScript | `PYTHONPATH=src python3 examples/three_minute_demo/demo.py`; `cd go && go run ./examples/three_minute_demo`; `cd rust && cargo run --example three_minute_demo`; `cd typescript && node examples/three_minute_demo/three_minute_demo.js` |
 | MCP tool governance | Python / Go / Rust / TypeScript | `PYTHONPATH=src python3 examples/mcp_governance/demo.py`; `cd go && go run ./examples/mcp_governance`; `cd rust && cargo run --example mcp_governance`; `cd typescript && node examples/mcp_governance/mcp_governance.js` |
 | Python | `examples/travel_assistant/demo.py` | `python3 examples/travel_assistant/demo.py` |

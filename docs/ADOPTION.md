@@ -16,8 +16,10 @@ Can I verify the reliability claim myself?
 
 | Priority | Item | Acceptance criteria |
 |---|---|---|
+| P0 | Shareable side-effect showcase | A user can run `examples/showcase/duplicate_side_effect_crash`, see naive duplicate side effects versus AgentLedger safe retry, and open generated Inspector HTML. |
 | P0 | 3-minute demo | A user can run the Python, Go, TypeScript, or Rust 3-minute demo and see one external side effect, one Tool Ledger entry, safe retry, and replay-safe evidence. |
 | P0 | README first-screen pain point | The first screen explains the tool side-effect problem before listing architecture. |
+| P0 | Shareable article and short post | A maintainer can use `docs/articles/what-happened-after-agent-tool-failure.zh-CN.md` and `docs/articles/social-posts.md` without inventing positioning copy from scratch. |
 | P1 | MCP governance example | Dependency-free MCP-style tools demonstrate schema, approval, sandbox metadata, idempotency, and audit evidence across Python, Go, TypeScript, and Rust. |
 | P1 | Public issue/discussion list | The next adoption tasks are easy to open as GitHub issues or discussions. |
 | P1 | Case study template | A real integration can be documented without exposing private data. |
@@ -28,6 +30,7 @@ These can be opened as GitHub issues when the project is ready for public tracki
 
 | Title | Type | Why it matters |
 |---|---|---|
+| Record a side-effect safety GIF from the showcase | adoption | Turns the core value into a short visual artifact for README, social posts, and issue discussions. |
 | Build a cross-language 3-minute Tool Ledger demo | example | Shows the core value in a few minutes across Python, Go, TypeScript, and Rust. |
 | Add OpenAI Agents SDK approval/replay example | example | Connects AgentLedger to a major agent SDK boundary without claiming official endorsement. |
 | Add MCP tool governance example | example | Shows how MCP-style tools should pass through policy, approval, sandbox, idempotency, and evidence. |

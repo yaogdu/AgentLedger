@@ -3079,6 +3079,34 @@ async def agent(ctx, state):
             payload = json.loads(stdout.getvalue())
             self.assertTrue(payload["ok"], path)
 
+    def test_showcase_duplicate_side_effect_crash_demo_runs(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            old_root = os.environ.get("AGENTLEDGER_SHOWCASE_ROOT")
+            os.environ["AGENTLEDGER_SHOWCASE_ROOT"] = str(Path(tmp) / "showcase")
+            try:
+                stdout = io.StringIO()
+                with contextlib.redirect_stdout(stdout):
+                    runpy.run_path("examples/showcase/duplicate_side_effect_crash/demo.py", run_name="__main__")
+            finally:
+                if old_root is None:
+                    os.environ.pop("AGENTLEDGER_SHOWCASE_ROOT", None)
+                else:
+                    os.environ["AGENTLEDGER_SHOWCASE_ROOT"] = old_root
+
+            text = stdout.getvalue()
+            self.assertIn("WITHOUT runtime ledger", text)
+            self.assertIn("WITH AgentLedger", text)
+            json_start = text.rfind("\n{")
+            self.assertNotEqual(json_start, -1)
+            payload = json.loads(text[json_start + 1 :])
+            self.assertTrue(payload["ok"])
+            self.assertEqual(payload["naive"]["external_email_count"], 2)
+            self.assertEqual(payload["agentledger"]["external_email_count"], 1)
+            self.assertEqual(payload["agentledger"]["actual_tool_executions"], 1)
+            self.assertTrue(payload["agentledger"]["replay"]["safe"])
+            self.assertTrue(Path(payload["agentledger"]["runs_html"]).exists())
+            self.assertTrue(Path(payload["agentledger"]["inspector_html"]).exists())
+
     def test_simple_api_hello_world(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             @agent

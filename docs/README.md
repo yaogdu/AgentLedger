@@ -15,6 +15,7 @@ AgentLedger is a runtime reliability layer for Agent Harness stacks. It is not a
 
 | Goal | English | 中文 |
 |---|---|---|
+| Run the 3-minute side-effect showcase | `../examples/showcase/duplicate_side_effect_crash/README.md` | same path |
 | Start from zero | `GETTING_STARTED.md` | `zh/GETTING_STARTED.md` |
 | Understand the project | `../README.md` | `../README.zh-CN.md` |
 | Decide whether AgentLedger fits your use case | `USE_CASES.md` | `zh/USE_CASES.md` |
@@ -53,6 +54,8 @@ AgentLedger is a runtime reliability layer for Agent Harness stacks. It is not a
 - `HARNESS_STACK.md`: concrete stack patterns that combine AgentLedger with LangGraph, Temporal, Langfuse/LangSmith/OTel, MCP, model gateways, storage, and sandbox infrastructure.
 - `USE_CASES.md`: practical scenarios, non-goals, 3-minute demo path, and adoption checklist.
 - `INSPECTOR.md`: read-only Inspector commands, DB/evidence inputs, static HTML output, and extension API.
+- `articles/what-happened-after-agent-tool-failure.zh-CN.md`: shareable Chinese article explaining the crash-after-tool-success problem.
+- `articles/social-posts.md`: short posts and GIF recording flow for the side-effect safety showcase.
 - `OPEN_SOURCE_IMPACT.md`: open-source ecosystem value and early-stage infrastructure positioning.
 - `MAINTAINER_NOTES.md`: maintainer responsibilities, review principles, coding-agent usage, and maintenance signals.
 - `ADOPTION.md`: short demos, public issue/discussion candidates, and case-study rules for adoption work.

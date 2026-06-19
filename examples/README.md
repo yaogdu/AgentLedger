@@ -4,10 +4,11 @@
 
 Run Python examples from the repository root with `PYTHONPATH=src` unless the example says otherwise.
 
-If you are evaluating whether AgentLedger is useful for your project, start with `three_minute_demo/README.md`. It is intentionally small: one tool side effect succeeds, the worker crashes before commit, and the retry resumes without duplicating the external write. See `../docs/USE_CASES.md` for the scenario guide.
+If you are evaluating whether AgentLedger is useful for your project, start with `showcase/duplicate_side_effect_crash/README.md`. It is intentionally visual and short: a naive retry duplicates an external email after a worker crash, while AgentLedger records the side effect once, resumes safely, and exports Inspector HTML. See `../docs/USE_CASES.md` for the scenario guide.
 
 | Goal | Path | Command / note |
 |---|---|---|
+| Shareable crash/retry showcase | `showcase/duplicate_side_effect_crash/README.md` | Shows duplicate side effects without a runtime ledger, safe retry with AgentLedger, and generated Inspector HTML. |
 | 3-minute side-effect safety demo | `three_minute_demo/README.md` | Shows crash/retry without duplicate external writes. Cross-language commands are listed below. |
 | Smallest hello-world run | `hello_world/hello.py` | `PYTHONPATH=src python3 examples/hello_world/hello.py` |
 | Idempotent side effects | `side_effect_idempotency/README.md` | Demonstrates Tool Ledger retry behavior. |

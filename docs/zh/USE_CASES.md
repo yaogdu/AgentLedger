@@ -66,7 +66,13 @@ AgentLedger 主要降低这些采用和运维问题的处理成本：
 
 ## 3 分钟 Demo
 
-建议先跑 side-effect safety demo。它会故意模拟：工具已经改变外部世界，但 worker 在提交状态前崩溃。在这个受控流程里，工具通过 AgentLedger 并带有 idempotency key，所以重试可以复用已记录的副作用，而不是再创建一次。
+如果想最快看到可视化效果，建议先跑 side-effect safety showcase。它会对比：naive retry 在 worker 崩溃后重复发送外部邮件；AgentLedger-managed retry 只记录一次副作用、安全恢复，并导出 Inspector HTML。
+
+```bash
+PYTHONPATH=src python3 examples/showcase/duplicate_side_effect_crash/demo.py
+```
+
+如果要验证四语言 parity，再跑更小的 side-effect safety demos：
 
 ```bash
 PYTHONPATH=src python3 examples/three_minute_demo/demo.py
@@ -80,13 +86,14 @@ cd typescript && node examples/three_minute_demo/three_minute_demo.js
 cd rust && cargo run --example three_minute_demo
 ```
 
-预期结果：
+两条路径的预期结果：
 
 - 第一次尝试在外部副作用发生后失败
 - 重试成功
 - 外部写入次数保持为 `1`
 - 只产生一条对应副作用的 Tool Ledger record
 - replay 基于 evidence 验证，不重新调用真实工具
+- showcase 还会写出 `runs.html` 和 `inspector.html`，方便可视化 review
 
 这是最短的价值验证路径：在集成遵守 runtime boundary 的前提下，AgentLedger 把一次危险的重试变得可观察、可复盘，并且更安全。
 
