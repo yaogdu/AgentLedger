@@ -27,6 +27,7 @@ COVERAGE: dict[str, dict[str, object]] = {
     "timetravel": {"status": "covered", "evidence": ["time_travel.v1.json", "static_debug_html.v1.json", "evidence_consumers.v1.json"], "note": "timeline/state-at-seq/static HTML semantics covered; exact CSS/layout is not a contract"},
     "cost": {"status": "covered", "evidence": ["cost_failure_attribution.v1.json"]},
     "failure": {"status": "covered", "evidence": ["cost_failure_attribution.v1.json"]},
+    "model": {"status": "covered", "evidence": ["cost_failure_attribution.v1.json", "evidence_consumers.v1.json"], "note": "runtime model evidence boundary covers archived model requests/responses/failures, usage/cost, and proposed tool-call records without provider routing"},
     "failure_injection": {"status": "covered", "evidence": ["failure_injection.v1.json"]},
     "review": {"status": "covered", "evidence": ["adversarial_review.v1.json"]},
     "eval": {"status": "covered", "evidence": ["evidence_regression.v1.json"], "note": "side-effect-free evidence checks only; external eval platform remains out of core"},

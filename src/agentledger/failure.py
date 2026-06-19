@@ -756,7 +756,10 @@ class FailureExportMapper:
         causal_graph: dict[str, Any],
         replay_plan: dict[str, Any],
         alerts: dict[str, Any],
+        events: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
+        model_evidence = _model_evidence_refs(events or [])
+        tool_proposals = _tool_proposal_refs(events or [])
         export = {
             "schema_version": FAILURE_EXPORT_SCHEMA_VERSION,
             "run_id": run_id,
@@ -767,16 +770,19 @@ class FailureExportMapper:
             "failure_causal_graph": causal_graph,
             "failure_replay_plan": replay_plan,
             "failure_alerts": alerts,
+            "model_evidence_refs": model_evidence,
+            "tool_proposal_refs": tool_proposals,
         }
         export["external_mappings"] = {
-            "opentelemetry": self._otel_mapping(run_id, lifecycle),
-            "langfuse": self._langfuse_mapping(run_id, envelopes),
-            "langsmith": self._langsmith_mapping(run_id, envelopes),
+            "opentelemetry": self._otel_mapping(run_id, lifecycle, model_evidence=model_evidence, tool_proposals=tool_proposals),
+            "langfuse": self._langfuse_mapping(run_id, envelopes, model_evidence=model_evidence, tool_proposals=tool_proposals),
+            "langsmith": self._langsmith_mapping(run_id, envelopes, model_evidence=model_evidence, tool_proposals=tool_proposals),
             "temporal": self._temporal_mapping(run_id, envelopes, replay_plan),
+            "ci": self._ci_mapping(run_id, envelopes, model_evidence, tool_proposals),
         }
         return export
 
-    def _otel_mapping(self, run_id: str, lifecycle: dict[str, Any]) -> dict[str, Any]:
+    def _otel_mapping(self, run_id: str, lifecycle: dict[str, Any], *, model_evidence: list[dict[str, Any]], tool_proposals: list[dict[str, Any]]) -> dict[str, Any]:
         events = []
         for row in lifecycle.get("events", []):
             events.append(
@@ -791,9 +797,36 @@ class FailureExportMapper:
                     },
                 }
             )
+        for row in model_evidence:
+            events.append(
+                {
+                    "name": f"agentledger.model.{row.get('status')}",
+                    "attributes": {
+                        "agentledger.run_id": run_id,
+                        "agentledger.model.provider": row.get("provider"),
+                        "agentledger.model.name": row.get("model"),
+                        "agentledger.model.status": row.get("status"),
+                        "agentledger.model.request_ref": row.get("request_ref"),
+                        "agentledger.model.failure_ref": row.get("failure_ref"),
+                    },
+                }
+            )
+        for row in tool_proposals:
+            events.append(
+                {
+                    "name": "agentledger.tool.proposed",
+                    "attributes": {
+                        "agentledger.run_id": run_id,
+                        "agentledger.tool.name": row.get("tool_name"),
+                        "agentledger.model.provider": row.get("provider"),
+                        "agentledger.model.name": row.get("model"),
+                        "agentledger.model.call_ref": row.get("model_call_ref"),
+                    },
+                }
+            )
         return {"span_event_count": len(events), "span_events": events}
 
-    def _langfuse_mapping(self, run_id: str, envelopes: list[dict[str, Any]]) -> dict[str, Any]:
+    def _langfuse_mapping(self, run_id: str, envelopes: list[dict[str, Any]], *, model_evidence: list[dict[str, Any]], tool_proposals: list[dict[str, Any]]) -> dict[str, Any]:
         return {
             "trace_id": run_id,
             "observations": [
@@ -805,10 +838,30 @@ class FailureExportMapper:
                     "metadata": item,
                 }
                 for item in envelopes
+            ]
+            + [
+                {
+                    "id": item.get("model_call_id"),
+                    "type": "GENERATION",
+                    "name": f"{item.get('provider') or 'model'}.{item.get('model') or 'unknown'}",
+                    "level": "ERROR" if item.get("status") == "failed" else "DEFAULT",
+                    "metadata": item,
+                }
+                for item in model_evidence
+            ]
+            + [
+                {
+                    "id": item.get("proposal_id"),
+                    "type": "EVENT",
+                    "name": f"agentledger.tool_proposed.{item.get('tool_name')}",
+                    "level": "DEFAULT",
+                    "metadata": item,
+                }
+                for item in tool_proposals
             ],
         }
 
-    def _langsmith_mapping(self, run_id: str, envelopes: list[dict[str, Any]]) -> dict[str, Any]:
+    def _langsmith_mapping(self, run_id: str, envelopes: list[dict[str, Any]], *, model_evidence: list[dict[str, Any]], tool_proposals: list[dict[str, Any]]) -> dict[str, Any]:
         return {
             "run_id": run_id,
             "feedback": [
@@ -820,6 +873,10 @@ class FailureExportMapper:
                 }
                 for item in envelopes
             ],
+            "metadata": {
+                "agentledger_model_evidence": model_evidence,
+                "agentledger_tool_proposals": tool_proposals,
+            },
         }
 
     def _temporal_mapping(self, run_id: str, envelopes: list[dict[str, Any]], replay_plan: dict[str, Any]) -> dict[str, Any]:
@@ -832,6 +889,17 @@ class FailureExportMapper:
                 "AgentLedgerFailureCount": len(envelopes),
                 "AgentLedgerUnsafeReplay": bool(replay_plan.get("unsafe_side_effect_count")),
             },
+        }
+
+    def _ci_mapping(self, run_id: str, envelopes: list[dict[str, Any]], model_evidence: list[dict[str, Any]], tool_proposals: list[dict[str, Any]]) -> dict[str, Any]:
+        return {
+            "run_id": run_id,
+            "failed": bool(envelopes),
+            "failure_count": len(envelopes),
+            "model_call_count": len(model_evidence),
+            "model_failure_count": sum(1 for item in model_evidence if item.get("status") == "failed"),
+            "tool_proposal_count": len(tool_proposals),
+            "blocking_failure_ids": [item.get("failure_id") for item in envelopes if item.get("severity") == "risk"],
         }
 
 
@@ -914,6 +982,7 @@ class FailureAttributionReporter:
             causal_graph=failure_causal_graph,
             replay_plan=failure_replay_plan,
             alerts=failure_alerts,
+            events=all_events,
         )
         return FailureAttributionReport(
             run_id=run_id,
@@ -980,6 +1049,86 @@ class FailureAttributionReporter:
 
 def _safe_dict(value: Any) -> dict[str, Any]:
     return value if isinstance(value, dict) else {}
+
+
+def _model_evidence_refs(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    rows: dict[str, dict[str, Any]] = {}
+    order: list[str] = []
+    pending_by_step: dict[str, str] = {}
+    for event in events:
+        event_type = str(event.get("type") or "")
+        if event_type not in {"model_call_requested", "model_call_completed", "model_call_failed"}:
+            continue
+        payload = _safe_dict(event.get("payload"))
+        request_ref = _text(payload.get("request_ref") or (event.get("payload_ref") if event_type == "model_call_requested" else None))
+        response_ref = _text(payload.get("response_ref") or (event.get("payload_ref") if event_type == "model_call_completed" else None))
+        failure_ref = _text(payload.get("failure_ref") or (event.get("payload_ref") if event_type == "model_call_failed" else None))
+        step_key = _text(event.get("step_id")) or "-"
+        model_call_id = request_ref
+        if model_call_id is None and event_type == "model_call_completed":
+            model_call_id = pending_by_step.get(step_key)
+        if model_call_id is None:
+            model_call_id = response_ref or failure_ref or f"event:{event.get('seq')}"
+        if model_call_id not in rows:
+            rows[model_call_id] = {
+                "model_call_id": model_call_id,
+                "status": "requested",
+                "provider": payload.get("provider"),
+                "model": payload.get("model"),
+                "step_id": event.get("step_id"),
+                "request_ref": request_ref,
+                "response_ref": response_ref,
+                "failure_ref": failure_ref,
+                "requested_seq": None,
+                "completed_seq": None,
+                "failed_seq": None,
+            }
+            order.append(model_call_id)
+        row = rows[model_call_id]
+        row["provider"] = row.get("provider") or payload.get("provider")
+        row["model"] = row.get("model") or payload.get("model")
+        row["step_id"] = row.get("step_id") or event.get("step_id")
+        if request_ref:
+            row["request_ref"] = request_ref
+        if response_ref:
+            row["response_ref"] = response_ref
+        if failure_ref:
+            row["failure_ref"] = failure_ref
+        if event_type == "model_call_requested":
+            row["requested_seq"] = event.get("seq")
+            pending_by_step[step_key] = model_call_id
+        elif event_type == "model_call_completed":
+            row["completed_seq"] = event.get("seq")
+            row["status"] = "completed"
+            pending_by_step.pop(step_key, None)
+        elif event_type == "model_call_failed":
+            row["failed_seq"] = event.get("seq")
+            row["status"] = "failed"
+            row["error_type"] = payload.get("error_type")
+            row["retryable"] = payload.get("retryable")
+    return [rows[key] for key in order]
+
+
+def _tool_proposal_refs(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    for event in events:
+        if str(event.get("type") or "") != "tool_call_proposed":
+            continue
+        payload = _safe_dict(event.get("payload"))
+        rows.append(
+            {
+                "proposal_id": _text(event.get("payload_ref")) or f"event:{event.get('seq')}",
+                "tool_name": payload.get("tool") or payload.get("tool_name") or payload.get("name"),
+                "provider": payload.get("provider"),
+                "model": payload.get("model"),
+                "model_call_ref": payload.get("model_call_ref"),
+                "step_id": event.get("step_id"),
+                "seq": event.get("seq"),
+                "confidence": payload.get("confidence"),
+                "reason": payload.get("reason"),
+            }
+        )
+    return rows
 
 
 def _text(value: Any) -> str | None:

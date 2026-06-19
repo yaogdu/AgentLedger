@@ -1,13 +1,13 @@
 {
   "name": "agentledger-mcp-adapter",
-  "version": "1.4.1",
+  "version": "1.4.2",
   "private": false,
   "description": "MCP adapter package for AgentLedger Runtime.",
   "type": "module",
   "main": "src/index.js",
   "types": "src/index.d.ts",
   "dependencies": {
-    "agentledger-runtime": "^1.4.1"
+    "agentledger-runtime": "^1.4.2"
   },
   "files": [
     "src/",

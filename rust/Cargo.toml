@@ -1,6 +1,6 @@
 [package]
 name = "agentledger-runtime"
-version = "1.4.1"
+version = "1.4.2"
 edition = "2021"
 description = "Runtime reliability layer for Agent Harness stacks"
 license = "Apache-2.0"

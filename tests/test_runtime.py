@@ -749,7 +749,10 @@ class RuntimeTests(unittest.TestCase):
         self.assertIn('class="details-row', html)
         self.assertIn('class="record-details"', html)
         self.assertNotIn("<th>Details</th>", html)
-        self.assertIn('table-layout: fixed', html)
+        self.assertIn('table-layout: auto', html)
+        self.assertIn('class="col-id"', html)
+        self.assertIn('class="link-cell"', html)
+        self.assertIn('class="ref-value"', html)
         self.assertIn('white-space: pre-wrap', html)
         self.assertIn('id="event-1"', html)
         self.assertIn('href="#step-step-1"', html)
@@ -851,6 +854,11 @@ class RuntimeTests(unittest.TestCase):
         self.assertIn("unknown_side_effect", html)
         self.assertIn("manual_verification", html)
         self.assertIn('href="#failures"', html)
+        self.assertIn('class="col-message"', html)
+        self.assertIn('class="col-status"', html)
+        self.assertIn('class="link-cell"', html)
+        self.assertIn('class="ref-value"', html)
+        self.assertNotIn('table-layout: fixed', html)
 
     def test_inspector_redaction_policy_applies_to_json_and_html(self) -> None:
         evidence = {
@@ -1038,8 +1046,46 @@ class RuntimeTests(unittest.TestCase):
             self.assertTrue(any(event["type"] == "tool_call_proposed" for event in events))
             failure = FailureAttributionReporter(rt.store).report(run_id).to_dict()
             self.assertTrue(any(item["category"] == "model" for item in failure["failure_envelopes"]))
+            self.assertTrue(failure["failure_export"]["model_evidence_refs"])
+            self.assertTrue(failure["failure_export"]["tool_proposal_refs"])
+            self.assertIn("ci", failure["failure_export"]["external_mappings"])
+            self.assertTrue(any(item["type"] == "GENERATION" for item in failure["failure_export"]["external_mappings"]["langfuse"]["observations"]))
             report = InspectorDataSource().from_runtime_store(store=rt.store, blobs=rt.blobs, run_id=run_id).to_dict()
             self.assertTrue(any(event["type"] == "model_call_failed" for event in report["timeline"]))
+            self.assertEqual(report["summary"]["model_call_count"], 1)
+            self.assertEqual(report["summary"]["model_call_failed_count"], 1)
+            self.assertEqual(report["summary"]["tool_call_proposal_count"], 1)
+            self.assertEqual(report["model_calls"][0]["provider"], "deepseek")
+            self.assertEqual(report["model_calls"][0]["status"], "failed")
+            self.assertEqual(report["tool_proposals"][0]["tool_name"], "search_contract_clause")
+            html = InspectorDataSource().from_runtime_store(store=rt.store, blobs=rt.blobs, run_id=run_id).to_html()
+            self.assertIn("Model Calls", html)
+            self.assertIn("Tool Proposals", html)
+            self.assertIn('<section class="section" id="model-calls">', html)
+            self.assertIn('<section class="section" id="tool-proposals">', html)
+            self.assertIn('class="col-ref"', html)
+            self.assertIn('class="link-cell"', html)
+
+    def test_inspector_groups_mock_model_request_and_response(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            rt = Runtime.local(Path(tmp) / ".agentledger")
+            run_id, _ = rt.create_run(initial_state={})
+
+            async def agent_fn(ctx: Any, state: dict[str, Any]) -> None:
+                await ctx.call_model(
+                    {
+                        "provider": "mock-llm",
+                        "mock_response": "ok",
+                        "mock_usage": {"total_tokens": 9},
+                        "mock_cost_usd": 0.01,
+                    }
+                )
+
+            self.assertTrue(asyncio.run(rt.run_once(agent_fn, run_id=run_id, agent_role="MockModelAgent")))
+            report = InspectorDataSource().from_runtime_store(store=rt.store, blobs=rt.blobs, run_id=run_id).to_dict()
+            self.assertEqual(report["summary"]["model_call_count"], 1)
+            self.assertEqual(report["model_calls"][0]["status"], "completed")
+            self.assertEqual(report["model_calls"][0]["total_tokens"], 9)
 
     def test_python_function_adapter_and_decorator(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -2883,6 +2929,12 @@ import cohere
 import groq
 import ollama
 import vertexai
+import sqlite3
+import psycopg
+import pymysql
+import sqlalchemy
+from pathlib import Path
+from agentledger import ToolSpec, tool
 
 
 async def agent(ctx, state):
@@ -2907,6 +2959,16 @@ async def agent(ctx, state):
     ollama_client = ollama.Client()
     ollama_client.chat(model="demo", messages=[])
     vertexai.init(project="demo")
+    sqlite3.connect("agent.db")
+    psycopg.connect("postgres://example")
+    pymysql.connect(host="localhost")
+    sqlalchemy.create_engine("sqlite:///agent.db")
+    open("unsafe.txt", "w").write("unsafe")
+    Path("unsafe.txt").write_text("unsafe")
+    Path("unsafe.txt").unlink()
+    ToolSpec(name="email.send", func=lambda args: args, side_effect="external_write")
+    ToolSpec(name="shell.exec", func=lambda args: args, side_effect="shell", risk_level="high")
+    tool(name="fs.write", side_effect="filesystem", risk_level="high")(lambda args: args)
     # agentledger: ignore-next-line
     os.system("ignored")
 """.strip(),
@@ -2929,6 +2991,16 @@ async def agent(ctx, state):
             self.assertIn("direct-groq-sdk", rule_ids)
             self.assertIn("direct-ollama-sdk", rule_ids)
             self.assertIn("direct-vertexai-sdk", rule_ids)
+            self.assertIn("direct-db-sqlite", rule_ids)
+            self.assertIn("direct-db-psycopg", rule_ids)
+            self.assertIn("direct-db-pymysql", rule_ids)
+            self.assertIn("direct-db-sqlalchemy", rule_ids)
+            self.assertIn("direct-file-write-open", rule_ids)
+            self.assertIn("direct-file-write-text", rule_ids)
+            self.assertIn("direct-file-unlink", rule_ids)
+            self.assertIn("tool-side-effect-missing-idempotency", rule_ids)
+            self.assertIn("tool-high-risk-missing-approval", rule_ids)
+            self.assertIn("tool-high-risk-missing-sandbox", rule_ids)
             self.assertEqual(sum(1 for finding in report.findings if finding.callee == "os.system"), 1)
 
     def test_runtime_boundary_linter_loads_project_rule_pack(self) -> None:
@@ -2995,6 +3067,7 @@ async def agent(ctx, state):
             "examples/media_stream/managed_tool.py",
             "examples/mcp_context/basic_context_server.py",
             "examples/mcp_tool/basic_tool.py",
+            "examples/model_evidence/demo.py",
             "examples/openai_agents/basic_agent.py",
             "examples/sandbox/command_tool.py",
             "examples/semantic_kernel/basic_kernel.py",

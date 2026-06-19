@@ -15,11 +15,26 @@ AgentLedger 1.4.x is a stable runtime-core line with Python as the reference imp
 - reliability semantics validation
 - production pilot preparation with explicit adapter boundaries
 
-Release-scope note: 1.3.x added and hardened Inspector as a read-only evidence/runtime metadata consumer. It can read exported evidence bundles or connect to SQLite/Postgres/MySQL AgentLedger metadata with read-only credentials and can export static HTML debug reports. 1.4.0 adds the four-language Agent Failure Lifecycle baseline: normalized failure envelopes, lifecycle stages, causal graph, replay plan, regression report, local alert records, and portable failure export mappings. 1.4.1 adds the four-language Runtime Model Evidence Boundary: archived model request/response/failure evidence, model-proposed tool calls, and model cost/failure/replay semantics without provider routing. MySQL remains the 1.2.2 storage adapter boundary and Langfuse remains the 1.2.3 observability adapter boundary; real-service production claims still require external validation.
+Release-scope note: 1.3.x added and hardened Inspector as a read-only evidence/runtime metadata consumer. It can read exported evidence bundles or connect to SQLite/Postgres/MySQL AgentLedger metadata with read-only credentials and can export static HTML debug reports. 1.4.0 added the four-language Agent Failure Lifecycle baseline: normalized failure envelopes, lifecycle stages, causal graph, replay plan, regression report, local alert records, and portable failure export mappings. 1.4.1 added the four-language Runtime Model Evidence Boundary: archived model request/response/failure evidence, model-proposed tool calls, and model cost/failure/replay semantics without provider routing. 1.4.2 consolidates that path with dedicated Inspector model-call/tool-proposal views, stronger failure export mappings, a model evidence example, and boundary lint hardening. MySQL remains the 1.2.2 storage adapter boundary and Langfuse remains the 1.2.3 observability adapter boundary; real-service production claims still require external validation.
 
 The runtime-core contract is stable. Optional production adapters, external infrastructure hardening, and full eval systems remain outside the stable core boundary; non-Python runtime-core baselines are verified by the shared parity gates.
 
 Scope rule: runtime-core should stay thin but indispensable. It should own only guarantees that cannot be enforced outside the runtime boundary; mature planning, workflow, eval, observability, RAG, sandbox infrastructure, and deployment systems should integrate through adapters or consume evidence/replay outputs.
+
+## Verification Boundary
+
+The release gates prove the covered runtime contracts and conformance scenarios, not the absence of all defects. Current automated checks cover unit tests, dependency-free examples, contract snapshots, adapter package metadata, cross-language runtime-core conformance, parity audits, lint rules, and Markdown/link hygiene.
+
+Areas that still require separate validation before production claims include:
+
+- browser-level visual regressions for generated static HTML reports
+- real Postgres/MySQL/S3/OTLP/sandbox services under realistic concurrency and failure modes
+- framework-native adapters against real framework versions
+- organization-specific policy packs, secret handling, redaction rules, and approval workflows
+- large evidence bundles, long-running runs, and high-cardinality production data
+- business-project integration smoke tests such as `legal-agent`
+
+When this document says a feature is implemented or stable, it means the feature is present and covered by the stated contract/test boundary. It does not mean every downstream integration, browser rendering edge case, or external infrastructure path is exhaustively verified.
 
 ## Current Completion Boundary
 
@@ -51,7 +66,7 @@ Excluded from this boundary:
 | Evidence regression primitives | side-effect-free evidence checks, `evidence-regression` media/stream gates, machine-readable regression summaries, adversarial review, evidence regression checklist with media/stream evidence checks, divergence report with media/stream dimensions, golden corpus seed/add/list/check with baseline, Tool Ledger, and media/stream built-ins |
 | Shadow mode | side-effect-safe candidate runs using archived Tool Ledger responses |
 | Cost and budget | store-backed cost records, budget enforcement hooks, read-only cost attribution report by run/agent/step/category/tool/model, and model evidence usage/USD attribution |
-| Runtime Model Evidence Boundary | `agentledger.model.evidence.v1`, external model-call evidence APIs, `model_call_requested/completed/failed`, `tool_call_proposed`, model failure category, and replay-safe archived model evidence semantics |
+| Runtime Model Evidence Boundary | `agentledger.model.evidence.v1`, external model-call evidence APIs, `model_call_requested/completed/failed`, `tool_call_proposed`, model failure category, replay-safe archived model evidence semantics, Inspector model-call/tool-proposal views, and export mappings for model evidence refs |
 | Approval and policy | approval request/approve/deny flow, YAML/JSON policy checks, `PolicyRequest`, `PolicyDecision`, `PolicyFinding`, `PolicyControl`, built-in evaluator registry, decision evidence in `tool_permission_decided` |
 | Scheduling semantics | leases, fencing, heartbeat, cancellation, retry policy, failure taxonomy |
 | Worker loop | local worker loop, process-shaped `WorkerService`, worker conformance runner |
@@ -60,7 +75,7 @@ Excluded from this boundary:
 | Sandbox boundary | fail-closed `none`, local executor, router, external executor contracts, Docker/bubblewrap command paths, Kubernetes dry-run/gated path |
 | Observability | trace JSONL export with media/stream spans, dependency-free OTLP JSON export, optional OTLP/JSON collector POST, evidence-linked audit records |
 | Inspector | `agentledger.inspector.v1` single-run read model, `agentledger.inspector.runs.v1` run-index read model, `agentledger inspector run/runs/evidence`, static HTML reports, section navigation, row anchors, cross-links between related records, evidence-bundle input, read-only SQLite input, Postgres/MySQL read paths through existing adapter boundaries, configurable redaction policy, optional `agentledger-inspector` companion package |
-| Reliability checks | failure injection suite, failure attribution report, conformance runners including media runtime conformance, runtime-boundary lint, scheduler facade, adversarial review, evidence regression for shell, HTTP, cloud, GitHub, and common model SDK bypasses with JSON rule-pack extension |
+| Reliability checks | failure injection suite, failure attribution report, conformance runners including media runtime conformance, runtime-boundary lint, scheduler facade, adversarial review, evidence regression for shell, HTTP, database, filesystem, cloud, GitHub, risky ToolSpec metadata, and common model SDK bypasses with JSON rule-pack extension |
 | Media and stream contracts | `MediaArtifact`, `MediaMetadata`, `ArtifactLineage`, `StreamChunkRef`, `EventStreamCheckpoint`, `AgentContext.create_media_artifact(...)`, `AgentContext.create_stream_checkpoint(...)`, media/stream tool schema conventions, ToolGateway/Tool Ledger media tool example, evidence indexes, replay artifact validation/counts |
 | Release scaffolding | CI workflow, changelog, security policy, versioning policy, release checklist, contributor checks, bilingual documentation entrypoints, SVG architecture diagram, ResourceWarning-sensitive test gate, adapter certification checklist, adapter packaging docs/checks |
 
@@ -116,3 +131,7 @@ Large capabilities such as Eval, Observability, Guardrails, Tool Gateway/Sandbox
 3. Harden production-pilot adapter paths: Postgres, S3/MinIO, worker deployment, OTLP transport, and non-destructive retention/backup checks. These P2 claims require real services, load/concurrency checks, and restore or rollback drills; local certification manifests intentionally mark them as external-required.
 4. Build richer external evidence consumers and eval adapters outside runtime-core.
 5. Extend media/stream preview contracts into optional adapters only after the core reliability harness remains stable.
+
+---
+
+generated by codex cli

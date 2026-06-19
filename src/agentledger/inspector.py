@@ -62,6 +62,8 @@ class InspectorReport:
             ("failure-replay", "Replay Plan"),
             ("failure-alerts", "Alerts"),
             ("failure-causal-graph", "Causal Graph"),
+            ("model-calls", "Model Calls"),
+            ("tool-proposals", "Tool Proposals"),
             ("timeline", "Timeline"),
             ("steps", "Steps"),
             ("tool-ledger", "Tool Ledger"),
@@ -135,14 +137,21 @@ class InspectorReport:
     .event-meta {{ display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }}
     .event-meta code {{ max-width: 100%; overflow-wrap: anywhere; }}
     .event-details {{ margin-top: 8px; }}
-    .link-list {{ display: flex; flex-wrap: wrap; gap: 6px; min-width: 160px; }}
-    .link-list a {{ display: inline-flex; align-items: center; gap: 4px; max-width: 260px; padding: 3px 6px; border: 1px solid var(--line); border-radius: 999px; background: #fbfdfb; font-size: 12px; }}
-    .link-list .ref-kind {{ color: var(--muted); }}
+    .link-list {{ display: flex; flex-wrap: wrap; gap: 6px; min-width: 0; max-width: 100%; }}
+    .link-list a {{ display: inline-flex; align-items: center; gap: 4px; min-width: 0; max-width: 100%; padding: 3px 6px; border: 1px solid var(--line); border-radius: 999px; background: #fbfdfb; font-size: 12px; white-space: nowrap; }}
+    .link-list .ref-kind {{ flex: 0 0 auto; color: var(--muted); }}
+    .link-list .ref-value {{ min-width: 0; overflow: hidden; text-overflow: ellipsis; }}
     .table-wrap {{ width: 100%; max-width: 100%; overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }}
-    table {{ width: 100%; min-width: 760px; table-layout: fixed; border-collapse: collapse; background: var(--surface); }}
-    th, td {{ padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: top; text-align: left; overflow-wrap: anywhere; word-break: break-word; }}
+    table {{ width: max-content; min-width: 100%; table-layout: auto; border-collapse: collapse; background: var(--surface); }}
+    th, td {{ padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: top; text-align: left; overflow-wrap: anywhere; word-break: normal; }}
     th {{ background: var(--surface-2); color: #334137; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; }}
     td.event-time {{ white-space: nowrap; font-variant-numeric: tabular-nums; }}
+    th.col-id, td.col-id {{ min-width: 240px; max-width: 380px; }}
+    th.col-message, td.col-message {{ min-width: 320px; max-width: 560px; }}
+    th.col-summary, td.col-summary {{ min-width: 300px; max-width: 560px; }}
+    th.col-ref, td.col-ref {{ min-width: 260px; max-width: 420px; }}
+    th.col-status, td.col-status {{ min-width: 120px; }}
+    th.link-cell, td.link-cell {{ min-width: 230px; max-width: 340px; }}
     tr.details-row td {{ padding-top: 0; background: #fbfdfb; }}
     tr.details-row.risk td {{ background: var(--danger-bg); }}
     tr.details-row.warn td {{ background: var(--warn-bg); }}
@@ -161,7 +170,7 @@ class InspectorReport:
       .cards {{ grid-template-columns: repeat(2, minmax(0, 1fr)); }}
       .grid-2 {{ grid-template-columns: 1fr; }}
       .event-item {{ grid-template-columns: 1fr; }}
-      table {{ min-width: 680px; }}
+      table {{ min-width: 760px; }}
     }}
     @media (max-width: 560px) {{
       main {{ padding: 22px 12px 36px; }}
@@ -237,6 +246,18 @@ class InspectorReport:
         <h2>Failure Causal Edges</h2>
         {_table(["source", "target", "kind"], self.data.get("failure_causal_graph", {}).get("edges", []))}
       </div>
+    </section>
+
+    <section class="section" id="model-calls">
+      <h2>Model Calls</h2>
+      <p class="section-note">Archived model request, response, usage, cost, and failure evidence recorded at the runtime boundary. Inspector does not call model providers.</p>
+      {_table(["model_call_id", "provider", "model", "status", "step_id", "total_tokens", "total_usd", "error_type"], self.data.get("model_calls", []), risk_key="status", risk_values={"failed"}, warn_values={"requested"})}
+    </section>
+
+    <section class="section" id="tool-proposals">
+      <h2>Tool Proposals</h2>
+      <p class="section-note">Model-proposed tool calls before ToolGateway execution, linked to model evidence and actual tool ledger records when references are available.</p>
+      {_table(["proposal_id", "tool_name", "provider", "model", "model_call_ref", "step_id", "confidence", "reason"], self.data.get("tool_proposals", []))}
     </section>
 
     <section class="section" id="timeline">
@@ -361,9 +382,10 @@ class InspectorRunIndex:
     .nav a, .link-list a {{ color: var(--accent); text-decoration: none; }}
     .nav a {{ padding: 6px 9px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); font-size: 13px; }}
     .nav a:hover, .link-list a:hover {{ text-decoration: underline; }}
-    .link-list {{ display: flex; flex-wrap: wrap; gap: 6px; min-width: 160px; }}
-    .link-list a {{ display: inline-flex; align-items: center; gap: 4px; max-width: 260px; padding: 3px 6px; border: 1px solid var(--line); border-radius: 999px; background: #fbfdfb; font-size: 12px; }}
-    .link-list .ref-kind {{ color: var(--muted); }}
+    .link-list {{ display: flex; flex-wrap: wrap; gap: 6px; min-width: 0; max-width: 100%; }}
+    .link-list a {{ display: inline-flex; align-items: center; gap: 4px; min-width: 0; max-width: 100%; padding: 3px 6px; border: 1px solid var(--line); border-radius: 999px; background: #fbfdfb; font-size: 12px; white-space: nowrap; }}
+    .link-list .ref-kind {{ flex: 0 0 auto; color: var(--muted); }}
+    .link-list .ref-value {{ min-width: 0; overflow: hidden; text-overflow: ellipsis; }}
     .run-list {{ display: grid; gap: 28px; }}
     .pager {{ display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 12px; }}
     .pager[hidden] {{ display: none; }}
@@ -518,7 +540,18 @@ class InspectorReportBuilder:
         timeline = [_timeline_event(event, include_payloads=include_payloads) for event in events]
         policy_decisions = [_policy_decision(event, include_payloads=include_payloads) for event in events if event.get("type") == "tool_permission_decided"]
         policy_decisions = [row for row in policy_decisions if row is not None]
-        _decorate_report_links(timeline=timeline, steps=steps, ledger=ledger, approvals=approvals, policy_decisions=policy_decisions, artifacts=artifacts)
+        model_calls = _model_calls(events, include_payloads=include_payloads)
+        tool_proposals = _tool_proposals(events, include_payloads=include_payloads)
+        _decorate_report_links(
+            timeline=timeline,
+            steps=steps,
+            ledger=ledger,
+            approvals=approvals,
+            policy_decisions=policy_decisions,
+            model_calls=model_calls,
+            tool_proposals=tool_proposals,
+            artifacts=artifacts,
+        )
         agent_run_id = _find_agent_run_id(evidence)
         event_stream = _chronological_event_stream(timeline, runtime_run_id=run.get("run_id"), agent_run_id=agent_run_id)
         failure_events = [event for event in timeline if _is_failure_event(event.get("type"))]
@@ -573,6 +606,9 @@ class InspectorReportBuilder:
             "terminal_failure_count": sum(1 for item in failure_envelopes if item.get("status") == "terminal"),
             "recoverable_failure_count": sum(1 for item in failure_envelopes if item.get("recoverability") in {"auto_retry", "recoverable", "manual_verification", "human_required"}),
             "policy_decision_count": len(policy_decisions),
+            "model_call_count": len(model_calls),
+            "model_call_failed_count": sum(1 for item in model_calls if item.get("status") == "failed"),
+            "tool_call_proposal_count": len(tool_proposals),
         }
         failure_export = FailureExportMapper().export(
             run_id=str(run.get("run_id") or ""),
@@ -583,6 +619,7 @@ class InspectorReportBuilder:
             causal_graph=failure_causal_graph,
             replay_plan=failure_replay_plan,
             alerts=failure_alerts,
+            events=events,
         )
         risk_flags = _risk_flags(summary, steps, ledger, approvals, failure_events, policy_decisions)
         data = {
@@ -594,6 +631,8 @@ class InspectorReportBuilder:
             "agent_run_id": agent_run_id,
             "event_stream": event_stream,
             "timeline": timeline,
+            "model_calls": model_calls,
+            "tool_proposals": tool_proposals,
             "steps": steps,
             "tool_ledger": ledger,
             "approvals": approvals,
@@ -1060,6 +1099,131 @@ def _project_cost(row: Any) -> dict[str, Any]:
     return _select(item, ["category", "name", "amount", "unit", "agent_role", "step_id", "created_at"])
 
 
+def _model_calls(events: list[dict[str, Any]], *, include_payloads: bool) -> list[dict[str, Any]]:
+    rows: dict[str, dict[str, Any]] = {}
+    order: list[str] = []
+    pending_by_step: dict[str, str] = {}
+    for event in events:
+        event_type = str(event.get("type") or "")
+        if event_type not in {"model_call_requested", "model_call_completed", "model_call_failed"}:
+            continue
+        payload = _safe_dict(event.get("payload"))
+        request_ref = _text_value(payload.get("request_ref") or (event.get("payload_ref") if event_type == "model_call_requested" else None))
+        response_ref = _text_value(payload.get("response_ref") or (event.get("payload_ref") if event_type == "model_call_completed" else None))
+        failure_ref = _text_value(payload.get("failure_ref") or (event.get("payload_ref") if event_type == "model_call_failed" else None))
+        step_key = _text_value(event.get("step_id")) or "-"
+        model_call_id = request_ref
+        if model_call_id is None and event_type == "model_call_completed":
+            model_call_id = pending_by_step.get(step_key)
+        if model_call_id is None:
+            model_call_id = response_ref or failure_ref or f"event:{event.get('seq')}"
+        if model_call_id not in rows:
+            rows[model_call_id] = {
+                "model_call_id": model_call_id,
+                "status": "requested",
+                "step_id": event.get("step_id"),
+                "agent_role": event.get("agent_role"),
+                "requested_seq": None,
+                "completed_seq": None,
+                "failed_seq": None,
+                "request_ref": request_ref,
+                "response_ref": response_ref,
+                "failure_ref": failure_ref,
+                "provider": payload.get("provider"),
+                "model": payload.get("model"),
+                "total_tokens": 0,
+                "total_usd": 0.0,
+                "error_type": None,
+                "error": None,
+                "retryable": None,
+                "related_refs": [],
+            }
+            order.append(model_call_id)
+        row = rows[model_call_id]
+        row["step_id"] = row.get("step_id") or event.get("step_id")
+        row["agent_role"] = row.get("agent_role") or event.get("agent_role")
+        row["provider"] = row.get("provider") or payload.get("provider")
+        row["model"] = row.get("model") or payload.get("model")
+        if request_ref:
+            row["request_ref"] = request_ref
+        if response_ref:
+            row["response_ref"] = response_ref
+        if failure_ref:
+            row["failure_ref"] = failure_ref
+        if event_type == "model_call_requested":
+            row["requested_seq"] = event.get("seq")
+            row["status"] = "requested"
+            pending_by_step[step_key] = model_call_id
+        elif event_type == "model_call_completed":
+            row["completed_seq"] = event.get("seq")
+            row["status"] = "completed"
+            pending_by_step.pop(step_key, None)
+        elif event_type == "model_call_failed":
+            row["failed_seq"] = event.get("seq")
+            row["status"] = "failed"
+            row["error_type"] = payload.get("error_type")
+            row["error"] = payload.get("error")
+            row["retryable"] = payload.get("retryable")
+        usage = _safe_dict(payload.get("usage"))
+        total_tokens = _usage_total_tokens(usage)
+        if total_tokens:
+            row["total_tokens"] = total_tokens
+        if payload.get("total_usd") is not None:
+            row["total_usd"] = payload.get("total_usd")
+        refs = []
+        if event.get("step_id") is not None:
+            refs.append({"kind": "step", "value": str(event["step_id"])})
+        if event.get("seq") is not None:
+            refs.append({"kind": "event", "value": str(event["seq"])})
+        for ref in [request_ref, response_ref, failure_ref]:
+            if ref:
+                refs.append({"kind": "blob", "value": ref})
+        row["related_refs"] = _merge_related_refs(row.get("related_refs"), refs)
+        if include_payloads:
+            payloads = row.setdefault("payloads", {})
+            payloads[event_type] = payload
+    return [rows[key] for key in order]
+
+
+def _tool_proposals(events: list[dict[str, Any]], *, include_payloads: bool) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    for event in events:
+        if str(event.get("type") or "") != "tool_call_proposed":
+            continue
+        payload = _safe_dict(event.get("payload"))
+        proposal_id = _text_value(event.get("payload_ref")) or f"event:{event.get('seq')}"
+        tool_name = payload.get("tool") or payload.get("tool_name") or payload.get("name")
+        row = {
+            "proposal_id": proposal_id,
+            "tool_name": tool_name,
+            "provider": payload.get("provider"),
+            "model": payload.get("model"),
+            "model_call_ref": payload.get("model_call_ref"),
+            "step_id": event.get("step_id"),
+            "agent_role": event.get("agent_role"),
+            "seq": event.get("seq"),
+            "confidence": payload.get("confidence"),
+            "reason": payload.get("reason"),
+            "related_refs": [],
+        }
+        refs = []
+        if event.get("step_id") is not None:
+            refs.append({"kind": "step", "value": str(event["step_id"])})
+        if event.get("seq") is not None:
+            refs.append({"kind": "event", "value": str(event["seq"])})
+        if tool_name is not None:
+            refs.append({"kind": "tool", "value": str(tool_name)})
+        if payload.get("model_call_ref") is not None:
+            refs.append({"kind": "model", "value": str(payload["model_call_ref"])})
+        if proposal_id:
+            refs.append({"kind": "blob", "value": proposal_id})
+        row["related_refs"] = _merge_related_refs(None, refs)
+        if include_payloads:
+            row["payload"] = payload
+        rows.append(row)
+    return rows
+
+
 def _timeline_event(event: dict[str, Any], *, include_payloads: bool) -> dict[str, Any]:
     payload = event.get("payload")
     item = {
@@ -1166,6 +1330,8 @@ def _decorate_report_links(
     ledger: list[dict[str, Any]],
     approvals: list[dict[str, Any]],
     policy_decisions: list[dict[str, Any]],
+    model_calls: list[dict[str, Any]],
+    tool_proposals: list[dict[str, Any]],
     artifacts: list[dict[str, Any]],
 ) -> None:
     anchors: dict[tuple[str, str], str] = {}
@@ -1174,8 +1340,11 @@ def _decorate_report_links(
     _anchor_rows(approvals, kind="approval", key="approval_id", anchors=anchors)
     _anchor_rows(artifacts, kind="artifact", key="artifact_id", anchors=anchors)
     _anchor_rows(policy_decisions, kind="policy", key="seq", anchors=anchors)
+    _anchor_rows(model_calls, kind="model", key="model_call_id", anchors=anchors)
+    _anchor_rows(tool_proposals, kind="proposal", key="proposal_id", anchors=anchors)
     _anchor_rows(timeline, kind="event", key="seq", anchors=anchors)
 
+    _decorate_model_tool_links(model_calls=model_calls, tool_proposals=tool_proposals, ledger=ledger, anchors=anchors)
     for row in timeline:
         _attach_related_links(row, anchors)
     for row in approvals:
@@ -1204,6 +1373,40 @@ def _decorate_report_links(
         if row.get("content_ref") is not None:
             refs.append({"kind": "content", "value": str(row["content_ref"])})
         row["related_refs"] = _merge_related_refs(row.get("related_refs"), refs)
+
+    for row in model_calls:
+        _attach_related_links(row, anchors)
+    for row in tool_proposals:
+        _attach_related_links(row, anchors)
+
+
+def _decorate_model_tool_links(
+    *,
+    model_calls: list[dict[str, Any]],
+    tool_proposals: list[dict[str, Any]],
+    ledger: list[dict[str, Any]],
+    anchors: dict[tuple[str, str], str],
+) -> None:
+    model_refs = {str(row.get("model_call_id")): row for row in model_calls if row.get("model_call_id") is not None}
+    tools_by_name = {str(row.get("tool_name")): row for row in ledger if row.get("tool_name") is not None}
+    for proposal in tool_proposals:
+        refs = []
+        model_ref = proposal.get("model_call_ref")
+        if model_ref is not None and str(model_ref) in model_refs:
+            refs.append({"kind": "model", "value": str(model_ref)})
+            model_row = model_refs[str(model_ref)]
+            model_row["related_refs"] = _merge_related_refs(
+                model_row.get("related_refs"),
+                [{"kind": "proposal", "value": str(proposal.get("proposal_id"))}],
+            )
+        tool_name = proposal.get("tool_name")
+        if tool_name is not None and str(tool_name) in tools_by_name:
+            refs.append({"kind": "tool", "value": str(tool_name)})
+        proposal["related_refs"] = _merge_related_refs(proposal.get("related_refs"), refs)
+    for row in model_calls:
+        _attach_related_links(row, anchors)
+    for row in tool_proposals:
+        _attach_related_links(row, anchors)
 
 
 def _decorate_failure_envelope_links(
@@ -1268,12 +1471,22 @@ def _related_refs_from_event(event: dict[str, Any]) -> list[dict[str, str]]:
             "tool": ["tool_name", "name"],
             "approval": ["approval_id"],
             "artifact": ["artifact_id"],
-            "blob": ["payload_ref", "blob_ref", "response_ref"],
+            "model": ["request_ref", "model_call_ref"],
+            "proposal": ["proposal_id"],
+            "blob": ["payload_ref", "blob_ref", "response_ref", "failure_ref"],
         }.items():
             for key in keys:
                 value = payload.get(key)
                 if value is not None:
                     refs.append({"kind": kind, "value": str(value)})
+        if str(event.get("type") or "") == "model_call_requested" and event.get("payload_ref") is not None:
+            refs.append({"kind": "model", "value": str(event["payload_ref"])})
+        if str(event.get("type") or "") == "tool_call_proposed" and event.get("payload_ref") is not None:
+            refs.append({"kind": "proposal", "value": str(event["payload_ref"])})
+        if str(event.get("type") or "") == "model_call_failed":
+            model_ref = payload.get("request_ref") or event.get("payload_ref")
+            if model_ref is not None:
+                refs.append({"kind": "model", "value": str(model_ref)})
     if event.get("payload_ref") is not None:
         refs.append({"kind": "blob", "value": str(event["payload_ref"])})
     return _merge_related_refs(None, refs)
@@ -1353,6 +1566,29 @@ def _payload_summary(payload: Any) -> str:
         return f"list[{len(payload)}]"
     text = str(payload)
     return text if len(text) <= 120 else text[:117] + "..."
+
+
+def _text_value(value: Any) -> str | None:
+    if value is None:
+        return None
+    text = str(value)
+    return text if text else None
+
+
+def _usage_total_tokens(usage: dict[str, Any]) -> int:
+    for key in ("total_tokens", "totalTokens", "tokens"):
+        value = usage.get(key)
+        if value is not None:
+            try:
+                return int(value or 0)
+            except (TypeError, ValueError):
+                return 0
+    input_tokens = usage.get("input_tokens", usage.get("prompt_tokens", usage.get("inputTokens", 0)))
+    output_tokens = usage.get("output_tokens", usage.get("completion_tokens", usage.get("outputTokens", 0)))
+    try:
+        return int(input_tokens or 0) + int(output_tokens or 0)
+    except (TypeError, ValueError):
+        return 0
 
 
 def _find_agent_run_id(value: Any, *, _depth: int = 0) -> str | None:
@@ -1509,8 +1745,8 @@ def _table(
     if not rows:
         return "<p>No records.</p>"
     include_links = any(row.get("related_links") for row in rows)
-    links_head = "<th>Links</th>" if include_links else ""
-    head = "".join(f"<th>{escape(column)}</th>" for column in columns) + links_head
+    links_head = "<th class=\"link-cell\">Links</th>" if include_links else ""
+    head = "".join(f"<th{_column_class_attr(column)}>{escape(column)}</th>" for column in columns) + links_head
     body = "\n".join(_table_row(columns, row, risk_key=risk_key, risk_values=risk_values or set(), warn_values=warn_values or set(), include_links=include_links) for row in rows)
     return f"<div class=\"table-wrap\"><table><thead><tr>{head}</tr></thead><tbody>{body}</tbody></table></div>"
 
@@ -1656,15 +1892,37 @@ def _table_row(columns: list[str], row: dict[str, Any], *, risk_key: str | None,
     status = row.get(risk_key) if risk_key else None
     css = "risk" if status in risk_values else "warn" if status in warn_values else ""
     cells = "".join(_table_cell(column, row.get(column, "-")) for column in columns)
-    links = f"<td>{_link_list(row.get('related_links'))}</td>" if include_links else ""
+    links = f"<td class=\"link-cell\">{_link_list(row.get('related_links'))}</td>" if include_links else ""
     colspan = len(columns) + (1 if include_links else 0)
     details_row = f"<tr class=\"details-row{(' ' + css) if css else ''}\"><td colspan=\"{colspan}\"><details class=\"record-details\"><summary>JSON</summary><pre>{_json_block(row)}</pre></details></td></tr>"
     return f"<tr{_row_attrs(row.get('anchor'), css)}>{cells}{links}</tr>{details_row}"
 
 
 def _table_cell(column: str, value: Any) -> str:
-    css = " class=\"event-time\"" if column in {"time", "timestamp"} else ""
-    return f"<td{css}>{escape(str(value))}</td>"
+    css = _column_class(column)
+    css_attr = f" class=\"{escape(css, quote=True)}\"" if css else ""
+    return f"<td{css_attr}>{escape(str(value))}</td>"
+
+
+def _column_class_attr(column: str) -> str:
+    css = _column_class(column)
+    return f" class=\"{escape(css, quote=True)}\"" if css else ""
+
+
+def _column_class(column: str) -> str:
+    if column in {"time", "timestamp"}:
+        return "event-time"
+    if column.endswith("_id") or column in {"id", "source", "target"}:
+        return "col-id"
+    if column in {"message", "reason"}:
+        return "col-message"
+    if column in {"summary"}:
+        return "col-summary"
+    if column.endswith("_ref") or column.endswith("_refs") or column in {"blob_ref", "content_ref", "model_call_ref"}:
+        return "col-ref"
+    if column in {"status", "recoverability", "retryability", "category", "owner", "severity"}:
+        return "col-status"
+    return ""
 
 
 def _row_attrs(anchor: Any, css: str) -> str:
@@ -1694,7 +1952,7 @@ def _link_list(value: Any) -> str:
         if not href or kind is None or ref_value is None:
             continue
         links.append(
-            f"<a href=\"{escape(str(href), quote=True)}\"><span class=\"ref-kind\">{escape(str(kind))}</span>{escape(str(ref_value))}</a>"
+            f"<a href=\"{escape(str(href), quote=True)}\"><span class=\"ref-kind\">{escape(str(kind))}</span><span class=\"ref-value\">{escape(str(ref_value))}</span></a>"
         )
     return "<div class=\"link-list\">" + "".join(links) + "</div>" if links else "-"
 

@@ -150,6 +150,48 @@ DEFAULT_BOUNDARY_RULES = [
         prefix=True,
     ),
     BoundaryLintRule(
+        "direct-db-sqlite",
+        "sqlite3.connect",
+        "database",
+        "direct SQLite writes can bypass AgentLedger tool governance, policy, replay, and audit",
+        "wrap database mutation as a runtime-managed tool or use an AgentLedger storage adapter for runtime metadata",
+    ),
+    BoundaryLintRule(
+        "direct-db-psycopg",
+        "psycopg.connect",
+        "database",
+        "direct Postgres writes can bypass AgentLedger tool governance, policy, replay, and audit",
+        "wrap database mutation as a runtime-managed tool or keep it outside agent side-effect code",
+    ),
+    BoundaryLintRule(
+        "direct-db-psycopg2",
+        "psycopg2.connect",
+        "database",
+        "direct Postgres writes can bypass AgentLedger tool governance, policy, replay, and audit",
+        "wrap database mutation as a runtime-managed tool or keep it outside agent side-effect code",
+    ),
+    BoundaryLintRule(
+        "direct-db-pymysql",
+        "pymysql.connect",
+        "database",
+        "direct MySQL writes can bypass AgentLedger tool governance, policy, replay, and audit",
+        "wrap database mutation as a runtime-managed tool or keep it outside agent side-effect code",
+    ),
+    BoundaryLintRule(
+        "direct-db-mysql-connector",
+        "mysql.connector.connect",
+        "database",
+        "direct MySQL writes can bypass AgentLedger tool governance, policy, replay, and audit",
+        "wrap database mutation as a runtime-managed tool or keep it outside agent side-effect code",
+    ),
+    BoundaryLintRule(
+        "direct-db-sqlalchemy",
+        "sqlalchemy.create_engine",
+        "database",
+        "direct SQLAlchemy engine creation in agent code can bypass AgentLedger side-effect governance",
+        "wrap database mutation as a runtime-managed tool and record idempotency/approval metadata",
+    ),
+    BoundaryLintRule(
         "direct-openai-sdk",
         "openai.",
         "model",
@@ -345,24 +387,122 @@ class _BoundaryVisitor(ast.NodeVisitor):
 
     def visit_Call(self, node: ast.Call) -> None:
         callee = self._resolved_callee(node.func)
+        if callee is None and isinstance(node.func, ast.Attribute):
+            callee = node.func.attr
         if callee and not self._is_ignored(node.lineno):
+            if self._scan_special_call(node, callee):
+                self.generic_visit(node)
+                return
             for rule in self.rules:
                 if rule.matches(callee):
-                    self.findings.append(
-                        BoundaryLintFinding(
-                            path=str(self.path),
-                            line=node.lineno,
-                            column=node.col_offset + 1,
-                            rule_id=rule.rule_id,
-                            severity="error",
-                            callee=callee,
-                            category=rule.category,
-                            message=rule.message,
-                            suggestion=rule.suggestion,
-                        )
-                    )
+                    self._add_finding(node, rule_id=rule.rule_id, callee=callee, category=rule.category, message=rule.message, suggestion=rule.suggestion)
                     break
         self.generic_visit(node)
+
+    def _scan_special_call(self, node: ast.Call, callee: str) -> bool:
+        emitted = False
+        if callee in {"open", "io.open"} and self._open_writes(node):
+            self._add_finding(
+                node,
+                rule_id="direct-file-write-open",
+                callee=callee,
+                category="filesystem",
+                message="direct file writes bypass ToolGateway, policy, ledger, sandbox, and audit",
+                suggestion="wrap file mutation as a runtime-managed tool and call await ctx.call_tool(...)",
+            )
+            emitted = True
+        attr = node.func.attr if isinstance(node.func, ast.Attribute) else ""
+        if attr in {"write_text", "write_bytes", "unlink"}:
+            self._add_finding(
+                node,
+                rule_id=f"direct-file-{attr.replace('_', '-')}",
+                callee=callee,
+                category="filesystem",
+                message="direct filesystem mutation bypasses ToolGateway, policy, ledger, sandbox, and audit",
+                suggestion="wrap filesystem mutation as a runtime-managed tool and call await ctx.call_tool(...)",
+            )
+            emitted = True
+        if callee.endswith("ToolSpec") or callee == "tool" or callee.endswith(".tool"):
+            emitted = self._scan_tool_metadata(node, callee) or emitted
+        return emitted
+
+    def _scan_tool_metadata(self, node: ast.Call, callee: str) -> bool:
+        keywords = {keyword.arg: keyword.value for keyword in node.keywords if keyword.arg}
+        side_effect = self._literal_string(keywords.get("side_effect")) or "none"
+        risk_level = self._literal_string(keywords.get("risk_level")) or "low"
+        idempotency_required = self._literal_bool(keywords.get("idempotency_required"))
+        if idempotency_required is None:
+            idempotency_required = self._literal_bool(keywords.get("idempotency"))
+        approval_required = self._literal_bool(keywords.get("approval_required"))
+        sandbox_required = self._literal_bool(keywords.get("sandbox_required"))
+        emitted = False
+        if side_effect not in {"", "none", "read", "read_only"} and idempotency_required is not True:
+            self._add_finding(
+                node,
+                rule_id="tool-side-effect-missing-idempotency",
+                callee=callee,
+                category="tool-metadata",
+                message="side-effecting tools should declare idempotency_required so retries and replay can be governed",
+                suggestion="set idempotency_required=True on ToolSpec or idempotency=True on the @tool decorator",
+            )
+            emitted = True
+        if risk_level in {"high", "critical"} and approval_required is not True:
+            self._add_finding(
+                node,
+                rule_id="tool-high-risk-missing-approval",
+                callee=callee,
+                category="tool-metadata",
+                message="high-risk tools should require approval before side effects",
+                suggestion="set approval_required=True or document a project-specific lint exception",
+            )
+            emitted = True
+        if risk_level in {"high", "critical"} and sandbox_required is not True and side_effect in {"shell", "code", "filesystem", "external_write"}:
+            self._add_finding(
+                node,
+                rule_id="tool-high-risk-missing-sandbox",
+                callee=callee,
+                category="tool-metadata",
+                message="high-risk execution or filesystem tools should declare a sandbox boundary",
+                suggestion="set sandbox_required=True and configure a sandbox adapter when executing untrusted commands or code",
+            )
+            emitted = True
+        return emitted
+
+    def _open_writes(self, node: ast.Call) -> bool:
+        mode_node = node.args[1] if len(node.args) >= 2 else None
+        for keyword in node.keywords:
+            if keyword.arg == "mode":
+                mode_node = keyword.value
+                break
+        if mode_node is None:
+            return False
+        mode = self._literal_string(mode_node)
+        return bool(mode and any(flag in mode for flag in ("w", "a", "x", "+")))
+
+    def _literal_string(self, node: ast.AST | None) -> str | None:
+        if isinstance(node, ast.Constant) and isinstance(node.value, str):
+            return node.value
+        return None
+
+    def _literal_bool(self, node: ast.AST | None) -> bool | None:
+        if isinstance(node, ast.Constant) and isinstance(node.value, bool):
+            return node.value
+        return None
+
+    def _add_finding(self, node: ast.Call, *, rule_id: str, callee: str, category: str, message: str, suggestion: str) -> None:
+        self.findings.append(
+            BoundaryLintFinding(
+                path=str(self.path),
+                line=node.lineno,
+                column=node.col_offset + 1,
+                rule_id=rule_id,
+                severity="error",
+                callee=callee,
+                category=category,
+                message=message,
+                suggestion=suggestion,
+            )
+        )
 
     def _resolved_callee(self, node: ast.AST) -> str | None:
         raw = self._dotted_name(node)

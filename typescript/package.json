@@ -1,6 +1,6 @@
 {
   "name": "agentledger-runtime",
-  "version": "1.4.1",
+  "version": "1.4.2",
   "private": false,
   "description": "Runtime reliability layer for Agent Harness stacks.",
   "type": "module",

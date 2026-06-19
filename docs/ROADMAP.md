@@ -13,7 +13,7 @@ Most capabilities should be evaluated in three layers: core contract, built-in m
 | Capability | Runtime-core owns | Optional adapters may own | Explicit non-goals for core |
 |---|---|---|---|
 | Planning / Workflow | adapter contract, runtime-managed checkpoints, evidence hooks, tool boundary integration | LangGraph, CrewAI, AutoGen, LangChain, Temporal, Prefect, Airflow, custom workflow adapters | building a competing planner, graph engine, or workflow engine |
-| Eval / Evidence Consumers | evidence export, replay, deterministic rerun hooks, minimal side-effect-free regression checks, conformance fixtures | external eval runners, LLM judges, benchmark datasets, CI report sinks | full offline evaluator that runs N agents x M cases, metrics service, test-case management, or long-running web app |
+| Eval / Evidence Consumers | evidence export, replay, deterministic rerun hooks, minimal side-effect-free regression checks, conformance fixtures, eval-adapter output formats | Langfuse, Phoenix, promptfoo, DeepEval, Ragas, OpenAI Evals, LangSmith/Braintrust-style consumers, CI report sinks | standalone Eval Platform, full offline evaluator that runs N agents x M cases, metrics service, test-case management, scorer management UI, or long-running eval web app |
 | Tracing / Observability | structured events, trace JSONL, OTLP/JSON export, evidence links | OpenTelemetry SDK packages, collector recipes, external trace stores | full observability suite |
 | Guardrails | ToolSpec schema validation, policy checks, approvals, pre/postcondition hooks, adversarial review gates | richer policy engines, org-specific rule packs, external review workflows | business-specific governance backend |
 | Tool Gateway + Sandbox | ToolGateway, Tool Ledger, idempotency, audit, sandbox executor contract, fail-closed behavior | Docker, bubblewrap, Kubernetes/gVisor, E2B, Firecracker, custom executors | owning external sandbox infrastructure |
@@ -101,7 +101,7 @@ Langfuse / LangSmith / OpenTelemetry backends
 Temporal / Ray / Kubernetes
 LiteLLM, new-api, one-api, and enterprise model gateways
 vector databases, RAG systems, long-term memory systems
-eval platforms and benchmark runners
+eval platforms and benchmark runners such as Langfuse, Phoenix, promptfoo, DeepEval, Ragas, OpenAI Evals, LangSmith, or Braintrust
 MCP tool servers and enterprise tool catalogs
 routing advisors and capability routers such as WisePick-style services; candidate only, if future evaluation proves the boundary useful
 ```
@@ -114,7 +114,7 @@ These would make the project too broad or turn it into a different product:
 
 ```text
 complete agent workflow engine
-complete eval platform
+standalone eval platform
 complete Langfuse/LangSmith replacement
 complete RAG or memory platform
 complete sandbox infrastructure platform
@@ -123,12 +123,12 @@ debug viewer write/control plane in the first inspector release
 tool marketplace or app store
 ```
 
-### Current Implementation Order After 1.4.1
+### Current Implementation Order After 1.4.2
 
-1. Add framework-native examples and smoke fixtures for the most common adoption paths: OpenAI Agents SDK, LangGraph package compatibility, LangChain/CrewAI/AutoGen facades, and runtime-boundary lint examples.
+1. Add framework-native examples and smoke fixtures for the most common adoption paths: OpenAI Agents SDK, LangGraph package compatibility, LangChain/CrewAI/AutoGen facades, and richer runtime-boundary examples.
 2. Add a Temporal bridge example and optional adapter boundary that makes the ownership split explicit: Temporal owns workflow lifecycle and retries; AgentLedger owns node-internal tool/model/state reliability.
-3. Improve Inspector as a language-neutral companion: a model-call panel, stronger tool-proposal links, better run-index filtering/search, and a standalone viewer path for Go/TypeScript/Rust users who do not want Python in the application runtime.
-4. Harden observability export beyond local JSON mapping: OTLP deployment recipes first, then Langfuse/LangSmith-style evidence/trace exporters without replacing those tools.
+3. Improve Inspector as a language-neutral companion: better run-index filtering/search and a standalone viewer path for Go/TypeScript/Rust users who do not want Python in the application runtime.
+4. Harden observability and eval exports beyond local JSON mapping: OTLP deployment recipes first, then Langfuse/Phoenix/promptfoo/DeepEval/Ragas/OpenAI-Evals/LangSmith-style evidence adapters without replacing those tools.
 5. Continue production-pilot adapter hardening for Postgres, MySQL, S3/MinIO, workers, OTLP transport, and sandbox packages with real-service conformance, permission boundaries, backup/restore drills, and failure semantics.
 6. Start the Runtime Memory Lifecycle baseline only after the model/tool/failure evidence path remains stable: memory refs, snapshots, reads/writes, diffs, lineage, replay semantics, and redaction hooks.
 7. Add sub-agent/multi-agent runtime semantics as a focused reliability layer: parent-child run links, spawn/join events, cancellation propagation, replay-safe joins, and cost/failure attribution.
@@ -174,7 +174,7 @@ Companion product directions:
 |---|---|---|
 | AgentLedger Inspector | makes runs visible through timeline, Tool Ledger, approvals, replay diff, artifacts, cost, and failure attribution | separate read-only local/internal tool, not runtime-core UI |
 | Tool Governance / MCP Gateway | enforces schema, permission, approval, sandbox, audit, and idempotency before tool side effects | optional gateway package or reference service |
-| Replay / Regression Lab | lets teams test prompt, model, tool-schema, or agent-logic changes against historical evidence without repeating side effects | CLI and CI companion over evidence bundles |
+| Eval adapters / Replay regression | lets teams test prompt, model, tool-schema, or agent-logic changes against historical evidence without repeating side effects | evidence exporters and CLI/CI companions over evidence bundles; no standalone eval platform |
 | Production Harness Blueprint | shows how AgentLedger composes with LangGraph/OpenAI Agents SDK, Temporal, Langfuse/OTel, MCP, Postgres/S3, and Docker sandbox | examples, templates, and deployment recipes |
 | Agent Security Scanner | detects tool boundary bypass, risky tool schemas, missing approval/sandbox, secret exposure, and sensitive evidence artifacts | optional scanner command or separate package |
 
@@ -187,7 +187,7 @@ Explicit non-goals for this track:
 ```text
 do not describe AgentLedger as a mature large-adoption project until evidence exists
 do not add marketing-only claims that are not backed by examples or conformance
-do not turn the repo into a full harness product, or eval platform
+do not turn the repo into a full harness product or standalone eval platform
 do not put secrets, private customer details, or private company implementation notes into public docs
 ```
 
@@ -487,20 +487,36 @@ Exit criteria:
 - high-risk tool flow has full audit chain
 - evidence bundle can be exported for every run
 
-## Post-v1 - Reliability Harness and Evidence Consumers
+## Post-v1 - Reliability Harness and Eval Adapters
 
 Goals:
 
 ```text
 make prompt/workflow/runtime changes testable
 turn evidence into regression inputs for external and local checks
+connect AgentLedger evidence to mature open-source eval tools
 ```
 
 Implemented in the current v1.1.0 local reliability path:
 
 - `evidence-regression` machine-readable summary for failed checks, changed dimensions, changed counts, bundle-hash status, and cost deltas
 
-Planned:
+Direction:
+
+AgentLedger should not build a standalone Eval Platform. Eval platforms can use AgentLedger, but they should not be required to use it. The runtime should provide high-quality evidence and replay outputs that mature eval tools can consume.
+
+Planned adapter/export work:
+
+- evidence bundle to Langfuse dataset/score/experiment inputs
+- evidence bundle to Phoenix dataset/experiment/eval-span inputs
+- evidence bundle to promptfoo YAML/JSON test cases
+- evidence bundle to DeepEval test cases and metrics inputs
+- evidence bundle to Ragas dataset rows for RAG/agent workflow evaluation
+- evidence bundle to OpenAI Evals-style sample records
+- failure, policy, model, tool, and cost evidence mapped to eval sample metadata
+- replay result to regression report inputs for CI gates
+
+Planned local evidence-consumer improvements:
 
 - richer replay/rerun divergence report with more drill-down and fixture UX
 - richer repro harness UX for named golden evidence fixtures
@@ -512,12 +528,20 @@ Planned:
 - additional real-world golden evidence fixtures
 - replayable media pipeline support for frame/audio segment indexes, timeline metadata, and evidence-linked derived artifacts
 
+Explicit non-goals:
+
+- building dataset management, scorer management, leaderboard, or experiment dashboard inside AgentLedger
+- running a long-lived eval service or web application
+- replacing Langfuse, Phoenix, promptfoo, DeepEval, Ragas, OpenAI Evals, LangSmith, Braintrust, or custom CI systems
+- claiming online runtime safety from offline eval scores; runtime policy enforcement remains in AgentLedger/policy engine
+
 Exit criteria:
 
 - prompt/workflow changes can be shadow-run against historical evidence
 - replay divergence is reported at event/state/artifact level
 - media pipeline replay can reuse captured frame/segment artifacts instead of reprocessing raw media
 - regression and external eval results link back to evidence bundles
+- at least two mature eval tools can consume AgentLedger evidence through documented adapters without reading undocumented runtime tables
 
 ## 1.4.0 - Agent Failure Lifecycle
 
@@ -551,7 +575,7 @@ Follow-up adapter / evidence-consumer work:
 
 - deeper Langfuse/LangSmith/OpenTelemetry live exporter integrations beyond local JSON mapping
 - Temporal/Ray/Kubernetes failure propagation recipes that preserve AgentLedger failure evidence inside external execution backends
-- eval adapter examples that consume AgentLedger evidence to detect answer-quality failures, hallucination, policy misses, or task-level correctness regressions
+- eval adapter examples that consume AgentLedger evidence in tools such as Langfuse, Phoenix, promptfoo, DeepEval, Ragas, or OpenAI Evals to detect answer-quality failures, hallucination, policy misses, or task-level correctness regressions
 - alerting/report sinks that send local alert records to concrete external systems
 
 Explicit non-goals for runtime-core:
@@ -790,10 +814,8 @@ Explicit non-goals:
 
 Follow-up work:
 
-- Inspector panel dedicated to model calls and model-proposed tool calls
-- stronger links between `tool_call_proposed` and subsequent `tool_call_requested/completed/failed`
 - optional policy hook for high-risk model requests, data-classification evidence, and redaction decisions
-- examples showing OpenAI-compatible, Anthropic-style, and enterprise gateway calls recorded as evidence without routing through AgentLedger
+- standalone Inspector packaging for Go/TypeScript/Rust users who do not want Python installed in the application runtime
 
 Exit criteria:
 
@@ -801,6 +823,33 @@ Exit criteria:
 - model failures produce normalized failure evidence without requiring AgentLedger to own provider retry logic
 - model-proposed tool calls are visible before the actual ToolGateway execution
 - replay/debug/evidence consumers can inspect model evidence without contacting a model provider
+
+## 1.4.2 - Model Evidence UX, Export, And Boundary Lint Consolidation
+
+Status: implemented as a four-language 1.4.x release train with Python reference tooling improvements. Runtime-core event semantics remain aligned across Python, Go, TypeScript, and Rust; Inspector and boundary lint remain companion/read-model tooling distributed through the Python reference package.
+
+Implemented in `1.4.2`:
+
+- Inspector `Model Calls` panel for archived request/response/failure refs, usage, cost, provider/model metadata, and failure status
+- Inspector `Tool Proposals` panel for `tool_call_proposed` records before ToolGateway execution
+- stronger read-model links between model calls, proposed tool calls, runtime events, Tool Ledger rows, and failure records
+- failure export model evidence refs and proposed-tool refs for Langfuse, OpenTelemetry, LangSmith, Temporal-style consumers, and local CI
+- boundary lint hardening for direct database clients, direct filesystem mutation, model SDK bypasses, and risky ToolSpec metadata
+- dependency-free model evidence example showing externally executed gateway/provider calls recorded into AgentLedger without provider routing
+
+Explicit non-goals:
+
+- no model gateway/router in runtime-core
+- no bundled provider SDKs
+- no standalone eval platform
+- no native Inspector rewrite in Go/TypeScript/Rust for this patch
+
+Exit criteria:
+
+- a developer can open Inspector and see model-call evidence separately from tool execution evidence
+- a model-proposed tool call can be traced to the eventual ToolGateway/Tool Ledger record when names or refs are available
+- failure exports expose model evidence and proposed-tool refs without sending data to third-party platforms
+- boundary lint catches common bypasses before runtime instrumentation is accidentally skipped
 
 ## Post-v1 - Sub-agent And Multi-agent Runtime Semantics
 
@@ -930,3 +979,7 @@ Process:
 Before parity, non-Python implementations may publish 0.x preview packages. After parity, runtime contract changes require synchronized language updates and conformance results.
 
 See `MULTI_LANGUAGE.md` and `LANGUAGE_PARITY_MATRIX.md`.
+
+---
+
+generated by codex cli
