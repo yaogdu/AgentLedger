@@ -123,14 +123,16 @@ debug viewer write/control plane in the first inspector release
 tool marketplace or app store
 ```
 
-### Recommended Implementation Order
+### Current Implementation Order After 1.4.1
 
-1. Ship `agentledger-inspector` as a read-only evidence/runtime metadata consumer over SQLite/Postgres/MySQL and exported evidence bundles.
-2. Harden observability export: OTLP now, then Langfuse/LangSmith-style evidence/trace exporters without replacing those tools.
-3. Harden the Runtime Model Evidence Boundary so external model calls can be archived, linked to tool proposals, replayed from evidence, and attributed to cost/failure without making AgentLedger a model router.
-4. Keep concrete model routing in provider SDKs, LiteLLM/new-api/one-api, enterprise gateways, or user code; only add optional endpoint adapters if they preserve the evidence boundary without becoming routing products.
-5. Add a Temporal bridge that makes the boundary explicit: Temporal owns workflow lifecycle; AgentLedger owns node-internal tool/model/runtime safety.
-6. Continue hardening storage, sandbox, MCP, tool, and framework adapters with real-service conformance, permission boundaries, backup/restore, and failure semantics.
+1. Add framework-native examples and smoke fixtures for the most common adoption paths: OpenAI Agents SDK, LangGraph package compatibility, LangChain/CrewAI/AutoGen facades, and runtime-boundary lint examples.
+2. Add a Temporal bridge example and optional adapter boundary that makes the ownership split explicit: Temporal owns workflow lifecycle and retries; AgentLedger owns node-internal tool/model/state reliability.
+3. Improve Inspector as a language-neutral companion: a model-call panel, stronger tool-proposal links, better run-index filtering/search, and a standalone viewer path for Go/TypeScript/Rust users who do not want Python in the application runtime.
+4. Harden observability export beyond local JSON mapping: OTLP deployment recipes first, then Langfuse/LangSmith-style evidence/trace exporters without replacing those tools.
+5. Continue production-pilot adapter hardening for Postgres, MySQL, S3/MinIO, workers, OTLP transport, and sandbox packages with real-service conformance, permission boundaries, backup/restore drills, and failure semantics.
+6. Start the Runtime Memory Lifecycle baseline only after the model/tool/failure evidence path remains stable: memory refs, snapshots, reads/writes, diffs, lineage, replay semantics, and redaction hooks.
+7. Add sub-agent/multi-agent runtime semantics as a focused reliability layer: parent-child run links, spawn/join events, cancellation propagation, replay-safe joins, and cost/failure attribution.
+8. Extend media/stream support through optional processing adapters, keeping runtime-core limited to refs, metadata, lineage, checkpoints, and replay validation.
 
 ## Open Source Adoption And Maintainer Workflow
 
@@ -149,21 +151,22 @@ than overclaiming broad production adoption.
 
 Recommended work:
 
-1. Add a focused OpenAI Agents SDK example that shows a runtime-managed tool call, approval gate, Tool Ledger record, evidence export, and replay-safe debugging flow.
-2. Add an MCP governance example that shows schema validation, permission checks, approval-required tools, sandbox-required tools, and audit evidence for MCP-style tools.
-3. Add a Temporal bridge example that demonstrates the intended boundary: Temporal owns workflow lifecycle and retries; AgentLedger owns node-internal tool/model/state reliability.
+1. Add a focused OpenAI Agents SDK example that shows a runtime-managed tool call, approval gate, Tool Ledger record, model evidence, evidence export, and replay-safe debugging flow.
+2. Add a Temporal bridge example that demonstrates the intended boundary: Temporal owns workflow lifecycle and retries; AgentLedger owns node-internal tool/model/state reliability.
+3. Add standalone Inspector adoption paths for non-Python users: Docker image, single executable, static web viewer over exported evidence JSON, and/or Node/npm CLI/viewer package.
 4. Add a Codex-assisted maintainer workflow document or script that helps with issue triage, release checklist preparation, adapter conformance checks, documentation consistency, and changelog drafting.
-5. Keep `OPEN_SOURCE_IMPACT.md` and `MAINTAINER_NOTES.md` current as the public explanation of ecosystem value and maintenance responsibility.
+5. Keep `OPEN_SOURCE_IMPACT.md`, `MAINTAINER_NOTES.md`, and `USE_CASES.md` current as the public explanation of ecosystem value, maintenance responsibility, and practical adoption scenarios.
 6. Collect real usage evidence without inflating claims: examples, discussions, issues, integration notes, package downloads, external demos, and real-service hardening reports.
 
 Adoption evidence work:
 
-1. Build a 3-minute demo named "Prevent duplicate tool side effects in AI agents": roughly 30 lines of code plus a short README, showing a failed retry that does not duplicate an external action because Tool Ledger owns the idempotency record. The expected output should show the run id, one external side effect, one Tool Ledger entry, and replay/evidence commands.
-2. Record a short GIF or terminal screencast showing the runtime path: `run -> tool call -> approval -> crash -> resume -> replay evidence`.
-3. Write one technical article with a clear thesis, for example "Agents Need a Runtime, Not More Retries" or "Making AI Agents Durable, Auditable, and Replayable".
-4. Keep the README opening focused on the user pain: "Your agent called a tool. Did it happen? Can you retry safely? Can you prove it later?"
-5. Create public issues or discussions for the next adoption tasks: OpenAI Agents SDK approval/replay example, MCP tool governance example, Inspector prototype, Temporal bridge example, and tool-injection risk scanner.
-6. Publish one or two real integration notes or case studies, such as using AgentLedger to audit tool calls in a legal agent, without including private data.
+1. Keep the cross-language 3-minute side-effect safety demo current and runnable after every release.
+2. Keep the cross-language MCP governance example current and make it easy to compare with real MCP SDK integrations later.
+3. Record a short GIF or terminal screencast showing the runtime path: `run -> tool call -> approval -> crash -> resume -> replay evidence`.
+4. Write one technical article with a clear thesis, for example "Agents Need a Runtime, Not More Retries" or "Making AI Agents Durable, Auditable, and Replayable".
+5. Keep the README opening focused on the user pain: "Your agent called a tool. Did it happen? Can you retry safely? Can you prove it later?"
+6. Create public issues or discussions for the next adoption tasks: OpenAI Agents SDK approval/replay example, standalone Inspector viewer, Temporal bridge example, tool-injection risk scanner, and memory lifecycle design.
+7. Publish one or two real integration notes or case studies, such as using AgentLedger to audit tool calls in a legal agent, without including private data.
 
 Companion product directions:
 
@@ -324,17 +327,15 @@ Verified release gates:
 - cross-language parity script with markdown link and diff checks
 - complete core parity/package dry-run script
 
-Follow-up versions:
+Candidate follow-up release trains:
 
 ```text
-1.2.x  adapter packaging fixes, framework-native smoke, and package docs polish
-1.3.0  language-neutral Inspector: read-only DB/evidence consumer and static HTML debug report
-1.3.x  richer Inspector/report UX, redaction, and evidence-driven replay/regression lab
-1.4.0  Agent Failure Lifecycle: normalized failures, lifecycle, causal graph, replay plan, regression, alerts, export mappings
-1.4.1  Runtime Model Evidence Boundary: external model call records, model failure evidence, tool-call proposals, cost/failure/replay semantics
-1.5.0  sub-agent/multi-agent runtime semantics: parent-child runs, spawn/join, cancellation/failure/cost attribution
-1.6.0  media adapter release: frame/audio/video refs, transcription/embedding adapters, stream transports
-1.7.x  optional model evidence endpoint examples, kept outside runtime-core routing/provider selection
+1.5.0  framework/Temporal adoption: OpenAI Agents SDK example, Temporal bridge, framework-native smoke fixtures
+1.6.0  standalone Inspector and evidence consumer UX: non-Python viewer path, model-call panel, filtering/search
+1.7.0  Runtime Memory Lifecycle: memory refs, snapshots, reads/writes, diffs, lineage, replay semantics
+1.8.0  sub-agent/multi-agent runtime semantics: parent-child runs, spawn/join, cancellation/failure/cost attribution
+1.9.0  media adapter release: frame/audio/video refs, transcription/embedding adapters, stream transports
+1.x    production-pilot adapter hardening can ship in patch/minor releases when real-service evidence is available
 ```
 
 ## v1.1.0 - Adapter Certification And Reliability Gate Upgrade

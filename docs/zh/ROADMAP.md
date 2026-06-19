@@ -123,14 +123,16 @@ deployment management service、billing、organization admin
 tool marketplace or app store
 ```
 
-### 推荐实现顺序
+### 1.4.1 之后的推荐实现顺序
 
-1. 发布 `agentledger-inspector`，作为 read-only evidence/runtime metadata consumer，读取 SQLite/Postgres/MySQL 和导出的 evidence bundle。
-2. 强化 observability export：先 OTLP，再做 Langfuse/LangSmith-style evidence/trace exporter，但不替代这些工具。
-3. 加固 Runtime Model Evidence Boundary：外部 model call 可以归档、链接到 tool proposal、从 evidence replay，并进入 cost/failure attribution，但不把 AgentLedger 做成 model router。
-4. 具体 model routing 交给 provider SDK、LiteLLM/new-api/one-api、企业 gateway 或用户代码；只有能保持 evidence-only 边界时，才考虑 optional endpoint adapter。
-5. 增加 Temporal bridge，并明确边界：Temporal 管 workflow lifecycle；AgentLedger 管 node 内部 tool/model/runtime safety。
-6. 继续 harden storage、sandbox、MCP、tool 和 framework adapters：真实服务 conformance、权限边界、backup/restore 和 failure semantics。
+1. 增加 framework-native examples 和 smoke fixtures，优先覆盖最常见接入路径：OpenAI Agents SDK、LangGraph package compatibility、LangChain/CrewAI/AutoGen facades，以及 runtime-boundary lint examples。
+2. 增加 Temporal bridge example 和 optional adapter boundary，明确边界：Temporal 管 workflow lifecycle 和 retry；AgentLedger 管 node 内部 tool/model/state reliability。
+3. 继续改进 Inspector 作为 language-neutral companion：model-call panel、更强的 tool-proposal links、更好的 run-index filtering/search，以及面向不想在应用 runtime 安装 Python 的 Go/TypeScript/Rust 用户的 standalone viewer path。
+4. 强化 observability export，不只停留在本地 JSON mapping：先补 OTLP deployment recipes，再做 Langfuse/LangSmith-style evidence/trace exporter，但不替代这些工具。
+5. 继续做 production-pilot adapter hardening：Postgres、MySQL、S3/MinIO、worker、OTLP transport、sandbox packages 的真实服务 conformance、权限边界、backup/restore drill 和 failure semantics。
+6. 在 model/tool/failure evidence 路径保持稳定后，启动 Runtime Memory Lifecycle baseline：memory refs、snapshot、read/write、diff、lineage、replay semantics 和 redaction hooks。
+7. 增加 sub-agent/multi-agent runtime semantics，但只作为可靠性层：parent-child run link、spawn/join event、cancellation propagation、replay-safe join、cost/failure attribution。
+8. 通过 optional processing adapters 扩展 media/stream，runtime-core 继续只保存 ref、metadata、lineage、checkpoint 和 replay validation。
 
 ## Open Source Adoption And Maintainer Workflow
 
@@ -147,21 +149,22 @@ AgentLedger 是面向生产级 AI Agent 的早期开源 reliability and governan
 
 推荐工作：
 
-1. 增加聚焦的 OpenAI Agents SDK example，展示 runtime-managed tool call、approval gate、Tool Ledger record、evidence export 和 replay-safe debugging flow。
-2. 增加 MCP governance example，展示 MCP-style tools 的 schema validation、permission check、approval-required tools、sandbox-required tools 和 audit evidence。
-3. 增加 Temporal bridge example，说明推荐边界：Temporal 管 workflow lifecycle 和 retry；AgentLedger 管 node 内部 tool/model/state reliability。
+1. 增加聚焦的 OpenAI Agents SDK example，展示 runtime-managed tool call、approval gate、Tool Ledger record、model evidence、evidence export 和 replay-safe debugging flow。
+2. 增加 Temporal bridge example，说明推荐边界：Temporal 管 workflow lifecycle 和 retry；AgentLedger 管 node 内部 tool/model/state reliability。
+3. 增加面向非 Python 用户的 standalone Inspector adoption path：Docker image、单文件可执行程序、读取导出 evidence JSON 的静态 Web viewer，以及/或 Node/npm CLI/viewer package。
 4. 增加 Codex-assisted maintainer workflow 文档或脚本，用于 issue triage、release checklist 准备、adapter conformance check、文档一致性和 changelog 草稿。
-5. 持续维护 `OPEN_SOURCE_IMPACT.md` 和 `MAINTAINER_NOTES.md`，作为公开解释生态价值和维护职责的入口。
+5. 持续维护 `OPEN_SOURCE_IMPACT.md`、`MAINTAINER_NOTES.md` 和 `USE_CASES.md`，作为公开解释生态价值、维护职责和实际采用场景的入口。
 6. 收集真实使用证据，但不夸大：examples、discussions、issues、integration notes、package downloads、external demos 和 real-service hardening reports。
 
 Adoption evidence 工作：
 
-1. 做一个 3-minute demo，命名为 "Prevent duplicate tool side effects in AI agents"：约 30 行代码加一个简短 README，展示 agent 失败重试时，由于 Tool Ledger 拥有 idempotency record，不会重复执行外部副作用。预期输出要展示 run id、一次外部副作用、一条 Tool Ledger 记录，以及 replay/evidence 命令。
-2. 录一个短 GIF 或 terminal screencast，展示 runtime path：`run -> tool call -> approval -> crash -> resume -> replay evidence`。
-3. 写一篇技术文章，主题可以是 "Agents Need a Runtime, Not More Retries" 或 "Making AI Agents Durable, Auditable, and Replayable"。
-4. README 开头继续聚焦用户痛点："Your agent called a tool. Did it happen? Can you retry safely? Can you prove it later?"
-5. 创建公开 issue 或 discussion，覆盖后续 adoption tasks：OpenAI Agents SDK approval/replay example、MCP tool governance example、Inspector prototype、Temporal bridge example、tool-injection risk scanner。
-6. 发布一到两个真实 integration note 或 case study，例如用 AgentLedger 审计 legal agent 的 tool calls，但不包含私有数据。
+1. 持续维护四语言 3-minute side-effect safety demo，确保每次 release 后仍可运行。
+2. 持续维护四语言 MCP governance example，后续方便和真实 MCP SDK integration 对比。
+3. 录一个短 GIF 或 terminal screencast，展示 runtime path：`run -> tool call -> approval -> crash -> resume -> replay evidence`。
+4. 写一篇技术文章，主题可以是 "Agents Need a Runtime, Not More Retries" 或 "Making AI Agents Durable, Auditable, and Replayable"。
+5. README 开头继续聚焦用户痛点："Your agent called a tool. Did it happen? Can you retry safely? Can you prove it later?"
+6. 创建公开 issue 或 discussion，覆盖后续 adoption tasks：OpenAI Agents SDK approval/replay example、standalone Inspector viewer、Temporal bridge example、tool-injection risk scanner、memory lifecycle design。
+7. 发布一到两个真实 integration note 或 case study，例如用 AgentLedger 审计 legal agent 的 tool calls，但不包含私有数据。
 
 Companion product 方向：
 
@@ -328,17 +331,15 @@ cross-language parity script with markdown link and diff checks
 complete core parity/package dry-run script
 ```
 
-后续版本：
+候选后续 release trains：
 
 ```text
-1.2.x  adapter packaging fixes、framework-native smoke、package docs polish
-1.3.0  language-neutral Inspector：read-only DB/evidence consumer 和 static HTML debug report
-1.3.x  richer Inspector/report UX、redaction、evidence-driven replay/regression lab
-1.4.0  Agent Failure Lifecycle：normalized failures、lifecycle、causal graph、replay plan、regression、alerts、export mappings
-1.4.1  Runtime Model Evidence Boundary：external model call records、model failure evidence、tool-call proposal、cost/failure/replay semantics
-1.5.0  sub-agent/multi-agent runtime semantics：parent-child runs、spawn/join、cancellation/failure/cost attribution
-1.6.0  media adapter release：frame/audio/video refs、transcription/embedding adapters、stream transports
-1.7.x  optional model evidence endpoint examples，继续保持在 runtime-core routing/provider selection 之外
+1.5.0  framework/Temporal adoption：OpenAI Agents SDK example、Temporal bridge、framework-native smoke fixtures
+1.6.0  standalone Inspector and evidence consumer UX：非 Python viewer path、model-call panel、filtering/search
+1.7.0  Runtime Memory Lifecycle：memory refs、snapshots、reads/writes、diffs、lineage、replay semantics
+1.8.0  sub-agent/multi-agent runtime semantics：parent-child runs、spawn/join、cancellation/failure/cost attribution
+1.9.0  media adapter release：frame/audio/video refs、transcription/embedding adapters、stream transports
+1.x    production-pilot adapter hardening 在有真实服务证据时可用 patch/minor release 发布
 ```
 
 ## v1.1.0 - Adapter Certification And Reliability Gate Upgrade
@@ -858,10 +859,10 @@ Inspector 中增加专门的 model call 和 model-proposed tool call panel
 
 退出标准：
 
-- agent code 可以通过 runtime boundary 调 model，并产生 replayable model evidence
-- budget/cost attribution 能记录每次调用选择的 provider/model
-- replay 可以跳过真实 model call，返回 archived response
-- provider routing 可配置，同时 runtime-core 不依赖 provider SDK
+- 外部执行的 model call 可以被绑定到 run/step，并产生 replayable model evidence
+- budget/cost attribution 能记录每次调用使用的 provider/model
+- replay/debug 可以跳过真实 model call，读取 archived response 或明确报告缺少 archived evidence
+- model routing 仍由外部 SDK/gateway/user code 负责，runtime-core 不依赖 provider SDK
 
 ## v1.0 - Stable Runtime Contract
 
