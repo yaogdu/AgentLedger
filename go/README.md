@@ -1,6 +1,6 @@
 # AgentLedger Go Runtime
 
-This directory contains the native Go runtime-core baseline for AgentLedger 1.4.0.
+This directory contains the native Go runtime-core baseline for AgentLedger 1.4.1.
 
 The package is dependency-free and runs a real local runtime loop. It participates in the shared Python/Go/TypeScript/Rust conformance gate and should be treated as runtime-core aligned; concrete production adapters are shipped separately as they mature.
 
@@ -16,6 +16,7 @@ Implemented:
 - evidence export, replay, trace/diff/debug consumers, time-travel timeline, repro helpers
 - policy denial, approval pause/resume, sandbox fail-closed behavior
 - cost records, budget enforcement, and failure attribution
+- Runtime Model Evidence Boundary for archived model calls, model failures, and model-proposed tool calls
 - media artifact refs and stream checkpoint refs in evidence/replay
 - scheduler facade, worker service, failure injection, adversarial review, evidence regression
 - MCP-style and dependency-free framework adapters
@@ -35,7 +36,7 @@ Use AgentLedger as a Go library inside an existing Go module:
 
 ```bash
 go mod init your-module-name  # only if your project does not have go.mod yet
-go get github.com/yaogdu/AgentLedger/go@v1.4.0
+go get github.com/yaogdu/AgentLedger/go@v1.4.1
 ```
 
 Import it with:
@@ -47,13 +48,13 @@ import agentledger "github.com/yaogdu/AgentLedger/go"
 Install the optional CLI command with the `cmd` package path:
 
 ```bash
-go install github.com/yaogdu/AgentLedger/go/cmd/agentledger-go@v1.4.0
+go install github.com/yaogdu/AgentLedger/go/cmd/agentledger-go@v1.4.1
 agentledger-go --help
 agentledger-go doctor
 agentledger-go quickstart
 ```
 
-`go get github.com/yaogdu/AgentLedger/go@v1.4.0` must run inside a Go module. `go install github.com/yaogdu/AgentLedger/go@v1.4.0` is not valid because the library package is not a `package main`; use `/cmd/agentledger-go` for the CLI.
+`go get github.com/yaogdu/AgentLedger/go@v1.4.1` must run inside a Go module. `go install github.com/yaogdu/AgentLedger/go@v1.4.1` is not valid because the library package is not a `package main`; use `/cmd/agentledger-go` for the CLI.
 
 ## Quickstart
 

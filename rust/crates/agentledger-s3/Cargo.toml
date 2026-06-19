@@ -1,6 +1,6 @@
 [package]
 name = "agentledger-s3"
-version = "1.4.0"
+version = "1.4.1"
 edition = "2021"
 description = "S3-compatible blob store adapter crate for AgentLedger Runtime"
 license = "Apache-2.0"

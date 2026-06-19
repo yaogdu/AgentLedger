@@ -15,8 +15,8 @@ test('adapter subpath exports expose the current package boundary', async () => 
   const docker = await import('../src/adapters/sandbox-docker.js');
   const langgraph = await import('../src/adapters/langgraph.js');
 
-  assert.equal(postgres.adapterPackage.version, '1.4.0');
-  assert.equal(mysql.adapterPackage.version, '1.4.0');
+  assert.equal(postgres.adapterPackage.version, '1.4.1');
+  assert.equal(mysql.adapterPackage.version, '1.4.1');
   assert.equal(typeof postgres.PostgresAdapter, 'function');
   assert.equal(typeof mysql.MySQLAdapter, 'function');
   assert.equal(typeof s3.S3BlobStoreAdapter, 'function');
@@ -319,6 +319,27 @@ test('cost budget and failure attribution are recorded', async () => {
   assert.equal(failure.failure_replay_plan.safe_to_replay, true);
   assert.ok(failure.failure_alerts.alert_count > 0);
   assert.equal(failure.failure_export.external_mappings.langfuse.trace_id, runId);
+  assert.equal(rt.store.events(runId).some((event) => event.type === 'model_call_requested'), true);
+  assert.equal(rt.store.events(runId).some((event) => event.type === 'model_call_completed'), true);
+});
+
+test('model evidence boundary records failures and tool proposals', async () => {
+  const rt = new Runtime(JSONStore.memory());
+  const { runId } = await rt.createRun({});
+  const ok = await rt.runOnce({
+    runId,
+    agentRole: 'Researcher',
+    agent: async (ctx) => {
+      await ctx.recordModelFailure({ provider: 'deepseek', model: 'deepseek-chat', errorType: 'RateLimitError', message: 'rate limited', retryable: true, request: { messages: ['hello'] } });
+      await ctx.recordToolCallProposal({ toolName: 'search_contract_clause', arguments: { clause: 'payment' }, provider: 'deepseek', model: 'deepseek-chat', reason: 'model requested clause search' });
+    },
+  });
+  assert.equal(ok, true);
+  const events = rt.store.events(runId);
+  assert.equal(events.some((event) => event.type === 'model_call_failed'), true);
+  assert.equal(events.some((event) => event.type === 'tool_call_proposed'), true);
+  const failure = failureAttribution(rt.store, runId);
+  assert.equal(failure.failure_envelopes.some((item) => item.category === 'model'), true);
 });
 
 test('media and stream artifacts are indexed in evidence and replay', async () => {

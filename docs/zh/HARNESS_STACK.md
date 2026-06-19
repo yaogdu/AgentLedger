@@ -134,31 +134,31 @@ AgentLedger 负责执行路径上的保证：
 
 外部系统仍然可以负责 tool hosting、MCP server lifecycle、credential vault、tool marketplace 或 service-specific SDK。
 
-## Model-Governed Harness
+## Model Evidence Boundary
 
-这是 roadmap 能力。目标形态是：
+推荐形态是 evidence-first，而不是 router-first：
 
 ```text
 Agent/framework node
-  -> ctx.call_model(...)
-       -> ModelGateway
-       -> ModelRouterPolicy
-       -> provider adapter or LiteLLM-style bridge
-       -> archived model response
-       -> token/cost attribution
-       -> replay-safe response reuse
+  -> provider SDK / LiteLLM / new-api / one-api / enterprise gateway
+       -> model response or model failure
+       -> AgentLedger record_model_call / record_model_failure
+       -> optional tool_call_proposed event
+       -> archived model evidence
+       -> token/cost/failure attribution
+       -> replay-safe evidence reuse
 ```
 
 AgentLedger 应负责：
 
 - model-call events；
-- selected provider/model records；
+- provider/model records；
 - request/response refs 和 redaction；
-- 调用前 budget checks；
-- fallback/failure semantics；
-- archived-response replay。
+- model failure evidence；
+- model-proposed tool calls；
+- archived-response replay 和 cost attribution。
 
-Provider SDK 和 routing engine 应保持 optional adapters：
+Provider SDK 和 routing engine 应保持外部：
 
 ```text
 OpenAI
@@ -167,7 +167,8 @@ Gemini
 Bedrock
 Azure OpenAI
 Ollama
-LiteLLM-style bridge
+LiteLLM
+new-api / one-api
 enterprise model gateway
 ```
 
@@ -180,7 +181,7 @@ User / product workflow
   -> Temporal workflow
        -> LangGraph graph
             -> AgentLedger Runtime
-                 -> ModelGateway / provider adapter
+                 -> Model Evidence Boundary
                  -> ToolGateway / MCP / internal tools
                  -> Sandbox executor
                  -> Postgres/MySQL StateStore
@@ -216,7 +217,7 @@ request_id / trace_id enters at product boundary
 
 1. 一个 run 必须在多个系统之间有稳定标识：`run_id`、`session_id`、`step_id`、`trace_id` 和外部 workflow id 应该关联起来，而不是每一层独立发明一套 ID。
 2. 有副作用的工具如果需要 audit、idempotency、approval、sandbox 或 replay guarantee，就必须进入 AgentLedger ToolGateway。
-3. `ModelGateway` 实现后，model call 应进入 runtime model boundary；在此之前，provider call 至少应作为 evidence/cost artifact 记录。
+3. model call 应在用户代码、SDK 或外部 gateway 执行后，通过 Runtime Model Evidence Boundary 记录；AgentLedger 不负责 routing、retry、timeout 或 provider selection。
 4. 通用 workflow retry 不应该绕过 AgentLedger 的 lease、Tool Ledger 或 checkpoint semantics。
 5. Observability 工具应该消费 AgentLedger evidence，而不是重新执行工具，或把 trace 当成副作用的 source of truth。
 6. Storage adapter 在作为生产 runtime metadata store 使用前，必须通过 StateStore/BlobStore conformance。

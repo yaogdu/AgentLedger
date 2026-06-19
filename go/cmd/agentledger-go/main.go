@@ -190,11 +190,11 @@ func run(args []string) error {
 		return nil
 	}
 	if len(args) == 1 && args[0] == "version" {
-		fmt.Println("agentledger-go 1.4.0")
+		fmt.Println("agentledger-go 1.4.1")
 		return nil
 	}
 	if len(args) == 1 && args[0] == "doctor" {
-		fmt.Println(`{"language":"go","version":"1.4.0","status":"ok","runtime_core_parity":true}`)
+		fmt.Println(`{"language":"go","version":"1.4.1","status":"ok","runtime_core_parity":true}`)
 		return nil
 	}
 	if len(args) == 1 && args[0] == "quickstart" {
@@ -222,7 +222,7 @@ func run(args []string) error {
 }
 
 func printHelp() {
-	fmt.Println(`AgentLedger Go Runtime 1.4.0
+	fmt.Println(`AgentLedger Go Runtime 1.4.1
 
 Usage:
   agentledger-go doctor
@@ -1125,7 +1125,7 @@ func validateContract() error {
 		return err
 	}
 	text := string(body)
-	for _, token := range []string{"\"contract_version\": \"1.0\"", "\"language\": \"go\"", "\"status\": \"preview\"", "media_stream_artifacts.v1.json"} {
+	for _, token := range []string{"\"contract_version\": \"1.0\"", "\"language\": \"go\"", "\"status\": \"preview\"", "media_stream_artifacts.v1.json", "agentledger.model.evidence.v1", "model_call_failed", "tool_call_proposed"} {
 		if !strings.Contains(text, token) {
 			return fmt.Errorf("contract missing %s", token)
 		}

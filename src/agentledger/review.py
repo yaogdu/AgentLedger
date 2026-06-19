@@ -34,7 +34,7 @@ class AdversarialReviewReport:
 class AdversarialReviewRunner:
     """Read-only pre-release checklist over an evidence bundle."""
 
-    FAILURE_EVENTS = {"error_raised", "step_failed", "tool_call_failed", "tool_call_blocked"}
+    FAILURE_EVENTS = {"error_raised", "step_failed", "model_call_failed", "tool_call_failed", "tool_call_blocked"}
     HIGH_RISK_LEVELS = {"high", "destructive", "sensitive"}
 
     def evaluate(self, evidence: dict[str, Any], *, max_total_usd: float | None = None) -> AdversarialReviewReport:

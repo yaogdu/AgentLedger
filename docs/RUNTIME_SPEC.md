@@ -205,6 +205,8 @@ step_claimed
 agent_started
 model_call_requested
 model_call_completed
+model_call_failed
+tool_call_proposed
 tool_call_requested
 tool_permission_decided
 tool_call_completed
@@ -218,6 +220,31 @@ run_completed
 run_failed
 run_cancelled
 ```
+
+## Runtime Model Evidence Boundary
+
+AgentLedger records model evidence; it does not route model traffic or replace provider SDKs, LiteLLM/new-api/one-api, or enterprise model gateways.
+
+The portable model evidence schema is `agentledger.model.evidence.v1`. It supports:
+
+```text
+model_call_requested   archived request, provider, model, metadata
+model_call_completed   archived response, usage, total_usd, metadata
+model_call_failed      timeout/rate-limit/malformed-output/provider-error evidence
+tool_call_proposed     model-proposed tool name/args before ToolGateway execution
+```
+
+The execution model is:
+
+```text
+user code / framework / provider SDK / external gateway
+  -> performs or attempts the model call
+  -> records request/response/failure evidence in AgentLedger
+  -> optionally records the tool call proposed by the model
+  -> executes real tools through ToolGateway / Tool Ledger
+```
+
+`model_call_failed` participates in the failure lifecycle as category `model`. Runtime-core records cost/failure/replay evidence for model calls, but provider timeout, retry, fallback, key management, routing, and pricing catalogs remain external adapter or application responsibilities.
 
 ## Causal Token
 

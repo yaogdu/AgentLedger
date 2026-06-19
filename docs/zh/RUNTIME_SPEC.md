@@ -221,6 +221,31 @@ Replay 必须 side-effect-free：
 不写外部系统
 ```
 
+## Runtime Model Evidence Boundary
+
+AgentLedger 记录 model evidence，但不路由 model traffic，也不替代 provider SDK、LiteLLM/new-api/one-api 或企业 model gateway。
+
+可移植 model evidence schema 是 `agentledger.model.evidence.v1`，覆盖：
+
+```text
+model_call_requested   归档 request、provider、model、metadata
+model_call_completed   归档 response、usage、total_usd、metadata
+model_call_failed      timeout/rate-limit/malformed-output/provider-error evidence
+tool_call_proposed     模型建议的 tool name/args，发生在 ToolGateway 实际执行前
+```
+
+执行模型是：
+
+```text
+user code / framework / provider SDK / external gateway
+  -> 执行或尝试执行 model call
+  -> 把 request/response/failure evidence 记录进 AgentLedger
+  -> 可选记录模型建议的 tool call
+  -> 真实工具仍通过 ToolGateway / Tool Ledger 执行
+```
+
+`model_call_failed` 会作为 `model` 类别进入 failure lifecycle。runtime-core 负责记录 model call 的 cost/failure/replay evidence，但 provider timeout、retry、fallback、key management、routing 和 price catalog 仍属于外部 adapter 或应用代码责任。
+
 ## Evidence Regression
 
 Evidence regression 以 evidence 为输入，保持 side-effect-free，不在生产执行路径中运行：

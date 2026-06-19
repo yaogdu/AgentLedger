@@ -995,16 +995,38 @@ export class AgentContext {
   }
 
   async recordModelCall({ model, inputTokens = 0, outputTokens = 0, totalUsd = 0 }) {
-    const totalTokens = inputTokens + outputTokens;
+    return this.recordModelCallEvidence({ provider: 'custom', model, usage: { input_tokens: inputTokens, output_tokens: outputTokens }, totalUsd });
+  }
+
+  async recordModelCallEvidence({ provider = 'custom', model = 'unknown', request = {}, response = {}, usage = {}, totalUsd = 0, metadata = {} }) {
+    const totalTokens = usageTotalTokens(usage);
     try {
       this.budget.beforeModelCall(this.store, this.runId, totalTokens);
     } catch (error) {
-      await this.store.appendEvent({ runId: this.runId, sessionId: this.sessionId, stepId: this.stepId, type: 'budget_check_failed', payload: { category: 'model', model, error: error.message }, agentRole: this.agentRole, stateVersion: this.stateVersion });
+      await this.store.appendEvent({ runId: this.runId, sessionId: this.sessionId, stepId: this.stepId, type: 'budget_check_failed', payload: { category: 'model', provider, model, error: error.message }, agentRole: this.agentRole, stateVersion: this.stateVersion });
       throw error;
     }
-    await this.store.appendEvent({ runId: this.runId, sessionId: this.sessionId, stepId: this.stepId, type: 'model_call_completed', payload: { model, input_tokens: inputTokens, output_tokens: outputTokens, total_tokens: totalTokens, total_usd: totalUsd }, agentRole: this.agentRole, stateVersion: this.stateVersion });
-    if (totalTokens > 0) await this.store.recordCost({ runId: this.runId, sessionId: this.sessionId, stepId: this.stepId, category: 'model', name: model, amount: totalTokens, unit: 'token', metadata: { input_tokens: inputTokens, output_tokens: outputTokens } });
-    if (totalUsd > 0) await this.store.recordCost({ runId: this.runId, sessionId: this.sessionId, stepId: this.stepId, category: 'model', name: model, amount: totalUsd, unit: 'usd', metadata: { input_tokens: inputTokens, output_tokens: outputTokens } });
+    await this.store.appendEvent({ runId: this.runId, sessionId: this.sessionId, stepId: this.stepId, type: 'model_call_requested', payload: compactObject({ schema_version: 'agentledger.model.evidence.v1', provider, model, request: clone(request), metadata: clone(metadata) }), agentRole: this.agentRole, stateVersion: this.stateVersion });
+    await this.store.appendEvent({ runId: this.runId, sessionId: this.sessionId, stepId: this.stepId, type: 'model_call_completed', payload: compactObject({ schema_version: 'agentledger.model.evidence.v1', provider, model, response: clone(response), usage: clone(usage), total_usd: totalUsd, metadata: clone(metadata) }), agentRole: this.agentRole, stateVersion: this.stateVersion });
+    await this.#recordModelCosts(provider, model, usage, totalUsd);
+  }
+
+  async recordModelFailure({ provider = 'custom', model = 'unknown', errorType = 'ModelCallFailed', message = '', retryable = undefined, request = {}, usage = {}, totalUsd = 0, metadata = {} }) {
+    const payload = compactObject({ schema_version: 'agentledger.model.evidence.v1', provider, model, error_type: errorType, error: message, retryable, request: clone(request), usage: clone(usage), total_usd: totalUsd, metadata: clone(metadata) });
+    await this.store.appendEvent({ runId: this.runId, sessionId: this.sessionId, stepId: this.stepId, type: 'model_call_failed', payload, agentRole: this.agentRole, stateVersion: this.stateVersion });
+    await this.#recordModelCosts(provider, model, usage, totalUsd);
+  }
+
+  async recordToolCallProposal({ toolName, arguments: args = {}, provider = undefined, model = undefined, modelCallRef = undefined, confidence = undefined, reason = undefined, metadata = {} }) {
+    const payload = compactObject({ schema_version: 'agentledger.model.evidence.v1', tool: toolName, args: clone(args), provider, model, model_call_ref: modelCallRef, confidence, reason, metadata: clone(metadata) });
+    await this.store.appendEvent({ runId: this.runId, sessionId: this.sessionId, stepId: this.stepId, type: 'tool_call_proposed', payload, agentRole: this.agentRole, stateVersion: this.stateVersion });
+  }
+
+  async #recordModelCosts(provider, model, usage, totalUsd) {
+    const totalTokens = usageTotalTokens(usage);
+    const metadata = { provider, model, usage: clone(usage) };
+    if (totalTokens > 0) await this.store.recordCost({ runId: this.runId, sessionId: this.sessionId, stepId: this.stepId, category: 'model', name: model, amount: totalTokens, unit: 'token', metadata });
+    if (totalUsd > 0) await this.store.recordCost({ runId: this.runId, sessionId: this.sessionId, stepId: this.stepId, category: 'model', name: model, amount: totalUsd, unit: 'usd', metadata });
   }
 
   heartbeat(leaseSeconds = 60) {
@@ -1531,6 +1553,13 @@ function compactObject(value) {
   return out;
 }
 
+function usageTotalTokens(usage = {}) {
+  for (const key of ['total_tokens', 'totalTokens', 'tokens']) {
+    if (usage[key] !== undefined && usage[key] !== null) return Number(usage[key]) || 0;
+  }
+  return (Number(usage.input_tokens ?? usage.prompt_tokens ?? usage.inputTokens ?? 0) || 0) + (Number(usage.output_tokens ?? usage.completion_tokens ?? usage.outputTokens ?? 0) || 0);
+}
+
 function normalizeStreamChunk(chunk) {
   if (!chunk) return {};
   return compactObject({
@@ -1581,7 +1610,7 @@ function failureSource(errorType) {
   return 'agent';
 }
 
-const failureEventTypes = new Set(['failure_classified', 'error_raised', 'step_failed', 'step_retry_scheduled', 'step_waiting_human', 'lease_expired', 'run_cancel_requested', 'run_cancelled', 'tool_call_failed', 'tool_approval_required', 'budget_check_failed']);
+const failureEventTypes = new Set(['failure_classified', 'error_raised', 'step_failed', 'step_retry_scheduled', 'step_waiting_human', 'lease_expired', 'run_cancel_requested', 'run_cancelled', 'model_call_failed', 'tool_call_failed', 'tool_approval_required', 'budget_check_failed']);
 
 function failureCategory(text, fallback = 'agent') {
   const lower = String(text ?? '').toLowerCase();
@@ -1593,6 +1622,7 @@ function failureCategory(text, fallback = 'agent') {
 }
 
 function eventFailureCategory(event) {
+  if (event.type === 'model_call_failed') return 'model';
   if (['tool_call_failed', 'tool_call_blocked', 'tool_approval_required'].includes(event.type)) return 'tool';
   if (['run_cancel_requested', 'run_cancelled', 'step_cancelled'].includes(event.type)) return 'cancellation';
   if (event.type === 'lease_expired') return 'runtime';

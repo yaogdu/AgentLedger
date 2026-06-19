@@ -1010,6 +1010,37 @@ class RuntimeTests(unittest.TestCase):
             self.assertEqual(payload["run_id"], run_id)
             self.assertEqual(payload["by_agent"]["CostAgent"]["total_usd"], 0.03)
 
+    def test_model_evidence_boundary_records_failure_and_tool_proposal(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            rt = Runtime.local(Path(tmp) / ".agentledger")
+            run_id, _ = rt.create_run(initial_state={})
+
+            async def agent_fn(ctx: Any, state: dict[str, Any]) -> None:
+                ctx.record_model_failure(
+                    provider="deepseek",
+                    model="deepseek-chat",
+                    error_type="RateLimitError",
+                    message="rate limited",
+                    retryable=True,
+                    request={"messages": ["hello"]},
+                )
+                ctx.record_tool_call_proposal(
+                    tool_name="search_contract_clause",
+                    arguments={"clause": "payment"},
+                    provider="deepseek",
+                    model="deepseek-chat",
+                    reason="model requested clause search",
+                )
+
+            self.assertTrue(asyncio.run(rt.run_once(agent_fn, run_id=run_id, agent_role="Researcher")))
+            events = [dict(row) for row in rt.store.events(run_id)]
+            self.assertTrue(any(event["type"] == "model_call_failed" for event in events))
+            self.assertTrue(any(event["type"] == "tool_call_proposed" for event in events))
+            failure = FailureAttributionReporter(rt.store).report(run_id).to_dict()
+            self.assertTrue(any(item["category"] == "model" for item in failure["failure_envelopes"]))
+            report = InspectorDataSource().from_runtime_store(store=rt.store, blobs=rt.blobs, run_id=run_id).to_dict()
+            self.assertTrue(any(event["type"] == "model_call_failed" for event in report["timeline"]))
+
     def test_python_function_adapter_and_decorator(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             rt = Runtime.local(Path(tmp) / ".agentledger")
@@ -2715,6 +2746,9 @@ roles:
         self.assertEqual(languages["go"]["status"], "preview")
         self.assertIn("state commits require a valid lease token", contract["invariants"])
         self.assertIn("tool_call_completed", contract["event_types"])
+        self.assertIn("model_call_failed", contract["event_types"])
+        self.assertIn("tool_call_proposed", contract["event_types"])
+        self.assertEqual(contract["artifact_contracts"]["model_evidence_schema_version"], "agentledger.model.evidence.v1")
         self.assertEqual(contract["conformance"]["runtime_semantics_manifest_path"], "contracts/conformance/runtime_semantics.v1.json")
         self.assertIn("contracts/conformance/local_persistence.v1.json", contract["conformance"]["runtime_core_fixture_paths"])
         self.assertIn("contracts/conformance/local_blob_store.v1.json", contract["conformance"]["runtime_core_fixture_paths"])

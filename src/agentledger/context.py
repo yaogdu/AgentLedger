@@ -6,6 +6,7 @@ from typing import Any
 from .blobstore import LocalBlobStore
 from .cost import BudgetController
 from .media import ArtifactLineage, EventStreamCheckpoint, MediaArtifact, MediaMetadata, StreamChunkRef
+from .model import ModelCallRecord, ModelFailureRecord, ToolCallProposal, usage_total_tokens
 from .store import SQLiteStore
 from .tools import ToolGateway
 
@@ -77,6 +78,169 @@ class AgentContext:
             )
             self.budget.after_cost_recorded(self.store, self.run_id)
         return response
+
+    def record_model_call(
+        self,
+        *,
+        provider: str,
+        model: str,
+        request: dict[str, Any] | None = None,
+        response: dict[str, Any] | None = None,
+        usage: dict[str, Any] | None = None,
+        total_usd: float = 0.0,
+        metadata: dict[str, Any] | None = None,
+    ) -> dict[str, str | None]:
+        """Record an externally executed model call without routing the call."""
+
+        record = ModelCallRecord(
+            provider=provider,
+            model=model,
+            request=request,
+            response=response,
+            usage=usage or {},
+            total_usd=total_usd,
+            metadata=metadata or {},
+        )
+        estimated_tokens = usage_total_tokens(record.usage)
+        self.budget.before_model_call(self.store, self.run_id, estimated_tokens=estimated_tokens)
+        req_hash, req_ref = self.blobs.put_json(record.request_payload())
+        self.store.append_event(
+            run_id=self.run_id,
+            session_id=self.session_id,
+            step_id=self.step_id,
+            event_type="model_call_requested",
+            payload={"provider": provider, "model": model, "request_ref": req_ref},
+            agent_role=self.agent_role,
+            state_version=self.state_version,
+            payload_hash=req_hash,
+            payload_ref=req_ref,
+        )
+        response_payload = record.response_payload(request_ref=req_ref, request_hash=req_hash)
+        resp_hash, resp_ref = self.blobs.put_json(response_payload)
+        self.store.append_event(
+            run_id=self.run_id,
+            session_id=self.session_id,
+            step_id=self.step_id,
+            event_type="model_call_completed",
+            payload={"provider": provider, "model": model, "response_ref": resp_ref, "request_ref": req_ref, "usage": record.usage, "total_usd": float(total_usd)},
+            agent_role=self.agent_role,
+            state_version=self.state_version,
+            payload_hash=resp_hash,
+            payload_ref=resp_ref,
+        )
+        self._record_model_cost(provider=provider, model=model, usage=record.usage, total_usd=total_usd)
+        return {"request_ref": req_ref, "request_hash": req_hash, "response_ref": resp_ref, "response_hash": resp_hash}
+
+    def record_model_failure(
+        self,
+        *,
+        provider: str,
+        model: str,
+        error_type: str,
+        message: str,
+        retryable: bool | None = None,
+        request: dict[str, Any] | None = None,
+        usage: dict[str, Any] | None = None,
+        total_usd: float = 0.0,
+        metadata: dict[str, Any] | None = None,
+    ) -> dict[str, str | None]:
+        """Record a model failure observed by user code, SDKs, or gateways."""
+
+        record = ModelFailureRecord(
+            provider=provider,
+            model=model,
+            error_type=error_type,
+            message=message,
+            retryable=retryable,
+            request=request,
+            usage=usage or {},
+            total_usd=total_usd,
+            metadata=metadata or {},
+        )
+        req_hash = req_ref = None
+        if request is not None:
+            req_hash, req_ref = self.blobs.put_json(record.request_payload())
+        failure_payload = record.failure_payload(request_ref=req_ref, request_hash=req_hash)
+        failure_hash, failure_ref = self.blobs.put_json(failure_payload)
+        self.store.append_event(
+            run_id=self.run_id,
+            session_id=self.session_id,
+            step_id=self.step_id,
+            event_type="model_call_failed",
+            payload=failure_payload,
+            agent_role=self.agent_role,
+            state_version=self.state_version,
+            payload_hash=failure_hash,
+            payload_ref=failure_ref,
+        )
+        self._record_model_cost(provider=provider, model=model, usage=record.usage, total_usd=total_usd)
+        return {"request_ref": req_ref, "request_hash": req_hash, "failure_ref": failure_ref, "failure_hash": failure_hash}
+
+    def record_tool_call_proposal(
+        self,
+        *,
+        tool_name: str,
+        arguments: dict[str, Any] | None = None,
+        provider: str | None = None,
+        model: str | None = None,
+        model_call_ref: str | None = None,
+        confidence: float | None = None,
+        reason: str | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> str:
+        """Record a model-proposed tool call before runtime execution."""
+
+        proposal = ToolCallProposal(
+            tool_name=tool_name,
+            arguments=arguments or {},
+            provider=provider,
+            model=model,
+            model_call_ref=model_call_ref,
+            confidence=confidence,
+            reason=reason,
+            metadata=metadata or {},
+        )
+        payload = proposal.to_payload()
+        payload_hash, payload_ref = self.blobs.put_json(payload)
+        self.store.append_event(
+            run_id=self.run_id,
+            session_id=self.session_id,
+            step_id=self.step_id,
+            event_type="tool_call_proposed",
+            payload=payload,
+            agent_role=self.agent_role,
+            state_version=self.state_version,
+            payload_hash=payload_hash,
+            payload_ref=payload_ref,
+        )
+        return payload_ref
+
+    def _record_model_cost(self, *, provider: str, model: str, usage: dict[str, Any], total_usd: float) -> None:
+        total_tokens = usage_total_tokens(usage)
+        metadata = {"provider": provider, "model": model, "usage": usage}
+        if total_tokens:
+            self.store.record_cost(
+                run_id=self.run_id,
+                session_id=self.session_id,
+                step_id=self.step_id,
+                category="model",
+                name=model,
+                amount=float(total_tokens),
+                unit="token",
+                metadata=metadata,
+            )
+        if total_usd:
+            self.store.record_cost(
+                run_id=self.run_id,
+                session_id=self.session_id,
+                step_id=self.step_id,
+                category="model",
+                name=model,
+                amount=float(total_usd),
+                unit="usd",
+                metadata=metadata,
+            )
+            self.budget.after_cost_recorded(self.store, self.run_id)
 
     def write_state_patch(self, key: str, patch: Any) -> None:
         self.pending_patch[key] = patch

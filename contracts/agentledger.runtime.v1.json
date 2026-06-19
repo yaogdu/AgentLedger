@@ -12,6 +12,7 @@
       "video_segment"
     ],
     "media_schema_version": "agentledger.media.v0",
+    "model_evidence_schema_version": "agentledger.model.evidence.v1",
     "stream_checkpoint_fields": [
       "stream_id",
       "consumer_id",
@@ -111,7 +112,10 @@
     "agent_result_returned",
     "tool_approval_decided",
     "step_waiting_human",
+    "model_call_requested",
     "model_call_completed",
+    "model_call_failed",
+    "tool_call_proposed",
     "cost_recorded",
     "budget_check_failed",
     "failure_classified"
@@ -125,7 +129,8 @@
     "PENDING_VERIFICATION side effects are not auto-retried",
     "replay and shadow mode must not create external side effects",
     "sandbox-required tools fail closed when the executor is missing or disabled",
-    "media and stream artifacts store refs, metadata, lineage, and checkpoints instead of raw codec processing"
+    "media and stream artifacts store refs, metadata, lineage, and checkpoints instead of raw codec processing",
+    "model evidence records archived provider inputs, outputs, failures, and proposed tool calls without routing providers"
   ],
   "language_targets": [
     {

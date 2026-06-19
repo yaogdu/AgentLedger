@@ -5,6 +5,7 @@ from typing import Any
 
 from .media import MEDIA_KINDS, MEDIA_SCHEMA_VERSION, STREAM_SCHEMA_VERSION
 from .media_tools import media_tool_specs
+from .model import MODEL_EVIDENCE_SCHEMA_VERSION
 
 CONTRACT_VERSION = "1.0"
 
@@ -105,7 +106,10 @@ def runtime_contract() -> dict[str, Any]:
             "agent_result_returned",
             "tool_approval_decided",
             "step_waiting_human",
+            "model_call_requested",
             "model_call_completed",
+            "model_call_failed",
+            "tool_call_proposed",
             "cost_recorded",
             "budget_check_failed",
             "failure_classified",
@@ -137,9 +141,11 @@ def runtime_contract() -> dict[str, Any]:
             "replay and shadow mode must not create external side effects",
             "sandbox-required tools fail closed when the executor is missing or disabled",
             "media and stream artifacts store refs, metadata, lineage, and checkpoints instead of raw codec processing",
+            "model evidence records archived provider inputs, outputs, failures, and proposed tool calls without routing providers",
         ],
         "artifact_contracts": {
             "media_schema_version": MEDIA_SCHEMA_VERSION,
+            "model_evidence_schema_version": MODEL_EVIDENCE_SCHEMA_VERSION,
             "media_kinds": sorted(MEDIA_KINDS),
             "stream_schema_version": STREAM_SCHEMA_VERSION,
             "stream_checkpoint_fields": [

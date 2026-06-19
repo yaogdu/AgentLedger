@@ -19,5 +19,5 @@ This package keeps runtime-core dependency-light while making Postgres an explic
 Certification:
 
 ```bash
-python3 -m agentledger adapter certify --kind postgres --adapter-version 1.4.0
+python3 -m agentledger adapter certify --kind postgres --adapter-version 1.4.1
 ```

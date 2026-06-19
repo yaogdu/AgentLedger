@@ -134,31 +134,31 @@ AgentLedger owns the execution-path guarantees:
 
 External systems can still own tool hosting, MCP server lifecycle, credential vaults, tool marketplaces, or service-specific SDKs.
 
-## Model-Governed Harness
+## Model Evidence Boundary
 
-This is a roadmap area. The intended shape is:
+The intended shape is evidence-first, not router-first:
 
 ```text
 Agent/framework node
-  -> ctx.call_model(...)
-       -> ModelGateway
-       -> ModelRouterPolicy
-       -> provider adapter or LiteLLM-style bridge
-       -> archived model response
-       -> token/cost attribution
-       -> replay-safe response reuse
+  -> provider SDK / LiteLLM / new-api / one-api / enterprise gateway
+       -> model response or model failure
+       -> AgentLedger record_model_call / record_model_failure
+       -> optional tool_call_proposed event
+       -> archived model evidence
+       -> token/cost/failure attribution
+       -> replay-safe evidence reuse
 ```
 
 AgentLedger should own:
 
 - model-call events;
-- selected provider/model records;
+- provider/model records;
 - request/response refs and redaction;
-- budget checks before calls;
-- fallback/failure semantics;
-- archived-response replay.
+- model failure evidence;
+- model-proposed tool calls;
+- archived-response replay and cost attribution.
 
-Provider SDKs and routing engines should stay optional adapters:
+Provider SDKs and routing engines should stay external:
 
 ```text
 OpenAI
@@ -167,7 +167,8 @@ Gemini
 Bedrock
 Azure OpenAI
 Ollama
-LiteLLM-style bridge
+LiteLLM
+new-api / one-api
 enterprise model gateway
 ```
 
@@ -180,7 +181,7 @@ User / product workflow
   -> Temporal workflow
        -> LangGraph graph
             -> AgentLedger Runtime
-                 -> ModelGateway / provider adapter
+                 -> Model Evidence Boundary
                  -> ToolGateway / MCP / internal tools
                  -> Sandbox executor
                  -> Postgres/MySQL StateStore
@@ -216,7 +217,7 @@ In this stack:
 
 1. One run must have stable identifiers across systems: `run_id`, `session_id`, `step_id`, `trace_id`, and external workflow IDs should be correlated, not invented independently in every layer.
 2. Side-effecting tools must enter through AgentLedger's ToolGateway if the result needs audit, idempotency, approval, sandbox, or replay guarantees.
-3. Model calls should enter through a runtime model boundary once `ModelGateway` is implemented; until then, provider calls should at least be recorded as evidence/cost artifacts.
+3. Model calls should be recorded through the Runtime Model Evidence Boundary after user code, SDKs, or external gateways execute them; AgentLedger should not own routing, retry, timeout, or provider selection.
 4. Generic workflow retries should not bypass AgentLedger's lease, Tool Ledger, or checkpoint semantics.
 5. Observability tools should consume AgentLedger evidence instead of re-running tools or treating traces as the source of truth for side effects.
 6. Storage adapters must pass StateStore/BlobStore conformance before being used as production runtime metadata stores.

@@ -4,7 +4,7 @@
 
 This document makes the cross-language boundary explicit. AgentLedger's complete parity claim means **portable runtime-core parity**, not identical provider or ecosystem adapter implementations in every language.
 
-Patch versions do not need to move in lockstep when a release only changes a language-specific package, companion tool, read model, or adapter wrapper. `1.4.0` is different: it is a four-language runtime-core feature release for the Agent Failure Lifecycle, so Python, Go, TypeScript, and Rust all move to the same runtime-core release family. Inspector remains a language-neutral companion viewer distributed through Python/PyPI, but the failure lifecycle contract itself is implemented across all four runtime packages.
+Patch versions do not need to move in lockstep when a release only changes a language-specific package, companion tool, read model, or adapter wrapper. `1.4.0` and `1.4.1` are different: they are four-language runtime-core feature releases for the Agent Failure Lifecycle and Runtime Model Evidence Boundary, so Python, Go, TypeScript, and Rust all move to the same runtime-core release family. Inspector remains a language-neutral companion viewer distributed through Python/PyPI, but the failure lifecycle and model evidence contracts themselves are implemented across all four runtime packages.
 
 ## How To Read This Table
 
@@ -37,6 +37,7 @@ These capabilities are the parity target. All four languages must implement the 
 | Budget enforcement | Yes | Yes | Yes | Yes | Runtime-level budget exceeded behavior. |
 | Cost attribution | Yes | Yes | Yes | Yes | Run/step/tool/model attribution shape. |
 | Failure attribution | Yes | Yes | Yes | Yes | Agent/tool/model/runtime classification. |
+| Model evidence boundary | Yes | Yes | Yes | Yes | `agentledger.model.evidence.v1`, `model_call_requested/completed/failed`, and `tool_call_proposed`; no provider routing in core. |
 | Evidence export | Yes | Yes | Yes | Yes | Evidence bundle consumers. |
 | Replay without side effects | Yes | Yes | Yes | Yes | Replay skips external side effects. |
 | Diff / divergence / debug summary | Yes | Yes | Yes | Yes | Evidence consumers. |

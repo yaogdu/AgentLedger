@@ -436,7 +436,7 @@ func failureExport(runID, runStatus string, summary JSONObject, envelopes []JSON
 
 func isFailureEvent(kind string) bool {
 	switch kind {
-	case "failure_classified", "error_raised", "step_failed", "step_retry_scheduled", "step_waiting_human", "lease_expired", "run_cancel_requested", "run_cancelled", "tool_call_failed", "tool_approval_required", "budget_check_failed":
+	case "failure_classified", "error_raised", "step_failed", "step_retry_scheduled", "step_waiting_human", "lease_expired", "run_cancel_requested", "run_cancelled", "model_call_failed", "tool_call_failed", "tool_approval_required", "budget_check_failed":
 		return true
 	default:
 		return false
@@ -467,6 +467,8 @@ func failureCategory(text, fallback string) string {
 
 func eventFailureCategory(event Event) string {
 	switch event.Type {
+	case "model_call_failed":
+		return "model"
 	case "tool_call_failed", "tool_call_blocked", "tool_approval_required":
 		return "tool"
 	case "run_cancel_requested", "run_cancelled", "step_cancelled":

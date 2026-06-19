@@ -1,6 +1,6 @@
 """AgentLedger stable agent runtime core."""
 
-__version__ = "1.4.0"
+__version__ = "1.4.1"
 
 from .adapters import FrameworkAdapter, PythonFunctionAdapter, python_agent
 from .adapter_certification import AdapterCertificationBundle, build_adapter_certification_bundle, supported_adapter_certification_profiles
@@ -23,6 +23,7 @@ from .failure_injection import FailureInjectionCheck, FailureInjectionReport, Fa
 from .inspector import INSPECTOR_RUN_INDEX_SCHEMA_VERSION, INSPECTOR_SCHEMA_VERSION, InspectorDataSource, InspectorRedactionPolicy, InspectorReport, InspectorReportBuilder, InspectorRunIndex, ReadOnlyLocalBlobStore, ReadOnlyMySQLStore, ReadOnlyPostgresStore, ReadOnlySQLiteStore
 from .lint import BoundaryLintFinding, BoundaryLintReport, BoundaryLintRule, RuntimeBoundaryLinter, load_boundary_rules
 from .media import ArtifactLineage, EventStreamCheckpoint, MediaArtifact, MediaMetadata, StreamChunkRef
+from .model import MODEL_EVIDENCE_SCHEMA_VERSION, ModelCallRecord, ModelFailureRecord, ToolCallProposal
 from .media_tools import media_tool_specs, register_media_tool_conventions
 from .policy import DecisionComposer, PolicyControl, PolicyDecision, PolicyEngine, PolicyEvaluator, PolicyFinding, PolicyRequest, RolePolicy
 from .protocol import BlobStoreProtocol, EvidenceBlobStoreProtocol, EvidenceStateStoreProtocol, ModelProviderProtocol, StateStoreProtocol, ToolExecutorProtocol
@@ -151,6 +152,10 @@ __all__ = [
     "LocalWorker",
     "MediaArtifact",
     "MediaMetadata",
+    "MODEL_EVIDENCE_SCHEMA_VERSION",
+    "ModelCallRecord",
+    "ModelFailureRecord",
+    "ToolCallProposal",
     "media_tool_specs",
     "MCPToolAdapter",
     "MCPContextAdapter",

@@ -16,7 +16,7 @@ AgentLedger `1.4.x` is a runtime reliability layer for Agent Harness stacks. It 
 
 Most agent frameworks focus on planning, reasoning, and workflow logic. AgentLedger sits underneath or beside LangChain, LangGraph, CrewAI, AutoGen, OpenAI Agents SDK, LlamaIndex, Semantic Kernel, or custom agents to provide runtime guarantees around state, tools, evidence, replay, and recovery.
 
-In a full harness stack, systems such as LangGraph, Temporal, Langfuse, MCP, model routers, storage backends, and sandbox providers can each own the layer they are good at. AgentLedger owns the reliability substrate between them: durable execution, tool/model governance, evidence, replay, policy/sandbox boundaries, cost/failure attribution, and adapter contracts.
+In a full harness stack, systems such as LangGraph, Temporal, Langfuse, MCP, model gateways, storage backends, and sandbox providers can each own the layer they are good at. AgentLedger owns the reliability substrate between them: durable execution, tool/model governance, evidence, replay, policy/sandbox boundaries, cost/failure attribution, and adapter contracts.
 
 Python remains the reference implementation, and Go, TypeScript, and Rust now have native runtime-core baselines aligned to the same language-neutral runtime contract. Provider-specific drivers and framework-native adapters intentionally vary by ecosystem. See `docs/LANGUAGE_IMPLEMENTATION_COMPARISON.md` for the exact four-language comparison and adapter boundary.
 
@@ -25,6 +25,7 @@ Python remains the reference implementation, and Go, TypeScript, and Rust now ha
 | Need | Go to |
 | --- | --- |
 | Install and run the first example | [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md) |
+| Decide whether AgentLedger fits your use case | [docs/USE_CASES.md](docs/USE_CASES.md) |
 | Choose Python / Go / TypeScript / Rust | [docs/LANGUAGE_QUICKSTART.md](docs/LANGUAGE_QUICKSTART.md) |
 | Find runnable examples | [examples/README.md](examples/README.md), [go/examples/README.md](go/examples/README.md), [typescript/examples/README.md](typescript/examples/README.md), [rust/examples/README.md](rust/examples/README.md) |
 | Query runtime tables | [docs/QUERY_EXAMPLES.md](docs/QUERY_EXAMPLES.md) |
@@ -55,6 +56,12 @@ Inspector exports self-contained, read-only HTML for local or internal debugging
 | What is experimental? | Some concrete provider adapters, media/stream processing adapters, and real-service hardening paths. Go/TypeScript/Rust runtime-core baselines are native implementations covered by shared conformance. |
 | What is not in core? | Planning engines, full eval systems, RAG/vector memory, trace stores, application administration backends, and sandbox infrastructure providers. |
 | How should other languages work? | This repo is contract-first. Python is the reference runtime; Go, Node/TypeScript, and Rust now have native runtime baselines under `go/`, `typescript/`, and `rust/`. Runtime-ready requires `contracts/agentledger.runtime.v1.json`, the shared semantic manifest `contracts/conformance/runtime_semantics.v1.json`, shared conformance fixtures, and per-language conformance commands. |
+
+## When to use it
+
+Use AgentLedger when an agent starts doing work you may need to recover, prove, or replay later: creating tickets, sending emails, changing files, calling internal APIs, querying sensitive systems, waiting for human approval, or running long enough that a worker crash is realistic.
+
+The fastest way to validate the value is the [3-minute side-effect safety demo](examples/three_minute_demo/README.md). In that controlled demo, a tool side effect succeeds, the worker crashes before commit, and the retry resumes through AgentLedger without duplicating the external write. For concrete production scenarios, guarantee boundaries, and adoption guidance, see [docs/USE_CASES.md](docs/USE_CASES.md).
 
 ## Scope principle
 
@@ -101,7 +108,7 @@ For concrete stack patterns, from a minimal local harness to a Temporal + LangGr
 | Durable orchestration | Temporal, Ray, Kubernetes workers | provide agent-specific leases, fencing, checkpoints, cancellation, cost/failure attribution, and replay semantics inside the worker step |
 | Observability / eval UI | Langfuse, LangSmith, OpenTelemetry, custom dashboards | export structured runtime events, evidence bundles, trace/cost/failure data, and correlation IDs |
 | Tool and context protocols | MCP, internal tool servers, provider SDK tools | enforce schema, permissions, approval, sandbox, idempotency, and audit before side effects happen |
-| Model providers / routers | OpenAI, Anthropic, Gemini, Bedrock, Ollama, LiteLLM, enterprise gateways | provide the runtime model-call contract, archived responses, budget/fallback/replay semantics, and optional provider adapters |
+| Model providers / gateways | OpenAI, Anthropic, Gemini, Bedrock, Ollama, LiteLLM/new-api/one-api, enterprise gateways | execute or route model calls externally while AgentLedger records model evidence, archived responses, proposed tool calls, cost/failure attribution, and replay semantics |
 | Storage / artifacts | SQLite, Postgres, MySQL, S3/MinIO, internal stores | keep runtime metadata, state versions, migrations, blob refs, and evidence refs durable and conformance-tested |
 
 The intended production shape is therefore not `AgentLedger instead of LangGraph/Temporal/Langfuse`. It is `AgentLedger with LangGraph/Temporal/Langfuse` where AgentLedger governs the model/tool/state boundary that those systems otherwise cannot enforce by themselves.
@@ -289,7 +296,7 @@ AgentLedger is also not a new LLM SDK, not a workflow engine, not a general obse
 
 ## Current maturity
 
-AgentLedger 1.4.x is a stable runtime-core line with Python as the reference implementation and Go, TypeScript, and Rust covered by shared runtime-core parity gates. The four language runtimes share the same runtime-core failure semantics: failed steps, retry scheduling, cancellation, lease recovery, Tool Ledger unknown-state handling, cost/failure attribution, evidence, replay, normalized failure envelopes, failure lifecycle, causal graph, replay plan, regression report, alerts, and failure export mappings. The current runtime-core release is 1.4.0 across Python, Go, TypeScript, and Rust; Inspector remains a language-neutral companion viewer distributed through Python/PyPI. It is suitable for local use, framework adapter integration, reliability semantics validation, and production pilot preparation with explicit adapter boundaries.
+AgentLedger 1.4.x is a stable runtime-core line with Python as the reference implementation and Go, TypeScript, and Rust covered by shared runtime-core parity gates. The four language runtimes share the same runtime-core failure semantics and model evidence boundary: failed steps, retry scheduling, cancellation, lease recovery, Tool Ledger unknown-state handling, cost/failure attribution, evidence, replay, normalized failure envelopes, failure lifecycle, causal graph, replay plan, regression report, alerts, failure export mappings, archived model request/response/failure evidence, and model-proposed tool-call records. The current runtime-core release is 1.4.1 across Python, Go, TypeScript, and Rust; Inspector remains a language-neutral companion viewer distributed through Python/PyPI. It is suitable for local use, framework adapter integration, reliability semantics validation, and production pilot preparation with explicit adapter boundaries.
 
 The runtime-core contract is stable; optional production adapters and external infrastructure hardening remain separately tracked. See [docs/MATURITY_MODEL.md](docs/MATURITY_MODEL.md), [docs/IMPLEMENTATION_STATUS.md](docs/IMPLEMENTATION_STATUS.md), and [docs/ROADMAP.md](docs/ROADMAP.md).
 

@@ -258,8 +258,8 @@ fn run(args: Vec<String>) -> Result<(), Box<dyn Error>> {
     match args.as_slice() {
         [] => { print_help(); Ok(()) }
         [command] if command == "--help" || command == "help" => { print_help(); Ok(()) }
-        [command] if command == "version" => { println!("agentledger-rust 1.4.0"); Ok(()) }
-        [command] if command == "doctor" => { println!("{{\n  \"language\": \"rust\",\n  \"version\": \"1.4.0\",\n  \"status\": \"ok\",\n  \"runtime_core_parity\": true\n}}"); Ok(()) }
+        [command] if command == "version" => { println!("agentledger-rust 1.4.1"); Ok(()) }
+        [command] if command == "doctor" => { println!("{{\n  \"language\": \"rust\",\n  \"version\": \"1.4.1\",\n  \"status\": \"ok\",\n  \"runtime_core_parity\": true\n}}"); Ok(()) }
         [command] if command == "quickstart" => run_quickstart(),
         [command] if command == "conformance" => run_conformance(),
         [command, action] if command == "contract" && action == "validate" => validate_contract(),
@@ -272,7 +272,7 @@ fn run(args: Vec<String>) -> Result<(), Box<dyn Error>> {
 }
 
 fn print_help() {
-    println!("AgentLedger Rust Runtime 1.4.0\n\nUsage:\n  agentledger-rust doctor\n  agentledger-rust version\n  agentledger-rust quickstart\n  agentledger-rust conformance\n  agentledger-rust contract validate\n  agentledger-rust contract export\n\nProject: https://github.com/yaogdu/AgentLedger");
+    println!("AgentLedger Rust Runtime 1.4.1\n\nUsage:\n  agentledger-rust doctor\n  agentledger-rust version\n  agentledger-rust quickstart\n  agentledger-rust conformance\n  agentledger-rust contract validate\n  agentledger-rust contract export\n\nProject: https://github.com/yaogdu/AgentLedger");
 }
 
 fn run_quickstart() -> Result<(), Box<dyn Error>> {
@@ -1296,6 +1296,9 @@ fn validate_contract() -> Result<(), Box<dyn Error>> {
         "\"language\": \"rust\"",
         "\"status\": \"preview\"",
         "media_stream_artifacts.v1.json",
+        "agentledger.model.evidence.v1",
+        "model_call_failed",
+        "tool_call_proposed",
     ] {
         if !body.contains(token) {
             return Err(format!("contract missing {token}").into());

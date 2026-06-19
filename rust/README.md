@@ -1,6 +1,6 @@
 # AgentLedger Rust Runtime
 
-This directory contains the dependency-free Rust runtime-core package for AgentLedger 1.4.0.
+This directory contains the dependency-free Rust runtime-core package for AgentLedger 1.4.1.
 
 It runs a native local runtime loop and participates in the shared Python/Go/TypeScript/Rust conformance gate.
 
@@ -17,6 +17,7 @@ Implemented:
 - evidence export, replay, trace/diff/debug consumers, time-travel timeline, repro helpers
 - policy denial, approval pause/resume, sandbox fail-closed behavior
 - cost records, budget enforcement, and failure attribution
+- Runtime Model Evidence Boundary for archived model calls, model failures, and model-proposed tool calls
 - media artifact refs and stream checkpoint refs in evidence/replay
 - scheduler facade, worker service semantics, failure injection, adversarial review, evidence regression
 - MCP-style and dependency-free framework adapters

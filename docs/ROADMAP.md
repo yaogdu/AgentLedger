@@ -17,11 +17,11 @@ Most capabilities should be evaluated in three layers: core contract, built-in m
 | Tracing / Observability | structured events, trace JSONL, OTLP/JSON export, evidence links | OpenTelemetry SDK packages, collector recipes, external trace stores | full observability suite |
 | Guardrails | ToolSpec schema validation, policy checks, approvals, pre/postcondition hooks, adversarial review gates | richer policy engines, org-specific rule packs, external review workflows | business-specific governance backend |
 | Tool Gateway + Sandbox | ToolGateway, Tool Ledger, idempotency, audit, sandbox executor contract, fail-closed behavior | Docker, bubblewrap, Kubernetes/gVisor, E2B, Firecracker, custom executors | owning external sandbox infrastructure |
-| Memory | session memory, short-term durable state, versioned memory refs, shared findings, replayable memory events | vector stores, semantic retrieval, RAG, long-term knowledge stores | full knowledge base or semantic retrieval system |
+| Memory | session memory, short-term durable state, versioned memory refs, memory lifecycle events, projections, diffs, audit lineage, replayable memory reads/writes | vector stores, semantic retrieval, RAG, long-term knowledge stores, Mem0/Zep/Letta-style memory services | full knowledge base, semantic retrieval system, user-profile memory product, chat summarizer, or memory compression SDK |
 | Session / HITL | run/session/step state machine, approval request lifecycle, audit events | external human review queues, chat/app integrations | business review backend or workflow back office |
 | FinOps / Cost Control | token/call/cost records, budget enforcement hooks, cost attribution reports | provider price catalogs, finance exports, alerts | invoice or payment system |
 | Inspector / Debug Viewer | stable read models, evidence export, static HTML debug export, redaction hooks, schema/version metadata | separate read-only local or internal inspector package | deployment management service, write/control plane in runtime-core |
-| Model Gateway / Router | model-call boundary, request/response archival, replay skipping, token/cost attribution, budget/fallback semantics | provider adapters, LiteLLM-style router adapters, policy packs, price catalogs | bundling every model SDK, becoming a full model gateway product, replacing provider SDKs |
+| Runtime Model Evidence Boundary | model-call evidence, request/response archival, tool-call proposals, replay skipping, token/cost attribution, model failure evidence | provider SDKs, LiteLLM/new-api/one-api/enterprise gateways, policy packs, price catalogs | becoming a model router/gateway, bundling every model SDK, replacing provider SDKs or external gateways |
 | Routing Advisor / Capability Router | candidate boundary only; no committed core feature. If future evaluation proves the boundary useful, runtime may record externally supplied route decisions as evidence and keep replay deterministic | possible WisePick-style capability router adapters or feedback clients, only if real usage justifies them | becoming a capability router, optimizing provider selection in core, or treating external routing decisions as authorization or idempotency keys |
 
 Execution backend positioning is documented in `EXECUTION_BACKENDS.md`: Temporal, Ray, and Kubernetes are backend adapters for generic distributed execution, while AgentLedger keeps agent-specific runtime invariants.
@@ -54,7 +54,7 @@ Recommended stack positioning:
 | Durable workflow backend | Temporal, Ray, Kubernetes workers | agent-specific leases, fencing, cancellation, checkpoints, Tool Ledger, evidence, replay |
 | Observability / eval UI | Langfuse, LangSmith, OpenTelemetry, custom dashboards | structured events, evidence bundles, trace/cost/failure export, correlation IDs |
 | Tool and context protocols | MCP, internal tool servers, provider SDK tools | ToolGateway, Tool Ledger, schema validation, approvals, sandbox, audit records |
-| Model providers / routers | OpenAI, Anthropic, Gemini, Bedrock, Ollama, LiteLLM | ModelGateway contract, archived model responses, budget/fallback/replay semantics |
+| Model providers / gateways | OpenAI, Anthropic, Gemini, Bedrock, Ollama, LiteLLM, new-api, one-api, enterprise gateways | external execution/routing; AgentLedger records runtime model evidence, archived model responses, proposed tool calls, budget/failure/replay semantics |
 | Routing advisors / capability routers | WisePick-style decision services, custom capability routers | candidate integration boundary only; no planned implementation until real usage proves the need |
 | Storage / artifacts | SQLite, Postgres, MySQL, S3/MinIO, internal stores | StateStore/BlobStore contracts, migrations, conformance, evidence refs |
 
@@ -69,7 +69,7 @@ event log / evidence bundle / replay
 policy / approval / sandbox contract
 cost and failure attribution
 conformance and adapter certification
-ModelGateway contract after the model boundary is designed
+Runtime Model Evidence Boundary after the model evidence contract is designed
 ```
 
 Runtime-core may include dependency-free local defaults and protocol contracts, but it should not force provider SDKs, web frameworks, cloud SDKs, or orchestration engines into the base package.
@@ -84,7 +84,7 @@ agentledger-langgraph: LangGraph checkpointer/node integration
 agentledger-mcp: MCP tool/context integration
 agentledger-otel and Langfuse/LangSmith-style exporters: observability/evidence export
 agentledger-temporal: Temporal execution-backend bridge
-agentledger-model-* packages: OpenAI, Anthropic, Gemini, Bedrock, Ollama, LiteLLM-style provider/router adapters
+external model providers and gateways: OpenAI, Anthropic, Gemini, Bedrock, Ollama, LiteLLM/new-api/one-api, or enterprise gateways through user code or optional endpoint adapters
 agentledger-sandbox-* packages: Docker, Kubernetes, E2B, Firecracker/gVisor/bubblewrap where appropriate
 agentledger-postgres, agentledger-mysql, agentledger-s3: storage and artifact adapters
 ```
@@ -99,7 +99,7 @@ These systems should be integrated with, not rebuilt:
 LangChain / CrewAI / AutoGen / OpenAI Agents SDK / LlamaIndex / Semantic Kernel
 Langfuse / LangSmith / OpenTelemetry backends
 Temporal / Ray / Kubernetes
-LiteLLM and enterprise model gateways
+LiteLLM, new-api, one-api, and enterprise model gateways
 vector databases, RAG systems, long-term memory systems
 eval platforms and benchmark runners
 MCP tool servers and enterprise tool catalogs
@@ -127,8 +127,8 @@ tool marketplace or app store
 
 1. Ship `agentledger-inspector` as a read-only evidence/runtime metadata consumer over SQLite/Postgres/MySQL and exported evidence bundles.
 2. Harden observability export: OTLP now, then Langfuse/LangSmith-style evidence/trace exporters without replacing those tools.
-3. Design and implement the `ModelGateway`/`ModelRouter` contract in runtime-core with injected provider clients and replay-safe archived responses.
-4. Add optional model provider/router adapters for OpenAI, Anthropic, Gemini, Bedrock, Ollama, and LiteLLM-style routing.
+3. Harden the Runtime Model Evidence Boundary so external model calls can be archived, linked to tool proposals, replayed from evidence, and attributed to cost/failure without making AgentLedger a model router.
+4. Keep concrete model routing in provider SDKs, LiteLLM/new-api/one-api, enterprise gateways, or user code; only add optional endpoint adapters if they preserve the evidence boundary without becoming routing products.
 5. Add a Temporal bridge that makes the boundary explicit: Temporal owns workflow lifecycle; AgentLedger owns node-internal tool/model/runtime safety.
 6. Continue hardening storage, sandbox, MCP, tool, and framework adapters with real-service conformance, permission boundaries, backup/restore, and failure semantics.
 
@@ -331,10 +331,10 @@ Follow-up versions:
 1.3.0  language-neutral Inspector: read-only DB/evidence consumer and static HTML debug report
 1.3.x  richer Inspector/report UX, redaction, and evidence-driven replay/regression lab
 1.4.0  Agent Failure Lifecycle: normalized failures, lifecycle, causal graph, replay plan, regression, alerts, export mappings
+1.4.1  Runtime Model Evidence Boundary: external model call records, model failure evidence, tool-call proposals, cost/failure/replay semantics
 1.5.0  sub-agent/multi-agent runtime semantics: parent-child runs, spawn/join, cancellation/failure/cost attribution
 1.6.0  media adapter release: frame/audio/video refs, transcription/embedding adapters, stream transports
-1.7.0  ModelGateway/ModelRouter contract: ctx.call_model, model events, provider injection, fallback/budget/replay semantics
-1.7.x  optional model provider/router adapters, kept outside runtime-core
+1.7.x  optional model evidence endpoint examples, kept outside runtime-core routing/provider selection
 ```
 
 ## v1.1.0 - Adapter Certification And Reliability Gate Upgrade
@@ -569,6 +569,91 @@ Exit criteria:
 - Inspector can show a failure timeline that links to the relevant model/tool/state/policy/sandbox records
 - external eval or observability systems can consume failure evidence without reading undocumented runtime tables
 
+## Post-v1 - Runtime Memory Lifecycle
+
+Status: roadmap. AgentLedger should not become a memory product, vector database, RAG framework, or memory compression SDK. The runtime should own only the memory semantics that affect execution correctness, replay, audit, recovery, and governance.
+
+Positioning:
+
+```text
+Runtime Memory Lifecycle makes memory explainable and replay-safe.
+
+It records what memory an agent read, what memory it wrote, which
+snapshot was visible during a run, how projections changed over time,
+and whether a later replay is using the same memory facts or a changed
+view.
+```
+
+Why it belongs at the runtime boundary:
+
+```text
+memory reads affect model decisions, tool calls, approvals, and costs
+memory writes can pollute future runs or hide why an action happened
+replay must know whether it is reusing the original memory snapshot or reading mutable external state
+audit must answer which memory facts led to a decision or side effect
+```
+
+Lossless vs. compressible boundary:
+
+```text
+Lossless runtime state must not be summarized away:
+  current node, retry count, tool results, approvals, checkpoints,
+  ledger status, failure state, and replay refs.
+
+Compressible context can be externalized through adapters:
+  chat history, observations, search results, reasoning notes,
+  retrieved passages, and conversation summaries.
+```
+
+This keeps AgentLedger focused on runtime evidence. Memory compression can still be useful, but it should remain an adapter/evidence-consumer concern unless it changes replay, audit, recovery, or governance guarantees.
+
+Runtime-core goals:
+
+- `MemoryRef` for stable references to runtime-visible memory entries, projections, and snapshots
+- `MemoryScope` for run, session, agent, shared, and external memory boundaries
+- `MemorySnapshot` for the memory view visible to a run, step, model call, or tool call
+- `MemoryReadEvent` and `MemoryWriteEvent` linked to run ids, step ids, model calls, tool calls, approvals, and policy decisions
+- `MemoryProjection` read models derived from the append-only event log, such as current task state, active constraints, known user/project facts, or tool retry state
+- `MemoryDiff` for detecting memory drift, pollution, deleted facts, changed constraints, and replay divergence
+- `MemoryAudit` / lineage records that explain which memory facts influenced a decision, tool call, approval, or failure
+- retention and redaction policy hooks for memory refs and snapshots
+- replay semantics that can freeze a historical memory snapshot instead of re-querying mutable external memory
+
+Minimal built-in implementation:
+
+```text
+dependency-free memory refs backed by the existing StateStore/BlobStore/EventLog
+snapshot export inside evidence bundles
+projection builder from runtime events to materialized read models
+diff command/report for two snapshots or two projection versions
+Inspector links from model/tool/failure records back to memory refs
+```
+
+Optional adapter layer:
+
+- Mem0, Zep, Letta, vector databases, RAG systems, knowledge stores, and enterprise memory services
+- adapter contracts for importing external memory reads/writes as runtime-visible refs
+- retrieval-output capture so RAG results can be replayed and audited without making AgentLedger own retrieval
+- redaction adapters for memory fields that contain private user, customer, or project data
+
+Explicit non-goals for runtime-core:
+
+```text
+do not build a vector database
+do not build a RAG framework
+do not build a user-profile memory product
+do not build a general chat summarizer or context-compression SDK
+do not claim semantic memory makes agents smarter; the runtime claim is replay, audit, governance, and recovery
+```
+
+Exit criteria:
+
+- a run can record exactly which memory snapshot was visible at each important execution boundary
+- replay can either reuse the archived memory snapshot or explicitly report that mutable external memory would be read
+- Inspector/evidence can answer which memory refs contributed to a model decision, tool side effect, approval, or failure
+- memory diffs can identify changed facts, deleted facts, newly introduced constraints, and drift between two runs or two snapshots
+- external memory systems can integrate through adapters without bypassing evidence, policy, redaction, and replay contracts
+
 ## Post-v1 - Inspector Evolution
 
 Status: partially implemented in `1.3.0`. The current Inspector is a read-only evidence/runtime metadata consumer with static HTML export. Future work should stay in an optional package and remain outside runtime-core execution semantics.
@@ -658,62 +743,63 @@ Exit criteria:
 - Go, TypeScript, and Rust users can consume the official Inspector viewer without installing a Python package into their application runtime
 - all sensitive fields are redacted by default or explicitly configurable
 
-## Post-v1 - Model Gateway And Router
+## 1.4.1 - Runtime Model Evidence Boundary
 
-Status: roadmap. This is a runtime boundary capability, but concrete model providers and routing engines should remain optional adapters.
+Status: implemented as a small runtime-core evidence upgrade. AgentLedger does not become a model router, model gateway, provider SDK wrapper, or LiteLLM/new-api/one-api replacement. The runtime records model evidence that user code, agent frameworks, SDKs, or external gateways already produced.
 
-Why it belongs at the runtime boundary:
-
-```text
-model calls affect cost, latency, replay, evidence, determinism, and policy
-runtime is the layer that can record the selected provider/model and skip real calls during replay
-budget enforcement and fallback semantics need to be visible before and after the model call
-```
-
-Core contract goals:
-
-- `ctx.call_model(...)` or equivalent language-native API for runtime-managed model invocation
-- `ModelGateway` contract for request validation, provider selection, execution, archival, and replay
-- `ModelRouterPolicy` contract for rule-based routing by task, model family, cost, latency, context size, data policy, and allowed providers
-- model-call events such as `model_call_requested`, `model_route_selected`, `model_call_completed`, `model_call_failed`, and `model_call_replayed`
-- request/response refs in evidence bundles, with redaction and payload hashing
-- token/cost attribution by run, step, agent role, provider, and model
-- in-flight budget enforcement before expensive model calls
-- fallback semantics and failure taxonomy for timeout, rate limit, policy denial, budget exceeded, provider failure, and malformed output
-- replay semantics that reuse archived model responses instead of calling providers again
-- shadow model comparison hooks that can compare provider/model output without producing tool side effects
-
-Planned adapter layer:
-
-- provider adapters for OpenAI, Anthropic, Gemini, Bedrock, Azure OpenAI, Ollama, and local/inference-server APIs where ecosystem demand exists
-- optional LiteLLM-style adapter for users who already centralize provider routing elsewhere
-- provider price catalog adapters, kept outside runtime-core
-- policy adapters for org-specific model allowlists, region/data rules, and high-risk model approvals
-
-Minimal first implementation:
+Why this belongs at the runtime boundary:
 
 ```text
-dependency-free ModelGateway interface
-injected provider client for tests and application wiring
-rule-based YAML/JSON router policy
-model-call event/evidence/cost records
-replay that returns archived model output
-no mandatory provider SDK dependency in runtime-core
+model outputs can cause tool calls and side effects
+model failures can explain agent failures
+model requests/responses must be replayable without calling providers again
+model token/cost records need run/step/agent attribution
+model-proposed tool calls must be distinguishable from runtime-executed tool calls
 ```
+
+Implemented in `1.4.1`:
+
+- dependency-free `agentledger.model.evidence.v1` evidence schema
+- external model-call recording APIs in Python, Go, TypeScript, and Rust
+- `model_call_requested`, `model_call_completed`, `model_call_failed`, and `tool_call_proposed` events
+- request/response/failure payload archival in the Python reference runtime
+- token/USD cost attribution for externally recorded model calls
+- `model_call_failed` participation in failure envelopes, lifecycle, alerts, replay plans, Inspector timeline, and adversarial review checks
+- compatibility wrapper for the previous simple `recordModelCall` / `record_model_call` style in non-Python runtimes
+
+Integration model:
+
+```text
+user code / framework / provider SDK / model gateway
+  -> executes model call
+  -> records model evidence in AgentLedger
+  -> model may propose a tool call
+  -> runtime executes tools through ToolGateway / Tool Ledger
+```
+
+AgentLedger should treat LiteLLM, new-api, one-api, provider SDKs, and enterprise model gateways as external systems. They can own routing, retry, timeout, key management, fallback, and provider-specific compatibility. AgentLedger owns the resulting runtime evidence, cost/failure attribution, replay behavior, and tool proposal link.
 
 Explicit non-goals:
 
-- bundling every model provider SDK into runtime-core
-- replacing OpenAI, Anthropic, Gemini, Bedrock, Ollama, LiteLLM, or enterprise model gateways
-- building a full model marketplace, billing system, prompt management platform, or managed router
-- claiming deterministic model behavior beyond archived-response replay
+- no model routing or provider selection engine in runtime-core
+- no dedicated LiteLLM/new-api/one-api adapter unless a future integration proves a narrow evidence-only boundary
+- no bundled provider SDKs
+- no provider timeout/retry/rate-limit execution policy
+- no claim that archived model outputs make model behavior deterministic beyond replaying recorded evidence
+
+Follow-up work:
+
+- Inspector panel dedicated to model calls and model-proposed tool calls
+- stronger links between `tool_call_proposed` and subsequent `tool_call_requested/completed/failed`
+- optional policy hook for high-risk model requests, data-classification evidence, and redaction decisions
+- examples showing OpenAI-compatible, Anthropic-style, and enterprise gateway calls recorded as evidence without routing through AgentLedger
 
 Exit criteria:
 
-- agent code can call a model through the runtime boundary and produce replayable model evidence
-- budget/cost attribution records the provider/model selected for each call
-- replay can skip real model calls and return archived responses
-- provider routing is configurable without making runtime-core depend on provider SDKs
+- a model call made outside AgentLedger can still be attached to a run/step with archived request/response evidence
+- model failures produce normalized failure evidence without requiring AgentLedger to own provider retry logic
+- model-proposed tool calls are visible before the actual ToolGateway execution
+- replay/debug/evidence consumers can inspect model evidence without contacting a model provider
 
 ## Post-v1 - Sub-agent And Multi-agent Runtime Semantics
 

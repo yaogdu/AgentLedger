@@ -1,12 +1,12 @@
 # Implementation Status
 
-Updated: 2026-06-05
+Updated: 2026-06-19
 
 This document tracks what is implemented in runtime-core, what remains planned for optional adapters, and what should stay outside runtime-core.
 
 ## Current Baseline
 
-AgentLedger 1.4.x is a stable runtime-core line with Python as the reference implementation and Go/TypeScript/Rust covered by shared runtime-core parity gates. The 1.4 line keeps the stable runtime-core contract, adds a language-neutral read-only Inspector companion path, and completes the Agent Failure Lifecycle baseline across all four runtime packages. It is suitable for:
+AgentLedger 1.4.x is a stable runtime-core line with Python as the reference implementation and Go/TypeScript/Rust covered by shared runtime-core parity gates. The 1.4 line keeps the stable runtime-core contract, adds a language-neutral read-only Inspector companion path, completes the Agent Failure Lifecycle baseline, and adds the Runtime Model Evidence Boundary across all four runtime packages. It is suitable for:
 
 - local use
 - runtime design review
@@ -15,7 +15,7 @@ AgentLedger 1.4.x is a stable runtime-core line with Python as the reference imp
 - reliability semantics validation
 - production pilot preparation with explicit adapter boundaries
 
-Release-scope note: 1.3.x added and hardened Inspector as a read-only evidence/runtime metadata consumer. It can read exported evidence bundles or connect to SQLite/Postgres/MySQL AgentLedger metadata with read-only credentials and can export static HTML debug reports. 1.4.0 adds the four-language Agent Failure Lifecycle baseline: normalized failure envelopes, lifecycle stages, causal graph, replay plan, regression report, local alert records, and portable failure export mappings. MySQL remains the 1.2.2 storage adapter boundary and Langfuse remains the 1.2.3 observability adapter boundary; real-service production claims still require external validation.
+Release-scope note: 1.3.x added and hardened Inspector as a read-only evidence/runtime metadata consumer. It can read exported evidence bundles or connect to SQLite/Postgres/MySQL AgentLedger metadata with read-only credentials and can export static HTML debug reports. 1.4.0 adds the four-language Agent Failure Lifecycle baseline: normalized failure envelopes, lifecycle stages, causal graph, replay plan, regression report, local alert records, and portable failure export mappings. 1.4.1 adds the four-language Runtime Model Evidence Boundary: archived model request/response/failure evidence, model-proposed tool calls, and model cost/failure/replay semantics without provider routing. MySQL remains the 1.2.2 storage adapter boundary and Langfuse remains the 1.2.3 observability adapter boundary; real-service production claims still require external validation.
 
 The runtime-core contract is stable. Optional production adapters, external infrastructure hardening, and full eval systems remain outside the stable core boundary; non-Python runtime-core baselines are verified by the shared parity gates.
 
@@ -50,7 +50,8 @@ Excluded from this boundary:
 | Replay and evidence | event-level replay, evidence export, evidence directory layout, static HTML evidence report, evidence diff |
 | Evidence regression primitives | side-effect-free evidence checks, `evidence-regression` media/stream gates, machine-readable regression summaries, adversarial review, evidence regression checklist with media/stream evidence checks, divergence report with media/stream dimensions, golden corpus seed/add/list/check with baseline, Tool Ledger, and media/stream built-ins |
 | Shadow mode | side-effect-safe candidate runs using archived Tool Ledger responses |
-| Cost and budget | store-backed cost records, budget enforcement hooks, and read-only cost attribution report by run/agent/step/category/tool/model |
+| Cost and budget | store-backed cost records, budget enforcement hooks, read-only cost attribution report by run/agent/step/category/tool/model, and model evidence usage/USD attribution |
+| Runtime Model Evidence Boundary | `agentledger.model.evidence.v1`, external model-call evidence APIs, `model_call_requested/completed/failed`, `tool_call_proposed`, model failure category, and replay-safe archived model evidence semantics |
 | Approval and policy | approval request/approve/deny flow, YAML/JSON policy checks, `PolicyRequest`, `PolicyDecision`, `PolicyFinding`, `PolicyControl`, built-in evaluator registry, decision evidence in `tool_permission_decided` |
 | Scheduling semantics | leases, fencing, heartbeat, cancellation, retry policy, failure taxonomy |
 | Worker loop | local worker loop, process-shaped `WorkerService`, worker conformance runner |

@@ -159,6 +159,9 @@ export class AgentContext {
     metadata?: JSONObject;
   }): Promise<string>;
   recordModelCall(input: { model: string; inputTokens?: number; outputTokens?: number; totalUsd?: number }): Promise<void>;
+  recordModelCallEvidence(input: { provider?: string; model: string; request?: JSONObject; response?: JSONObject; usage?: JSONObject; totalUsd?: number; metadata?: JSONObject }): Promise<void>;
+  recordModelFailure(input: { provider?: string; model: string; errorType?: string; message: string; retryable?: boolean; request?: JSONObject; usage?: JSONObject; totalUsd?: number; metadata?: JSONObject }): Promise<void>;
+  recordToolCallProposal(input: { toolName: string; arguments?: JSONObject; provider?: string; model?: string; modelCallRef?: string; confidence?: number; reason?: string; metadata?: JSONObject }): Promise<void>;
   heartbeat(leaseSeconds?: number): Promise<number>;
 }
 

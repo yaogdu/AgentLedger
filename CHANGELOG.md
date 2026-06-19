@@ -8,6 +8,22 @@ This project follows semantic versioning for the stable runtime-core contract. O
 
 No unreleased changes.
 
+## 1.4.1 - 2026-06-19
+
+### Added
+
+- Added the Runtime Model Evidence Boundary across Python, Go, TypeScript, and Rust runtime-core packages.
+- Added `agentledger.model.evidence.v1` for externally executed model-call evidence.
+- Added `model_call_requested`, `model_call_completed`, `model_call_failed`, and `tool_call_proposed` runtime events.
+- Added APIs to record archived model requests/responses, model failures, model-proposed tool calls, token usage, and USD cost evidence without making AgentLedger a model router.
+- Added `model_call_failed` to failure attribution, failure lifecycle, Inspector failure detection, adversarial review checks, and cross-language tests.
+
+### Clarified
+
+- AgentLedger records model evidence produced by user code, agent frameworks, provider SDKs, LiteLLM/new-api/one-api, or enterprise gateways.
+- AgentLedger does not own provider routing, retry, timeout, fallback, key management, provider SDK compatibility, or pricing catalogs in runtime-core.
+- This is a four-language runtime-core patch release. Inspector remains a language-neutral companion viewer distributed through Python/PyPI.
+
 ## 1.4.0 - 2026-06-13
 
 ### Added

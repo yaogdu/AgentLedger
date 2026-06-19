@@ -1,13 +1,13 @@
 {
   "name": "agentledger-postgres",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "private": false,
   "description": "Postgres adapter package for AgentLedger Runtime.",
   "type": "module",
   "main": "src/index.js",
   "types": "src/index.d.ts",
   "dependencies": {
-    "agentledger-runtime": "^1.4.0"
+    "agentledger-runtime": "^1.4.1"
   },
   "files": [
     "src/",

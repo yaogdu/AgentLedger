@@ -247,29 +247,141 @@ func (c *AgentContext) CallTool(ctx context.Context, name string, args JSONObjec
 }
 
 func (c *AgentContext) RecordModelCall(model string, inputTokens, outputTokens int, totalUSD float64) error {
-	tokens := inputTokens + outputTokens
+	return c.RecordModelCallEvidence(ModelCallEvidence{Provider: "custom", Model: model, Usage: JSONObject{"input_tokens": inputTokens, "output_tokens": outputTokens}, TotalUSD: totalUSD})
+}
+
+type ModelCallEvidence struct {
+	Provider string
+	Model    string
+	Request  JSONObject
+	Response JSONObject
+	Usage    JSONObject
+	TotalUSD float64
+	Metadata JSONObject
+}
+
+type ModelFailureEvidence struct {
+	Provider  string
+	Model     string
+	ErrorType string
+	Message   string
+	Retryable *bool
+	Request   JSONObject
+	Usage     JSONObject
+	TotalUSD  float64
+	Metadata  JSONObject
+}
+
+type ToolCallProposal struct {
+	ToolName     string
+	Arguments    JSONObject
+	Provider     string
+	Model        string
+	ModelCallRef string
+	Confidence   *float64
+	Reason       string
+	Metadata     JSONObject
+}
+
+func (c *AgentContext) RecordModelCallEvidence(record ModelCallEvidence) error {
+	provider := firstText(record.Provider, "custom")
+	model := firstText(record.Model, "unknown")
+	usage := cloneJSONObject(record.Usage)
+	tokens := usageTotalTokens(usage)
 	if err := c.Budget.BeforeModelCall(c.Store, c.RunID, tokens); err != nil {
-		_, appendErr := c.Store.AppendEvent(AppendEventInput{RunID: c.RunID, SessionID: c.SessionID, StepID: c.StepID, Type: "budget_check_failed", AgentRole: c.AgentRole, StateVersion: c.StateVersion, Payload: JSONObject{"category": "model", "model": model, "error": err.Error()}})
+		_, appendErr := c.Store.AppendEvent(AppendEventInput{RunID: c.RunID, SessionID: c.SessionID, StepID: c.StepID, Type: "budget_check_failed", AgentRole: c.AgentRole, StateVersion: c.StateVersion, Payload: JSONObject{"category": "model", "provider": provider, "model": model, "error": err.Error()}})
 		if appendErr != nil {
 			return appendErr
 		}
 		return err
 	}
-	_, err := c.Store.AppendEvent(AppendEventInput{RunID: c.RunID, SessionID: c.SessionID, StepID: c.StepID, Type: "model_call_completed", AgentRole: c.AgentRole, StateVersion: c.StateVersion, Payload: JSONObject{"model": model, "input_tokens": inputTokens, "output_tokens": outputTokens, "total_tokens": tokens, "total_usd": totalUSD}})
-	if err != nil {
+	requestPayload := compactJSON(JSONObject{"schema_version": "agentledger.model.evidence.v1", "provider": provider, "model": model, "request": cloneJSONObject(record.Request), "metadata": cloneJSONObject(record.Metadata)})
+	if _, err := c.Store.AppendEvent(AppendEventInput{RunID: c.RunID, SessionID: c.SessionID, StepID: c.StepID, Type: "model_call_requested", AgentRole: c.AgentRole, StateVersion: c.StateVersion, Payload: requestPayload}); err != nil {
 		return err
 	}
+	responsePayload := compactJSON(JSONObject{"schema_version": "agentledger.model.evidence.v1", "provider": provider, "model": model, "response": cloneJSONObject(record.Response), "usage": usage, "total_usd": record.TotalUSD, "metadata": cloneJSONObject(record.Metadata)})
+	if _, err := c.Store.AppendEvent(AppendEventInput{RunID: c.RunID, SessionID: c.SessionID, StepID: c.StepID, Type: "model_call_completed", AgentRole: c.AgentRole, StateVersion: c.StateVersion, Payload: responsePayload}); err != nil {
+		return err
+	}
+	return c.recordModelCosts(provider, model, usage, record.TotalUSD)
+}
+
+func (c *AgentContext) RecordModelFailure(record ModelFailureEvidence) error {
+	provider := firstText(record.Provider, "custom")
+	model := firstText(record.Model, "unknown")
+	usage := cloneJSONObject(record.Usage)
+	payload := compactJSON(JSONObject{"schema_version": "agentledger.model.evidence.v1", "provider": provider, "model": model, "error_type": firstText(record.ErrorType, "ModelCallFailed"), "error": record.Message, "usage": usage, "total_usd": record.TotalUSD, "metadata": cloneJSONObject(record.Metadata)})
+	if record.Retryable != nil {
+		payload["retryable"] = *record.Retryable
+	}
+	if len(record.Request) > 0 {
+		payload["request"] = cloneJSONObject(record.Request)
+	}
+	if _, err := c.Store.AppendEvent(AppendEventInput{RunID: c.RunID, SessionID: c.SessionID, StepID: c.StepID, Type: "model_call_failed", AgentRole: c.AgentRole, StateVersion: c.StateVersion, Payload: payload}); err != nil {
+		return err
+	}
+	return c.recordModelCosts(provider, model, usage, record.TotalUSD)
+}
+
+func (c *AgentContext) RecordToolCallProposal(proposal ToolCallProposal) error {
+	payload := compactJSON(JSONObject{"schema_version": "agentledger.model.evidence.v1", "tool": proposal.ToolName, "args": cloneJSONObject(proposal.Arguments), "metadata": cloneJSONObject(proposal.Metadata)})
+	if proposal.Provider != "" {
+		payload["provider"] = proposal.Provider
+	}
+	if proposal.Model != "" {
+		payload["model"] = proposal.Model
+	}
+	if proposal.ModelCallRef != "" {
+		payload["model_call_ref"] = proposal.ModelCallRef
+	}
+	if proposal.Confidence != nil {
+		payload["confidence"] = *proposal.Confidence
+	}
+	if proposal.Reason != "" {
+		payload["reason"] = proposal.Reason
+	}
+	_, err := c.Store.AppendEvent(AppendEventInput{RunID: c.RunID, SessionID: c.SessionID, StepID: c.StepID, Type: "tool_call_proposed", AgentRole: c.AgentRole, StateVersion: c.StateVersion, Payload: payload})
+	return err
+}
+
+func (c *AgentContext) recordModelCosts(provider, model string, usage JSONObject, totalUSD float64) error {
+	tokens := usageTotalTokens(usage)
+	metadata := JSONObject{"provider": provider, "model": model, "usage": cloneJSONObject(usage)}
 	if tokens > 0 {
-		if _, err := c.Store.RecordCost(CostRecordInput{RunID: c.RunID, SessionID: c.SessionID, StepID: c.StepID, Category: "model", Name: model, Amount: float64(tokens), Unit: "token", Metadata: JSONObject{"input_tokens": inputTokens, "output_tokens": outputTokens}}); err != nil {
+		if _, err := c.Store.RecordCost(CostRecordInput{RunID: c.RunID, SessionID: c.SessionID, StepID: c.StepID, Category: "model", Name: model, Amount: float64(tokens), Unit: "token", Metadata: metadata}); err != nil {
 			return err
 		}
 	}
 	if totalUSD > 0 {
-		if _, err := c.Store.RecordCost(CostRecordInput{RunID: c.RunID, SessionID: c.SessionID, StepID: c.StepID, Category: "model", Name: model, Amount: totalUSD, Unit: "usd", Metadata: JSONObject{"input_tokens": inputTokens, "output_tokens": outputTokens}}); err != nil {
+		if _, err := c.Store.RecordCost(CostRecordInput{RunID: c.RunID, SessionID: c.SessionID, StepID: c.StepID, Category: "model", Name: model, Amount: totalUSD, Unit: "usd", Metadata: metadata}); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+func usageTotalTokens(usage JSONObject) int {
+	for _, key := range []string{"total_tokens", "totalTokens", "tokens"} {
+		if value, ok := usage[key]; ok {
+			return int(numberValue(value))
+		}
+	}
+	return int(numberValue(usage["input_tokens"]) + numberValue(usage["prompt_tokens"]) + numberValue(usage["inputTokens"]) + numberValue(usage["output_tokens"]) + numberValue(usage["completion_tokens"]) + numberValue(usage["outputTokens"]))
+}
+
+func numberValue(value any) float64 {
+	switch typed := value.(type) {
+	case int:
+		return float64(typed)
+	case int64:
+		return float64(typed)
+	case float64:
+		return typed
+	case float32:
+		return float64(typed)
+	default:
+		return 0
+	}
 }
 
 func (c *AgentContext) Heartbeat(leaseSeconds int) (float64, error) {

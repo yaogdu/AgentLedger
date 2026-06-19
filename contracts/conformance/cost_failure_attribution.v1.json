@@ -45,6 +45,24 @@
         "failure_has_retryability",
         "failure_links_to_step_and_optional_tool_or_model"
       ]
+    },
+    {
+      "name": "runtime_model_evidence_boundary",
+      "description": "Externally executed model calls should be recorded as replayable evidence without requiring runtime-core to route provider traffic.",
+      "required_event_types": [
+        "model_call_requested",
+        "model_call_completed",
+        "model_call_failed",
+        "tool_call_proposed",
+        "cost_recorded"
+      ],
+      "required_assertions": [
+        "model_evidence_schema_version_is_agentledger_model_evidence_v1",
+        "model_call_failure_category_is_model",
+        "tool_call_proposal_is_distinct_from_tool_execution",
+        "model_cost_records_include_tokens_and_usd",
+        "runtime_core_does_not_require_provider_sdk_or_router"
+      ]
     }
   ],
   "preview_status": "implemented by Go, TypeScript, and Rust preview runtimes as runtime-core parity gates; production adapter hardening remains separate"

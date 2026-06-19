@@ -4,6 +4,8 @@
 
 Run Python examples from the repository root with `PYTHONPATH=src` unless the example says otherwise.
 
+If you are evaluating whether AgentLedger is useful for your project, start with `three_minute_demo/README.md`. It is intentionally small: one tool side effect succeeds, the worker crashes before commit, and the retry resumes without duplicating the external write. See `../docs/USE_CASES.md` for the scenario guide.
+
 | Goal | Path | Command / note |
 |---|---|---|
 | 3-minute side-effect safety demo | `three_minute_demo/README.md` | Shows crash/retry without duplicate external writes. Cross-language commands are listed below. |

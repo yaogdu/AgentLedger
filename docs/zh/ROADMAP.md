@@ -17,11 +17,11 @@
 | Tracing / Observability | structured events、trace JSONL、OTLP/JSON export、evidence links | OpenTelemetry SDK packages、collector recipes、external trace stores | 完整观测套件 |
 | Guardrails | ToolSpec schema validation、policy checks、approval、pre/postcondition hooks、adversarial review gates | 更强 policy engine、项目规则包、外部 review 流程 | 业务治理后台 |
 | Tool Gateway + Sandbox | ToolGateway、Tool Ledger、idempotency、audit、sandbox executor contract、fail-closed behavior | Docker、bubblewrap、Kubernetes/gVisor、E2B、Firecracker、自定义 executor | 外部 sandbox 基础设施托管 |
-| Memory | session memory、short-term durable state、versioned memory refs、shared findings、replayable memory events | vector store、semantic retrieval、RAG、long-term knowledge store | 完整知识库或语义检索系统 |
+| Memory | session memory、short-term durable state、versioned memory refs、memory lifecycle events、projection、diff、audit lineage、replayable memory read/write | vector store、semantic retrieval、RAG、long-term knowledge store、Mem0/Zep/Letta 类 memory service | 完整 knowledge base、semantic retrieval system、user-profile memory 产品、chat summarizer 或 memory compression SDK |
 | Session / HITL | run/session/step 状态机、approval request lifecycle、audit events | 外部人工 review 队列、chat/app integrations | 业务 review 后台或流程后台 |
 | FinOps / Cost Control | token/call/cost records、budget enforcement hooks、cost attribution reports | provider price catalogs、finance exports、alerts | 发票或支付系统 |
 | Inspector / Debug Viewer | stable read models、evidence export、static HTML debug export、redaction hooks、schema/version metadata | 独立 read-only 本地/内网 inspector package | deployment management service、runtime-core 中的写入/控制平面 |
-| Model Gateway / Router | model-call boundary、request/response archival、replay skipping、token/cost attribution、budget/fallback semantics | provider adapter、LiteLLM-style router adapter、policy packs、price catalogs | 打包所有 model SDK、变成完整 model gateway 产品、替代 provider SDK |
+| Runtime Model Evidence Boundary | model-call evidence、request/response archival、tool-call proposal、replay skipping、token/cost attribution、model failure evidence | provider SDK、LiteLLM/new-api/one-api/企业 gateway、policy packs、price catalogs | 变成 model router/gateway、打包所有 model SDK、替代 provider SDK 或外部 gateway |
 | Routing Advisor / Capability Router | 仅作为候选边界评估；目前不承诺成为 core feature。如果未来验证这个边界有价值，runtime 可以把外部传入的 route decision 作为 evidence 记录，并保持 replay 确定性 | 可能的 WisePick-style capability router adapter 或 feedback client；只有真实需求证明有价值时才考虑 | 在 core 里做 capability router、provider selection optimization，或把外部 routing decision 当成授权/幂等键 |
 
 Execution backend 定位见 `EXECUTION_BACKENDS.md`：Temporal、Ray、Kubernetes 是通用分布式执行 backend adapters，AgentLedger 保留 agent-specific runtime invariants。
@@ -54,7 +54,7 @@ storage backends, and sandbox systems instead of replacing them.
 | Durable workflow backend | Temporal、Ray、Kubernetes workers | agent-specific leases、fencing、cancellation、checkpoint、Tool Ledger、evidence、replay |
 | Observability / eval UI | Langfuse、LangSmith、OpenTelemetry、custom dashboards | structured events、evidence bundles、trace/cost/failure export、correlation IDs |
 | Tool and context protocols | MCP、internal tool servers、provider SDK tools | ToolGateway、Tool Ledger、schema validation、approval、sandbox、audit records |
-| Model providers / routers | OpenAI、Anthropic、Gemini、Bedrock、Ollama、LiteLLM | ModelGateway contract、archived model responses、budget/fallback/replay semantics |
+| Model providers / gateways | OpenAI、Anthropic、Gemini、Bedrock、Ollama、LiteLLM、new-api、one-api、企业 gateway | 外部执行/路由；AgentLedger 记录 runtime model evidence、archived model response、proposed tool call、budget/failure/replay semantics |
 | Routing advisors / capability routers | WisePick-style decision service、自定义 capability router | 仅作为候选集成边界；没有已规划实现，除非后续真实使用证明需要 |
 | Storage / artifacts | SQLite、Postgres、MySQL、S3/MinIO、internal stores | StateStore/BlobStore contracts、migration、conformance、evidence refs |
 
@@ -69,7 +69,7 @@ event log / evidence bundle / replay
 policy / approval / sandbox contract
 cost and failure attribution
 conformance and adapter certification
-ModelGateway contract：等 model boundary 设计稳定后进入 core
+Runtime Model Evidence Boundary：等 model evidence contract 稳定后进入 core
 ```
 
 runtime-core 可以包含 dependency-free local defaults 和 protocol contracts，但不应该把 provider SDK、Web framework、cloud SDK 或 orchestration engine 强塞进 base package。
@@ -84,7 +84,7 @@ agentledger-langgraph：LangGraph checkpointer/node integration
 agentledger-mcp：MCP tool/context integration
 agentledger-otel 和 Langfuse/LangSmith-style exporters：observability/evidence export
 agentledger-temporal：Temporal execution-backend bridge
-agentledger-model-* packages：OpenAI、Anthropic、Gemini、Bedrock、Ollama、LiteLLM-style provider/router adapters
+外部 model provider 和 gateway：OpenAI、Anthropic、Gemini、Bedrock、Ollama、LiteLLM/new-api/one-api 或企业 gateway 通过用户代码或 optional endpoint adapter 接入
 agentledger-sandbox-* packages：Docker、Kubernetes、E2B、Firecracker/gVisor/bubblewrap 等
 agentledger-postgres、agentledger-mysql、agentledger-s3：storage and artifact adapters
 ```
@@ -99,7 +99,7 @@ agentledger-postgres、agentledger-mysql、agentledger-s3：storage and artifact
 LangChain / CrewAI / AutoGen / OpenAI Agents SDK / LlamaIndex / Semantic Kernel
 Langfuse / LangSmith / OpenTelemetry backends
 Temporal / Ray / Kubernetes
-LiteLLM and enterprise model gateways
+LiteLLM、new-api、one-api 和企业 model gateway
 vector databases, RAG systems, long-term memory systems
 eval platforms and benchmark runners
 MCP tool servers and enterprise tool catalogs
@@ -127,8 +127,8 @@ tool marketplace or app store
 
 1. 发布 `agentledger-inspector`，作为 read-only evidence/runtime metadata consumer，读取 SQLite/Postgres/MySQL 和导出的 evidence bundle。
 2. 强化 observability export：先 OTLP，再做 Langfuse/LangSmith-style evidence/trace exporter，但不替代这些工具。
-3. 设计并实现 runtime-core 中的 `ModelGateway`/`ModelRouter` contract，使用 injected provider clients 和 replay-safe archived responses。
-4. 增加 OpenAI、Anthropic、Gemini、Bedrock、Ollama、LiteLLM-style routing 的 optional model provider/router adapters。
+3. 加固 Runtime Model Evidence Boundary：外部 model call 可以归档、链接到 tool proposal、从 evidence replay，并进入 cost/failure attribution，但不把 AgentLedger 做成 model router。
+4. 具体 model routing 交给 provider SDK、LiteLLM/new-api/one-api、企业 gateway 或用户代码；只有能保持 evidence-only 边界时，才考虑 optional endpoint adapter。
 5. 增加 Temporal bridge，并明确边界：Temporal 管 workflow lifecycle；AgentLedger 管 node 内部 tool/model/runtime safety。
 6. 继续 harden storage、sandbox、MCP、tool 和 framework adapters：真实服务 conformance、权限边界、backup/restore 和 failure semantics。
 
@@ -335,10 +335,10 @@ complete core parity/package dry-run script
 1.3.0  language-neutral Inspector：read-only DB/evidence consumer 和 static HTML debug report
 1.3.x  richer Inspector/report UX、redaction、evidence-driven replay/regression lab
 1.4.0  Agent Failure Lifecycle：normalized failures、lifecycle、causal graph、replay plan、regression、alerts、export mappings
+1.4.1  Runtime Model Evidence Boundary：external model call records、model failure evidence、tool-call proposal、cost/failure/replay semantics
 1.5.0  sub-agent/multi-agent runtime semantics：parent-child runs、spawn/join、cancellation/failure/cost attribution
 1.6.0  media adapter release：frame/audio/video refs、transcription/embedding adapters、stream transports
-1.7.0  ModelGateway/ModelRouter contract：ctx.call_model、model events、provider injection、fallback/budget/replay semantics
-1.7.x  optional model provider/router adapters，继续保持在 runtime-core 之外
+1.7.x  optional model evidence endpoint examples，继续保持在 runtime-core routing/provider selection 之外
 ```
 
 ## v1.1.0 - Adapter Certification And Reliability Gate Upgrade
@@ -536,6 +536,94 @@ runtime-core 明确非目标：
 - Inspector 可以展示 failure timeline，并链接到相关 model/tool/state/policy/sandbox records
 - 外部 eval 或 observability 系统可以消费 failure evidence，而不需要读取未文档化 runtime tables
 
+## Post-v1 - Runtime Memory Lifecycle
+
+状态：roadmap。AgentLedger 不应该变成 memory 产品、vector database、RAG framework 或 memory compression SDK。runtime 只应该负责那些会影响 execution correctness、replay、audit、recovery 和 governance 的 memory 语义。
+
+定位：
+
+```text
+Runtime Memory Lifecycle 的目标是让 memory 可解释、可审计、可 replay。
+
+它记录 agent 读了什么 memory、写了什么 memory、某次 run 看到的是哪个
+snapshot、projection 随时间如何变化，以及后续 replay 使用的是同一份
+memory facts，还是读取了已经变化的外部状态。
+```
+
+为什么属于 runtime boundary：
+
+```text
+memory read 会影响 model decision、tool call、approval 和 cost
+memory write 可能污染后续 run，也可能让 action 的原因变得不可追踪
+replay 必须知道它是在复用历史 memory snapshot，还是重新读取可变外部状态
+audit 必须回答哪些 memory facts 导致了某次 decision 或 side effect
+```
+
+Lossless 与可压缩边界：
+
+```text
+Lossless runtime state 不能被 summary 掉：
+  current node、retry count、tool result、approval、checkpoint、
+  ledger status、failure state、replay ref。
+
+可压缩 context 应通过 adapter 外部化：
+  chat history、observation、search result、reasoning note、
+  retrieved passage、conversation summary。
+```
+
+这样 AgentLedger 仍聚焦 runtime evidence。Memory compression 可以有价值，但除非它会影响 replay、audit、recovery 或 governance guarantee，否则应该留在 adapter/evidence-consumer 层。
+
+Runtime-core 目标：
+
+```text
+MemoryRef：稳定引用 runtime 可见的 memory entry、projection 和 snapshot
+MemoryScope：run、session、agent、shared、external memory 边界
+MemorySnapshot：某个 run、step、model call 或 tool call 可见的 memory 视图
+MemoryReadEvent / MemoryWriteEvent：关联 run id、step id、model call、tool call、approval 和 policy decision
+MemoryProjection：由 append-only event log 生成的 read model，例如 current task state、active constraints、known facts、tool retry state
+MemoryDiff：识别 memory drift、pollution、deleted facts、changed constraints 和 replay divergence
+MemoryAudit / lineage：解释哪些 memory facts 影响了 decision、tool call、approval 或 failure
+memory ref / snapshot 的 retention 和 redaction policy hooks
+replay semantics：可以冻结历史 memory snapshot，而不是重新查询可变外部 memory
+```
+
+最小内置实现：
+
+```text
+基于现有 StateStore / BlobStore / EventLog 的 dependency-free memory refs
+evidence bundle 中导出 memory snapshot
+从 runtime events 构建 materialized projection read model
+对两个 snapshot 或两个 projection version 输出 diff command/report
+Inspector 从 model/tool/failure record 链接回 memory refs
+```
+
+Optional adapter 层：
+
+```text
+Mem0、Zep、Letta、vector database、RAG system、knowledge store、企业 memory service
+把外部 memory read/write 导入为 runtime-visible refs 的 adapter contract
+capture retrieval output，让 RAG 结果可 replay、可 audit，但不让 AgentLedger 负责 retrieval
+针对包含用户、客户或项目私密数据的 memory fields 做 redaction adapter
+```
+
+runtime-core 明确非目标：
+
+```text
+不做 vector database
+不做 RAG framework
+不做 user-profile memory 产品
+不做通用 chat summarizer 或 context-compression SDK
+不宣称 semantic memory 让 agent 更聪明；runtime 的主张是 replay、audit、governance 和 recovery
+```
+
+退出标准：
+
+- run 可以记录每个关键 execution boundary 看到的 memory snapshot
+- replay 可以复用 archived memory snapshot，或者明确报告将读取可变外部 memory
+- Inspector/evidence 可以回答哪些 memory refs 影响了 model decision、tool side effect、approval 或 failure
+- memory diff 可以识别两个 run 或两个 snapshot 之间的 changed facts、deleted facts、新增 constraints 和 drift
+- 外部 memory 系统可以通过 adapter 接入，同时不绕过 evidence、policy、redaction 和 replay contract
+
 ## Post-v1 - Multimodal and Stream Adapters
 
 当前已经有 preview contracts：
@@ -711,60 +799,61 @@ prompt、大 blob 和项目自定义 evidence field 的更丰富 redaction prese
 - Go、TypeScript、Rust 用户不需要把 Python package 安装进自己的应用运行时，也能消费官方 Inspector viewer
 - 敏感字段默认脱敏，或可以显式配置脱敏策略
 
-## Post-v1 - Model Gateway 与 Router
+## 1.4.1 - Runtime Model Evidence Boundary
 
-状态：roadmap。它属于 runtime boundary 能力，但具体 model provider 和 routing engine 应该保持为 optional adapters。
+状态：已作为小型 runtime-core evidence upgrade 实现。AgentLedger 不变成 model router、model gateway、provider SDK wrapper，也不替代 LiteLLM/new-api/one-api。runtime 只记录用户代码、Agent 框架、SDK 或外部 gateway 已经产生的 model evidence。
 
 为什么属于 runtime boundary：
 
 ```text
-model call 会影响 cost、latency、replay、evidence、determinism 和 policy
-runtime 是能记录 selected provider/model，并在 replay 时跳过真实 model call 的层
-budget enforcement 和 fallback semantics 需要在 model call 前后都可见
+model output 可能导致 tool call 和 side effect
+model failure 可以解释 agent failure
+model request/response 必须能在 replay 时复用，而不是重新调用 provider
+model token/cost 需要按 run/step/agent attribution
+model-proposed tool call 必须和 runtime-executed tool call 区分开
 ```
 
-Core contract 目标：
+`1.4.1` 已实现：
 
 ```text
-ctx.call_model(...) 或各语言等价 API
-ModelGateway contract：request validation、provider selection、execution、archival、replay
-ModelRouterPolicy contract：按 task、model family、cost、latency、context size、data policy、allowed providers rule-based routing
-model_call_requested / model_route_selected / model_call_completed / model_call_failed / model_call_replayed events
-evidence bundle 中记录 request/response refs，并支持 redaction 和 payload hashing
-按 run、step、agent role、provider、model 做 token/cost attribution
-昂贵 model call 前做 in-flight budget enforcement
-timeout、rate limit、policy denial、budget exceeded、provider failure、malformed output 的 fallback/failure taxonomy
-replay 时复用 archived model response，不再次调用 provider
-shadow model comparison hook，可以比较 model/provider 输出，但不产生 tool side effect
+dependency-free agentledger.model.evidence.v1 evidence schema
+Python、Go、TypeScript、Rust 中的 external model-call recording APIs
+model_call_requested、model_call_completed、model_call_failed、tool_call_proposed events
+Python reference runtime 中的 request/response/failure payload archival
+外部 model call 的 token/USD cost attribution
+model_call_failed 进入 failure envelope、lifecycle、alert、replay plan、Inspector timeline 和 adversarial review checks
+非 Python runtime 中兼容旧 recordModelCall / record_model_call 风格
 ```
 
-Adapter 层计划：
+集成方式：
 
 ```text
-OpenAI、Anthropic、Gemini、Bedrock、Azure OpenAI、Ollama、本地 inference server provider adapters
-LiteLLM-style adapter，用于已经集中管理 provider routing 的团队
-provider price catalog adapters，放在 runtime-core 外
-org-specific model allowlist、region/data rules、high-risk model approval policy adapters
+user code / framework / provider SDK / model gateway
+  -> 执行 model call
+  -> 把 model evidence 记录进 AgentLedger
+  -> model 可能提出 tool call proposal
+  -> runtime 通过 ToolGateway / Tool Ledger 执行工具
 ```
 
-最小第一版：
-
-```text
-dependency-free ModelGateway interface
-injected provider client，用于测试和用户应用接线
-rule-based YAML/JSON router policy
-model-call event/evidence/cost records
-replay 返回 archived model output
-runtime-core 不强依赖 provider SDK
-```
+LiteLLM、new-api、one-api、provider SDK 和企业 model gateway 都应视为外部系统。它们负责 routing、retry、timeout、key management、fallback 和 provider-specific compatibility。AgentLedger 负责最终的 runtime evidence、cost/failure attribution、replay behavior 和 tool proposal link。
 
 明确非目标：
 
 ```text
-把所有 model provider SDK 打包进 runtime-core
-替代 OpenAI、Anthropic、Gemini、Bedrock、Ollama、LiteLLM 或企业 model gateway
-做完整 model marketplace、billing system、prompt management platform 或 managed router
-声明模型行为本身 deterministic；runtime 只能保证 archived-response replay
+runtime-core 不做 model routing 或 provider selection engine
+除非未来证明有很窄的 evidence-only 边界，否则不做专门 LiteLLM/new-api/one-api adapter
+不打包 provider SDK
+不负责 provider timeout/retry/rate-limit execution policy
+不声明 archived model output 能让模型本身 deterministic；runtime 只能 replay 已记录 evidence
+```
+
+后续工作：
+
+```text
+Inspector 中增加专门的 model call 和 model-proposed tool call panel
+加强 tool_call_proposed 与后续 tool_call_requested/completed/failed 的链接
+为高风险 model request、data-classification evidence 和 redaction decision 增加 optional policy hook
+增加 OpenAI-compatible、Anthropic-style、企业 gateway 调用被记录为 evidence 的 examples，但不通过 AgentLedger 做 routing
 ```
 
 退出标准：

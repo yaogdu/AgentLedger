@@ -10,6 +10,8 @@ static ID_COUNTER: AtomicU64 = AtomicU64::new(1);
 
 pub type State = HashMap<String, Value>;
 
+pub const MODEL_EVIDENCE_SCHEMA_VERSION: &str = "agentledger.model.evidence.v1";
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum Value {
     Null,
@@ -2087,13 +2089,31 @@ impl Runtime {
         output_tokens: f64,
         total_usd: f64,
     ) -> Result<()> {
-        let tokens = input_tokens + output_tokens;
+        let mut usage = State::new();
+        usage.insert("input_tokens".to_string(), Value::Number(input_tokens));
+        usage.insert("output_tokens".to_string(), Value::Number(output_tokens));
+        self.record_model_call_evidence(ctx, "custom", model, State::new(), State::new(), usage, total_usd, State::new())
+    }
+
+    pub fn record_model_call_evidence(
+        &mut self,
+        ctx: &AgentContext,
+        provider: &str,
+        model: &str,
+        request: State,
+        response: State,
+        usage: State,
+        total_usd: f64,
+        metadata: State,
+    ) -> Result<()> {
+        let tokens = usage_total_tokens(&usage);
         if let Some(max) = self.budget.max_model_tokens {
             let used = self.store.cost_summary(&ctx.run_id).model_tokens;
             if used + tokens > max {
                 let message = format!("model token budget exceeded: {used}+{tokens}/{max}");
                 let mut payload = State::new();
                 payload.insert("category".to_string(), Value::String("model".to_string()));
+                payload.insert("provider".to_string(), Value::String(provider.to_string()));
                 payload.insert("model".to_string(), Value::String(model.to_string()));
                 payload.insert("error".to_string(), Value::String(message.clone()));
                 self.store.append_event(
@@ -2109,47 +2129,140 @@ impl Runtime {
                 return Err(RuntimeError(message));
             }
         }
-        let mut payload = State::new();
-        payload.insert("model".to_string(), Value::String(model.to_string()));
-        payload.insert("input_tokens".to_string(), Value::Number(input_tokens));
-        payload.insert("output_tokens".to_string(), Value::Number(output_tokens));
-        payload.insert("total_tokens".to_string(), Value::Number(tokens));
-        payload.insert("total_usd".to_string(), Value::Number(total_usd));
+        let mut request_payload = State::new();
+        request_payload.insert("schema_version".to_string(), Value::String(MODEL_EVIDENCE_SCHEMA_VERSION.to_string()));
+        request_payload.insert("provider".to_string(), Value::String(provider.to_string()));
+        request_payload.insert("model".to_string(), Value::String(model.to_string()));
+        request_payload.insert("request".to_string(), Value::Object(request));
+        request_payload.insert("metadata".to_string(), Value::Object(metadata.clone()));
+        self.store.append_event(
+            &ctx.run_id,
+            Some(&ctx.session_id),
+            Some(&ctx.step_id),
+            "model_call_requested",
+            request_payload,
+            Some(&ctx.agent_role),
+            Some(ctx.state_version),
+            None,
+        );
+        let mut response_payload = State::new();
+        response_payload.insert("schema_version".to_string(), Value::String(MODEL_EVIDENCE_SCHEMA_VERSION.to_string()));
+        response_payload.insert("provider".to_string(), Value::String(provider.to_string()));
+        response_payload.insert("model".to_string(), Value::String(model.to_string()));
+        response_payload.insert("response".to_string(), Value::Object(response));
+        response_payload.insert("usage".to_string(), Value::Object(usage.clone()));
+        response_payload.insert("total_usd".to_string(), Value::Number(total_usd));
+        response_payload.insert("metadata".to_string(), Value::Object(metadata));
         self.store.append_event(
             &ctx.run_id,
             Some(&ctx.session_id),
             Some(&ctx.step_id),
             "model_call_completed",
+            response_payload,
+            Some(&ctx.agent_role),
+            Some(ctx.state_version),
+            None,
+        );
+        self.record_model_costs(ctx, provider, model, &usage, total_usd);
+        Ok(())
+    }
+
+    pub fn record_model_failure(
+        &mut self,
+        ctx: &AgentContext,
+        provider: &str,
+        model: &str,
+        error_type: &str,
+        message: &str,
+        retryable: Option<bool>,
+        request: State,
+        usage: State,
+        total_usd: f64,
+        metadata: State,
+    ) -> Result<()> {
+        let mut payload = State::new();
+        payload.insert("schema_version".to_string(), Value::String(MODEL_EVIDENCE_SCHEMA_VERSION.to_string()));
+        payload.insert("provider".to_string(), Value::String(provider.to_string()));
+        payload.insert("model".to_string(), Value::String(model.to_string()));
+        payload.insert("error_type".to_string(), Value::String(error_type.to_string()));
+        payload.insert("error".to_string(), Value::String(message.to_string()));
+        if let Some(value) = retryable {
+            payload.insert("retryable".to_string(), Value::Bool(value));
+        }
+        payload.insert("request".to_string(), Value::Object(request));
+        payload.insert("usage".to_string(), Value::Object(usage.clone()));
+        payload.insert("total_usd".to_string(), Value::Number(total_usd));
+        payload.insert("metadata".to_string(), Value::Object(metadata));
+        self.store.append_event(
+            &ctx.run_id,
+            Some(&ctx.session_id),
+            Some(&ctx.step_id),
+            "model_call_failed",
             payload,
             Some(&ctx.agent_role),
             Some(ctx.state_version),
             None,
         );
+        self.record_model_costs(ctx, provider, model, &usage, total_usd);
+        Ok(())
+    }
+
+    pub fn record_tool_call_proposal(
+        &mut self,
+        ctx: &AgentContext,
+        tool_name: &str,
+        arguments: State,
+        provider: Option<&str>,
+        model: Option<&str>,
+        model_call_ref: Option<&str>,
+        confidence: Option<f64>,
+        reason: Option<&str>,
+        metadata: State,
+    ) {
+        let mut payload = State::new();
+        payload.insert("schema_version".to_string(), Value::String(MODEL_EVIDENCE_SCHEMA_VERSION.to_string()));
+        payload.insert("tool".to_string(), Value::String(tool_name.to_string()));
+        payload.insert("args".to_string(), Value::Object(arguments));
+        if let Some(value) = provider {
+            payload.insert("provider".to_string(), Value::String(value.to_string()));
+        }
+        if let Some(value) = model {
+            payload.insert("model".to_string(), Value::String(value.to_string()));
+        }
+        if let Some(value) = model_call_ref {
+            payload.insert("model_call_ref".to_string(), Value::String(value.to_string()));
+        }
+        if let Some(value) = confidence {
+            payload.insert("confidence".to_string(), Value::Number(value));
+        }
+        if let Some(value) = reason {
+            payload.insert("reason".to_string(), Value::String(value.to_string()));
+        }
+        payload.insert("metadata".to_string(), Value::Object(metadata));
+        self.store.append_event(
+            &ctx.run_id,
+            Some(&ctx.session_id),
+            Some(&ctx.step_id),
+            "tool_call_proposed",
+            payload,
+            Some(&ctx.agent_role),
+            Some(ctx.state_version),
+            None,
+        );
+    }
+
+    fn record_model_costs(&mut self, ctx: &AgentContext, provider: &str, model: &str, usage: &State, total_usd: f64) {
+        let tokens = usage_total_tokens(usage);
+        let mut metadata = State::new();
+        metadata.insert("provider".to_string(), Value::String(provider.to_string()));
+        metadata.insert("model".to_string(), Value::String(model.to_string()));
+        metadata.insert("usage".to_string(), Value::Object(usage.clone()));
         if tokens > 0.0 {
-            self.store.record_cost(
-                &ctx.run_id,
-                &ctx.session_id,
-                &ctx.step_id,
-                "model",
-                model,
-                tokens,
-                "token",
-                State::new(),
-            );
+            self.store.record_cost(&ctx.run_id, &ctx.session_id, &ctx.step_id, "model", model, tokens, "token", metadata.clone());
         }
         if total_usd > 0.0 {
-            self.store.record_cost(
-                &ctx.run_id,
-                &ctx.session_id,
-                &ctx.step_id,
-                "model",
-                model,
-                total_usd,
-                "usd",
-                State::new(),
-            );
+            self.store.record_cost(&ctx.run_id, &ctx.session_id, &ctx.step_id, "model", model, total_usd, "usd", metadata);
         }
-        Ok(())
     }
 }
 
@@ -3874,6 +3987,7 @@ fn is_failure_event(kind: &str) -> bool {
             | "lease_expired"
             | "run_cancel_requested"
             | "run_cancelled"
+            | "model_call_failed"
             | "tool_call_failed"
             | "tool_approval_required"
             | "budget_check_failed"
@@ -3901,6 +4015,7 @@ fn failure_category(text: &str, fallback: &str) -> String {
 
 fn event_failure_category(event: &Event) -> String {
     match event.event_type.as_str() {
+        "model_call_failed" => "model".to_string(),
         "tool_call_failed" | "tool_call_blocked" | "tool_approval_required" => "tool".to_string(),
         "run_cancel_requested" | "run_cancelled" | "step_cancelled" => "cancellation".to_string(),
         "lease_expired" => "runtime".to_string(),
@@ -4001,6 +4116,21 @@ fn state_number(row: &State, key: &str) -> f64 {
         Some(Value::Number(value)) => *value,
         _ => 0.0,
     }
+}
+
+fn usage_total_tokens(usage: &State) -> f64 {
+    for key in ["total_tokens", "totalTokens", "tokens"] {
+        let value = state_number(usage, key);
+        if value > 0.0 {
+            return value;
+        }
+    }
+    state_number(usage, "input_tokens")
+        + state_number(usage, "prompt_tokens")
+        + state_number(usage, "inputTokens")
+        + state_number(usage, "output_tokens")
+        + state_number(usage, "completion_tokens")
+        + state_number(usage, "outputTokens")
 }
 
 fn state_array_len(row: &State, key: &str) -> usize {
@@ -4556,6 +4686,49 @@ mod tests {
         );
         assert_eq!(failure.failure_replay_plan["safe_to_replay"], Value::Bool(true));
         assert!(state_number(&failure.failure_alerts, "alert_count") > 0.0);
+        let events = runtime.store.events(&run_id);
+        assert!(event_exists(&events, "model_call_requested"));
+        assert!(event_exists(&events, "model_call_completed"));
+    }
+
+    #[test]
+    fn model_evidence_boundary_records_failure_and_tool_proposal() {
+        let mut runtime = Runtime::new();
+        let (run_id, _) = runtime.create_run(State::new());
+        let ctx = claim_context(&mut runtime, &run_id, "worker", "Researcher");
+        runtime
+            .record_model_failure(
+                &ctx,
+                "deepseek",
+                "deepseek-chat",
+                "RateLimitError",
+                "rate limited",
+                Some(true),
+                state(&[("messages", Value::Array(vec!["hello".into()]))]),
+                State::new(),
+                0.0,
+                State::new(),
+            )
+            .unwrap();
+        runtime.record_tool_call_proposal(
+            &ctx,
+            "search_contract_clause",
+            state(&[("clause", "payment".into())]),
+            Some("deepseek"),
+            Some("deepseek-chat"),
+            None,
+            None,
+            Some("model requested clause search"),
+            State::new(),
+        );
+        let events = runtime.store.events(&run_id);
+        assert!(event_exists(&events, "model_call_failed"));
+        assert!(event_exists(&events, "tool_call_proposed"));
+        let failure = failure_attribution(&runtime.store, &run_id).unwrap();
+        assert!(failure
+            .failure_envelopes
+            .iter()
+            .any(|item| item.get("category") == Some(&Value::String("model".to_string()))));
     }
 
     #[test]

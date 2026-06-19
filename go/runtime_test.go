@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -537,6 +538,39 @@ func TestCostBudgetAndFailureAttribution(t *testing.T) {
 	}
 	if failure.FailureAlerts["alert_count"].(int) == 0 {
 		t.Fatalf("expected failure alerts: %#v", failure.FailureAlerts)
+	}
+	events := rt.Store.Events(runID)
+	if !eventTypeExists(events, "model_call_requested") || !eventTypeExists(events, "model_call_completed") {
+		t.Fatalf("model evidence events missing: %#v", events)
+	}
+}
+
+func TestModelEvidenceBoundaryRecordsFailureAndProposal(t *testing.T) {
+	rt := NewRuntime(NewMemoryStore())
+	runID, _, err := rt.CreateRun(JSONObject{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	retryable := true
+	ok, err := rt.RunOnce(context.Background(), runID, "worker", "Researcher", 60, func(ctx context.Context, agentCtx *AgentContext, state JSONObject) error {
+		if err := agentCtx.RecordModelFailure(ModelFailureEvidence{Provider: "deepseek", Model: "deepseek-chat", ErrorType: "RateLimitError", Message: "rate limited", Retryable: &retryable, Request: JSONObject{"messages": []any{"hello"}}}); err != nil {
+			return err
+		}
+		return agentCtx.RecordToolCallProposal(ToolCallProposal{ToolName: "search_contract_clause", Arguments: JSONObject{"clause": "payment"}, Provider: "deepseek", Model: "deepseek-chat", Reason: "model requested clause search"})
+	})
+	if !ok || err != nil {
+		t.Fatalf("run failed: ok=%v err=%v", ok, err)
+	}
+	events := rt.Store.Events(runID)
+	if !eventTypeExists(events, "model_call_failed") || !eventTypeExists(events, "tool_call_proposed") {
+		t.Fatalf("model failure/proposal events missing: %#v", events)
+	}
+	failure, err := FailureAttribution(rt.Store, runID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(failure.FailureEnvelopes) == 0 || fmt.Sprint(failure.FailureEnvelopes[0]["category"]) != "model" {
+		t.Fatalf("expected model failure envelope: %#v", failure.FailureEnvelopes)
 	}
 }
 

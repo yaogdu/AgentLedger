@@ -56,7 +56,7 @@ These are valuable but should follow the Priority 1 adapters or remain thinner f
 | Sandbox | E2B | Good managed remote sandbox for code/tool execution. | Keep as optional remote executor adapter. |
 | Distributed execution | Ray bridge | Useful for Python distributed worker pools. | Ray should own cluster scheduling; AgentLedger owns run semantics. |
 | Deployment | Kubernetes worker recipe | Useful for pilots. | Recipe/Helm/examples first; keep deployment management outside runtime-core. |
-| Model providers/router | OpenAI, Anthropic, Gemini, Bedrock, Azure OpenAI, Ollama, LiteLLM-style bridge | Model calls affect evidence, cost, replay, fallback, and budget enforcement, but provider SDKs should not be runtime-core dependencies. | Wait for `ModelGateway`/`ModelRouter` contract before stabilizing provider packages. |
+| Model evidence endpoints | OpenAI-compatible endpoints, Anthropic-style calls, enterprise gateways | Model calls affect evidence, cost, replay, and failure attribution, but provider SDKs and routers should remain outside runtime-core. | Use the Runtime Model Evidence Boundary; do not build official router/gateway adapters unless the boundary stays evidence-only. |
 
 ## Priority 3: Experimental Or Community Adapters
 
@@ -89,7 +89,7 @@ Python remains the reference implementation, but official adapters should conver
 | Kubernetes sandbox/backend | Recommended | Recommended | Recommended | Recommended | Prefer manifest/dry-run contract plus optional execution. |
 | Temporal bridge | Recommended | Required when Go runtime matures | Recommended | Community/optional | Match Temporal ecosystem strength per language. |
 | OpenTelemetry | Required official | Required official | Required official | Required official | Standard enterprise observability path. |
-| Model provider/router | Recommended after ModelGateway contract | Recommended after ModelGateway contract | Recommended after ModelGateway contract | Recommended after ModelGateway contract | Keep provider SDKs optional; use injected clients and conformance fixtures. |
+| Model evidence boundary | Required core | Required core | Required core | Required core | Record external model calls, failures, costs, and tool proposals without bundling provider SDKs or routers. |
 
 ## Non-Negotiable Adapter Requirements
 
@@ -113,5 +113,5 @@ Every official adapter must provide:
 6. LangChain / CrewAI / AutoGen / OpenAI Agents SDK / LlamaIndex / Semantic Kernel facades where ecosystems are stable.
 7. Kubernetes sandbox/backend recipe, then optional execution adapter.
 8. Temporal/Ray/Kubernetes scheduler/backend bridges based on real user demand.
-9. Model provider/router adapters after the runtime `ModelGateway` contract is stable.
+9. Add model evidence examples for OpenAI-compatible endpoints, Anthropic-style calls, and enterprise gateways without making AgentLedger a model router.
 10. Evaluate only, without implementation commitment, whether a Routing Advisor / Capability Router evidence boundary is useful for WisePick-style services. If later adopted, it should record externally supplied route suggestions, preserve replay by reusing stored routing evidence, and send feedback only after new real executions.

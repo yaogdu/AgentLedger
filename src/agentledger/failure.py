@@ -114,6 +114,7 @@ class FailureEnvelopeBuilder:
         "run_cancel_requested",
         "run_cancelled",
         "step_cancelled",
+        "model_call_failed",
         "tool_call_failed",
         "tool_approval_required",
         "tool_call_blocked",
@@ -1024,6 +1025,8 @@ def _category_from_text(*values: Any, default: str) -> str:
 
 
 def _category_from_event(event_type: str, payload: dict[str, Any]) -> str:
+    if event_type in {"model_call_failed"}:
+        return "model"
     if event_type in {"tool_call_failed", "tool_call_blocked", "tool_approval_required"}:
         return "tool"
     if event_type in {"run_cancel_requested", "run_cancelled", "step_cancelled"}:

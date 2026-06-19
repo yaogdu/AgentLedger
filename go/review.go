@@ -106,7 +106,7 @@ func highRiskApprovalsDecided(rows []ApprovalRequest) bool {
 	return true
 }
 func noBlockingFailureEvents(events []Event) bool {
-	bad := map[string]bool{"error_raised": true, "step_failed": true, "tool_call_failed": true, "tool_call_blocked": true}
+	bad := map[string]bool{"error_raised": true, "step_failed": true, "model_call_failed": true, "tool_call_failed": true, "tool_call_blocked": true}
 	for _, e := range events {
 		if bad[e.Type] {
 			return false

@@ -17,6 +17,7 @@ AgentLedger is a runtime reliability layer for Agent Harness stacks. It is not a
 |---|---|---|
 | Start from zero | `GETTING_STARTED.md` | `zh/GETTING_STARTED.md` |
 | Understand the project | `../README.md` | `../README.zh-CN.md` |
+| Decide whether AgentLedger fits your use case | `USE_CASES.md` | `zh/USE_CASES.md` |
 | Use the runtime | `USAGE.md`, `LANGUAGE_QUICKSTART.md` | `zh/USAGE.md`, `zh/LANGUAGE_QUICKSTART.md` |
 | Find examples | `../examples/README.md`, `../go/examples/README.md`, `../typescript/examples/README.md`, `../rust/examples/README.md` | same paths plus `zh/GETTING_STARTED.md` |
 | Query runtime tables | `QUERY_EXAMPLES.md` | `zh/QUERY_EXAMPLES.md` |
@@ -50,6 +51,7 @@ AgentLedger is a runtime reliability layer for Agent Harness stacks. It is not a
 - `ARCHITECTURE.md`: runtime layers, SVG architecture diagram, module map, invariants, adapter boundaries.
 - `COMPARISONS.md`: overlap and boundary guide for agent frameworks, workflow backends, observability/eval tools, RAG, and sandbox infrastructure.
 - `HARNESS_STACK.md`: concrete stack patterns that combine AgentLedger with LangGraph, Temporal, Langfuse/LangSmith/OTel, MCP, model gateways, storage, and sandbox infrastructure.
+- `USE_CASES.md`: practical scenarios, non-goals, 3-minute demo path, and adoption checklist.
 - `INSPECTOR.md`: read-only Inspector commands, DB/evidence inputs, static HTML output, and extension API.
 - `OPEN_SOURCE_IMPACT.md`: open-source ecosystem value and early-stage infrastructure positioning.
 - `MAINTAINER_NOTES.md`: maintainer responsibilities, review principles, coding-agent usage, and maintenance signals.

@@ -1446,7 +1446,7 @@ def _dedupe_links(links: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 def _is_failure_event(event_type: Any) -> bool:
-    return str(event_type) in {"error_raised", "step_failed", "tool_call_failed", "tool_call_blocked", "run_cancelled", "step_cancelled"}
+    return str(event_type) in {"error_raised", "step_failed", "model_call_failed", "tool_call_failed", "tool_call_blocked", "run_cancelled", "step_cancelled"}
 
 
 def _is_wait_event(event_type: Any) -> bool:

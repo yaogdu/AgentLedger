@@ -9,7 +9,7 @@
 | 语言 | 安装 / 使用 | Quickstart | 示例 | 包 / 命令 |
 |---|---|---|---|---|
 | Python | `pipx install agentledger-runtime` 或 `pip install agentledger-runtime` | `agentledger quickstart` | `../../examples/README.md` | PyPI package `agentledger-runtime`，CLI `agentledger` |
-| Go | 在 Go module 内执行 `go get github.com/yaogdu/AgentLedger/go@v1.4.0` | 在 repo 内执行 `cd go && go run ./examples/quickstart` | `../../go/examples/README.md` | Go module `github.com/yaogdu/AgentLedger/go`，CLI package `.../go/cmd/agentledger-go` |
+| Go | 在 Go module 内执行 `go get github.com/yaogdu/AgentLedger/go@v1.4.1` | 在 repo 内执行 `cd go && go run ./examples/quickstart` | `../../go/examples/README.md` | Go module `github.com/yaogdu/AgentLedger/go`，CLI package `.../go/cmd/agentledger-go` |
 | TypeScript | `npm install agentledger-runtime` | `node typescript/examples/quickstart/quickstart.js` | `../../typescript/examples/README.md` | npm package `agentledger-runtime`，CLI `agentledger-ts` |
 | Rust | crates.io package: `agentledger-runtime` | `cargo add agentledger-runtime` 或 `cd rust && cargo run --example quickstart` | `../../rust/examples/README.md` | crate `agentledger-runtime`，binary `agentledger-rust` |
 
@@ -36,17 +36,17 @@ python -m agentledger doctor
 
 ```bash
 go mod init your-module-name  # 如果项目还没有 go.mod 才需要
-go get github.com/yaogdu/AgentLedger/go@v1.4.0
+go get github.com/yaogdu/AgentLedger/go@v1.4.1
 ```
 
 安装可选 CLI：
 
 ```bash
-go install github.com/yaogdu/AgentLedger/go/cmd/agentledger-go@v1.4.0
+go install github.com/yaogdu/AgentLedger/go/cmd/agentledger-go@v1.4.1
 agentledger-go --help
 ```
 
-注意：`go get` 必须在 Go module 里执行。`go install github.com/yaogdu/AgentLedger/go@v1.4.0` 是错误用法，因为该路径是 library，不是 `package main`。安装 CLI 要使用 `/cmd/agentledger-go`。
+注意：`go get` 必须在 Go module 里执行。`go install github.com/yaogdu/AgentLedger/go@v1.4.1` 是错误用法，因为该路径是 library，不是 `package main`。安装 CLI 要使用 `/cmd/agentledger-go`。
 
 ### TypeScript
 
