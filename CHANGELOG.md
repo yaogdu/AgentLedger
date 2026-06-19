@@ -17,6 +17,8 @@ No unreleased changes.
 - Added model evidence and proposed-tool references to portable failure exports, including Langfuse, OpenTelemetry, LangSmith, Temporal-style, and CI-friendly local mappings.
 - Added a dependency-free model evidence example showing how to record externally executed provider/gateway calls without making AgentLedger a model router.
 - Hardened boundary lint for direct database calls, direct filesystem mutation, and risky tool metadata that omits idempotency, approval, or sandbox boundaries.
+- Added a shareable side-effect safety showcase that contrasts naive duplicate side effects with AgentLedger safe retry and generated Inspector HTML.
+- Added adoption content for the showcase, including a Chinese article draft, short social posts, and a deterministic GIF recording flow.
 
 ### Clarified
 
