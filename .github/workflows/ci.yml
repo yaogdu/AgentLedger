@@ -114,6 +114,43 @@ jobs:
           go run ./cmd/agentledger-go conformance
           go run ./cmd/agentledger-go contract validate
 
+  benchmark:
+    name: Runtime benchmark gate
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Run full runtime benchmark
+        run: |
+          PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python scripts/benchmark_runtime.py --iterations 20 --output-dir benchmark-artifacts --command-timeout 180
+
+      - name: Upload benchmark report
+        uses: actions/upload-artifact@v4
+        with:
+          name: agentledger-benchmark
+          path: benchmark-artifacts/**
+          retention-days: 14
+
   python:
     name: Python ${{ matrix.python-version }}
     runs-on: ubuntu-latest
