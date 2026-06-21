@@ -29,6 +29,8 @@ PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 scripts/benchmark_runtime.py --
 - `benchmark.json`：机器可读结果，包含 samples、coverage matrix、validation failures 和命令输出摘要。
 - `benchmark.md`：给 release review 看的可读报告。
 - `run-*/`：每次运行隔离出的 runtime、evidence、静态 HTML 等中间产物。
+- `execution_claim`：默认完整命令是 `release_gate`；跳过语言命令时是 `local_runtime_smoke`。
+- `warnings`：明确标出 dry-run、synthetic 或跳过验证路径的限制。
 
 ## 覆盖范围
 
@@ -62,6 +64,15 @@ not_run_count = 0
 by_status.measured_and_language_conformance = 27
 ```
 
+coverage matrix 还会输出 `verification_depths`：
+
+- `executable_local` / `executable_local_fault`：真实本地 runtime 执行。
+- `negative_runtime_path`：故意触发失败的 runtime 边界，比如非法 tool input、approval pause、sandbox fail-closed、budget denial。
+- `read_model_local`：基于本地持久化数据生成 evidence、replay、failure、cost、Inspector、scheduler、retention、backup 等 read model。
+- `synthetic_probe`：专门构造的 failure/lint 探针。
+- `contract_dry_run` / `static_helper`：adapter contract、DDL helper 或静态能力面，不等于真实外部服务验证。
+- `language_conformance`：Python、Go、TypeScript 或 Rust CLI 报告了共享 semantic check id。
+
 ## 如何理解结果
 
 耗时数字只用于同一机器上的回归对比，不代表跨机器、跨 CI、跨操作系统或跨 Python 版本的通用性能结论。
@@ -69,13 +80,18 @@ by_status.measured_and_language_conformance = 27
 benchmark 会刻意覆盖非 happy path：
 
 - side effect 成功后 crash，再安全 retry
+- 通过 Tool Ledger 幂等证明外部 side effect 只执行一次
 - invalid tool input 在执行前被拒绝
 - approval pause/resume
 - required sandbox fail-closed
+- model call evidence、model failure evidence、tool-call proposal evidence 和 model cost attribution
+- budget exhaustion 在 side effect 执行前阻断 tool call
 - failure injection：retry exhaustion、stale lease fencing、cancellation fencing、side-effect idempotency
 - boundary lint 捕获一个故意写出的 direct shell call
 
 部分 adapter 相关检查是 contract/dry-run，不是生产环境证明。Postgres、MySQL、S3、Docker、Langfuse、OTLP collector、Temporal 等仍需要单独的真实服务验证，才能做 production claim。
+
+默认完整 release gate 会在语言 conformance 命令失败、超时或因为缺少工具链被跳过时失败。`--allow-language-skips` 只建议本地排查使用，不建议作为 release 证据。
 
 ## 发布使用
 

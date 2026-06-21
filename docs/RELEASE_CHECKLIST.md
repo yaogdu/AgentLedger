@@ -69,13 +69,14 @@ Expected result:
 
 ```text
 ok=true
+execution_claim=release_gate
 required_check_count=27
 covered_check_count=27
 not_run_count=0
 validation_failures=[]
 ```
 
-Use `--skip-language-commands` only for local editing smoke. Release runs should include Python, Go, TypeScript, and Rust conformance command timing so the coverage matrix can report `measured_and_language_conformance` for every required semantic check.
+Use `--skip-language-commands` only for local editing smoke. Release runs should include Python, Go, TypeScript, and Rust conformance command timing so the coverage matrix can report `measured_and_language_conformance` for every required semantic check. A skipped language command fails the release gate by default; use `--allow-language-skips` only for local investigation and call it out explicitly if it appears in release evidence.
 
 ## Packaging Gate
 

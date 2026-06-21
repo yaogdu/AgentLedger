@@ -58,7 +58,7 @@ from agentledger import (  # noqa: E402
     supported_adapter_certification_profiles,
 )
 from agentledger.adapters_mcp import InMemoryMCPContextServer, InMemoryMCPToolServer, MCPContextAdapter, MCPToolAdapter  # noqa: E402
-from agentledger.cost import CostAttributionReporter  # noqa: E402
+from agentledger.cost import BudgetController, BudgetExceeded, BudgetLimits, CostAttributionReporter  # noqa: E402
 from agentledger.failure import FailureAttributionReporter  # noqa: E402
 from agentledger.shadow import ShadowRunner  # noqa: E402
 from agentledger.storage_postgres import PostgresStore  # noqa: E402
@@ -77,7 +77,7 @@ DIRECT_COVERAGE: dict[str, list[str]] = {
     "worker_service_smoke": ["local_worker_until_idle"],
     "tool_ledger_idempotent_retry": ["build_idempotent_side_effect_run", "shadow_run"],
     "policy_approval_sandbox_smoke": ["policy_approval_sandbox"],
-    "cost_failure_attribution_smoke": ["cost_failure_reports"],
+    "cost_failure_attribution_smoke": ["build_model_evidence_run", "cost_failure_reports", "budget_exhaustion"],
     "media_stream_artifacts_smoke": ["build_media_stream_run"],
     "evidence_consumers_smoke": ["evidence_consumers"],
     "simple_api_smoke": ["simple_api_run"],
@@ -97,6 +97,56 @@ DIRECT_COVERAGE: dict[str, list[str]] = {
     "time_travel_timeline_smoke": ["time_travel_html"],
     "optional_adapters_smoke": ["adapter_certification_profiles"],
     "official_adapters_smoke": ["official_adapter_dry_run"],
+}
+
+
+SCENARIO_DEPTH: dict[str, dict[str, str]] = {
+    "create_run": {"level": "executable_local", "note": "creates durable local runtime state"},
+    "run_once_managed_tool": {"level": "executable_local", "note": "runs through AgentContext and ToolGateway"},
+    "build_idempotent_side_effect_run": {"level": "executable_local_fault", "note": "simulates crash after side effect and retries through Tool Ledger"},
+    "build_model_evidence_run": {"level": "executable_local", "note": "records model request/response, proposed tool call, model failure, usage, and cost"},
+    "build_media_stream_run": {"level": "executable_local", "note": "records media artifact and stream checkpoint evidence"},
+    "evidence_export": {"level": "read_model_local", "note": "exports evidence from local persisted run"},
+    "replay": {"level": "read_model_local", "note": "replays persisted evidence without executing side effects"},
+    "failure_report": {"level": "read_model_local", "note": "builds failure attribution read model"},
+    "inspector_single_html": {"level": "static_artifact_local", "note": "renders single-run static Inspector HTML"},
+    "inspector_run_index_html": {"level": "static_artifact_local", "note": "renders read-only run index HTML"},
+    "local_blob_store_roundtrip": {"level": "executable_local", "note": "round-trips content-addressed blob refs"},
+    "tool_schema_validation": {"level": "negative_runtime_path", "note": "proves invalid tool input fails before tool execution"},
+    "local_worker_until_idle": {"level": "executable_local", "note": "runs LocalWorker until terminal/idle"},
+    "policy_approval_sandbox": {"level": "negative_runtime_path", "note": "checks approval pause/resume and sandbox fail-closed"},
+    "cost_failure_reports": {"level": "read_model_local", "note": "checks cost and failure attribution from persisted records"},
+    "budget_exhaustion": {"level": "negative_runtime_path", "note": "proves budget denial blocks tool execution before side effects"},
+    "evidence_consumers": {"level": "read_model_local", "note": "checks trace, diff, and divergence consumers"},
+    "simple_api_run": {"level": "executable_local", "note": "runs the one-function simple API"},
+    "otlp_trace_export": {"level": "static_artifact_local", "note": "writes dependency-free OTLP JSON"},
+    "time_travel_html": {"level": "static_artifact_local", "note": "renders time-travel static HTML"},
+    "ops_readiness": {"level": "read_model_local", "note": "builds retention and backup-readiness read models"},
+    "storage_schema_helpers": {"level": "static_helper", "note": "checks DDL/migration helper availability, not a live database"},
+    "mcp_adapters": {"level": "contract_dry_run", "note": "uses in-memory MCP-style adapters, not a real MCP server"},
+    "framework_adapter": {"level": "contract_dry_run", "note": "uses dependency-free method adapter, not framework SDK integration"},
+    "boundary_lint": {"level": "synthetic_probe", "note": "scans a deliberately unsafe source file"},
+    "scheduler_status": {"level": "read_model_local", "note": "checks scheduler facade over local store"},
+    "adversarial_review": {"level": "read_model_local", "note": "runs side-effect-free evidence review"},
+    "evidence_regression": {"level": "read_model_local", "note": "runs side-effect-free evidence regression"},
+    "failure_injection_suite": {"level": "synthetic_probe", "note": "runs dependency-free failure probes"},
+    "shadow_run": {"level": "executable_local_fault", "note": "runs shadow replay without external mutation"},
+    "repro_golden_corpus": {"level": "static_artifact_local", "note": "checks built-in golden corpus primitives"},
+    "adapter_certification_profiles": {"level": "contract_dry_run", "note": "checks certification profile metadata, not live services"},
+    "official_adapter_dry_run": {"level": "contract_dry_run", "note": "checks official adapter static surfaces, not Postgres/MySQL/Docker services"},
+}
+
+
+DEPTH_ORDER = {
+    "contract_dry_run": 0,
+    "static_helper": 1,
+    "static_artifact_local": 2,
+    "read_model_local": 3,
+    "synthetic_probe": 4,
+    "negative_runtime_path": 5,
+    "executable_local": 6,
+    "executable_local_fault": 7,
+    "language_conformance": 8,
 }
 
 
@@ -263,6 +313,20 @@ def build_side_effect_run(rt: Runtime) -> str:
     return run_id
 
 
+def build_side_effect_run_metrics(rt: Runtime) -> dict[str, Any]:
+    run_id = build_side_effect_run(rt)
+    side_effect_counter = getattr(rt, "_benchmark_side_effect_counter", {"count": None})
+    ledger = rt.store.ledger(run_id)
+    final_state = rt.store.final_state(run_id)
+    return {
+        "run_id": run_id,
+        "run_status": rt.store.run(run_id)["status"],
+        "external_side_effect_count": side_effect_counter["count"],
+        "ledger_count": len(ledger),
+        "completed": final_state.get("recovered") is True,
+    }
+
+
 async def _model_agent(ctx: AgentContext, _state: dict[str, Any]) -> None:
     refs = ctx.record_model_call(
         provider="benchmark-provider",
@@ -300,6 +364,26 @@ def build_model_run(rt: Runtime) -> str:
     if not ok:
         raise RuntimeError("model evidence benchmark did not complete")
     return run_id
+
+
+def build_model_run_metrics(rt: Runtime) -> dict[str, Any]:
+    run_id = build_model_run(rt)
+    events = [dict(row) for row in rt.store.events(run_id)]
+    cost = CostAttributionReporter(rt.store).report(run_id).to_dict()
+    failure = FailureAttributionReporter(rt.store).report(run_id).to_dict()
+    return {
+        "run_id": run_id,
+        "run_status": rt.store.run(run_id)["status"],
+        "model_call_requested_count": sum(1 for event in events if event["type"] == "model_call_requested"),
+        "model_call_completed_count": sum(1 for event in events if event["type"] == "model_call_completed"),
+        "model_call_failed_count": sum(1 for event in events if event["type"] == "model_call_failed"),
+        "tool_call_proposed_count": sum(1 for event in events if event["type"] == "tool_call_proposed"),
+        "model_tokens": cost["total"]["model_tokens"],
+        "model_total_usd": cost["total"]["total_usd"],
+        "model_failure_category_present": any(item.get("category") == "model" for item in failure["failure_envelopes"]),
+        "model_evidence_refs": len(failure["failure_export"]["model_evidence_refs"]),
+        "tool_proposal_refs": len(failure["failure_export"]["tool_proposal_refs"]),
+    }
 
 
 async def _media_agent(ctx: AgentContext, _state: dict[str, Any]) -> None:
@@ -441,12 +525,10 @@ def bench_auxiliary_capabilities(rt: Runtime, output_dir: Path, run_ids: dict[st
     samples.append(
         timed(
             "cost_failure_reports",
-            lambda: {
-                "cost_total": CostAttributionReporter(rt.store).report(primary_run_id).to_dict()["total"],
-                "failure_summary": FailureAttributionReporter(rt.store).report(primary_run_id).to_dict()["summary"],
-            },
+            lambda: _cost_failure_reports(rt, primary_run_id, run_ids["model_evidence"]),
         )
     )
+    samples.append(timed("budget_exhaustion", lambda: _budget_exhaustion(output_dir)))
     samples.append(
         timed(
             "evidence_consumers",
@@ -526,7 +608,8 @@ def _tool_schema_validation(rt: Runtime) -> dict[str, Any]:
         run_async(rt.run_once(_invalid_tool_agent, run_id=run_id, agent_role="BenchmarkAgent"))
     except ToolValidationError:
         rejected = True
-    return {"run_id": run_id, "invalid_input_rejected": rejected, "status": rt.store.run(run_id)["status"]}
+    status = rt.store.run(run_id)["status"]
+    return {"run_id": run_id, "invalid_input_rejected": rejected, "status": status, "run_failed": status == "failed"}
 
 
 def _local_worker_until_idle(rt: Runtime) -> dict[str, Any]:
@@ -607,6 +690,60 @@ def _policy_approval_sandbox(rt: Runtime) -> dict[str, Any]:
         "approval_second_ok": second_ok,
         "sandbox_run_id": sandbox_run_id,
         "sandbox_failed_closed": sandbox_failed_closed,
+    }
+
+
+def _cost_failure_reports(rt: Runtime, primary_run_id: str, model_run_id: str) -> dict[str, Any]:
+    primary_cost = CostAttributionReporter(rt.store).report(primary_run_id).to_dict()
+    primary_failure = FailureAttributionReporter(rt.store).report(primary_run_id).to_dict()
+    model_cost = CostAttributionReporter(rt.store).report(model_run_id).to_dict()
+    model_failure = FailureAttributionReporter(rt.store).report(model_run_id).to_dict()
+    return {
+        "side_effect_tool_calls": primary_cost["total"]["tool_calls"],
+        "side_effect_failure_count": primary_failure["summary"]["failure_envelope_count"],
+        "model_tokens": model_cost["total"]["model_tokens"],
+        "model_total_usd": model_cost["total"]["total_usd"],
+        "model_tokens_present": model_cost["total"]["model_tokens"] > 0,
+        "model_cost_present": model_cost["total"]["total_usd"] > 0,
+        "model_failure_category_present": any(item.get("category") == "model" for item in model_failure["failure_envelopes"]),
+        "model_failure_export_refs": len(model_failure["failure_export"]["model_evidence_refs"]),
+        "tool_proposal_export_refs": len(model_failure["failure_export"]["tool_proposal_refs"]),
+    }
+
+
+async def _budget_blocked_agent(ctx: AgentContext, _state: dict[str, Any]) -> None:
+    await ctx.call_tool("budget.blocked", {"value": 1})
+
+
+def _budget_exhaustion(output_dir: Path) -> dict[str, Any]:
+    calls = {"count": 0}
+    rt = Runtime.local(output_dir / "budget-exhaustion" / ".agentledger", budget=BudgetController(BudgetLimits(max_tool_calls=0)))
+    rt.registry.register(
+        ToolSpec(
+            name="budget.blocked",
+            func=lambda args: calls.__setitem__("count", calls["count"] + 1) or {"ok": True},
+            side_effect="external_write",
+            risk_level="medium",
+            input_schema={"type": "object", "required": ["value"]},
+        )
+    )
+    run_id, _ = rt.create_run(initial_state={"scenario": "budget-exhaustion"})
+    blocked = False
+    try:
+        run_async(rt.run_once(_budget_blocked_agent, run_id=run_id, agent_role="BudgetAgent"))
+    except BudgetExceeded:
+        blocked = True
+    failure = FailureAttributionReporter(rt.store).report(run_id).to_dict()
+    status = rt.store.run(run_id)["status"]
+    rt.close()
+    return {
+        "run_id": run_id,
+        "blocked_before_tool_execution": blocked,
+        "tool_executed": calls["count"] > 0,
+        "tool_execution_count": calls["count"],
+        "run_status": status,
+        "run_failed": status == "failed",
+        "failure_categories": sorted({item.get("category") for item in failure["failure_envelopes"]}),
     }
 
 
@@ -796,6 +933,13 @@ def build_coverage_matrix(
         check_id = str(entry["id"])
         measured = [name for name in DIRECT_COVERAGE.get(check_id, []) if name in measured_names]
         language = language_by_check.get(check_id, [])
+        measured_depths = sorted({SCENARIO_DEPTH.get(name, {"level": "unclassified"})["level"] for name in measured}, key=lambda item: DEPTH_ORDER.get(item, -1), reverse=True)
+        measured_notes = {
+            name: SCENARIO_DEPTH.get(name, {"level": "unclassified", "note": "scenario has no verification-depth metadata"})
+            for name in measured
+        }
+        if language:
+            measured_depths = sorted(set(measured_depths + ["language_conformance"]), key=lambda item: DEPTH_ORDER.get(item, -1), reverse=True)
         if measured and language:
             status = "measured_and_language_conformance"
         elif measured:
@@ -809,6 +953,9 @@ def build_coverage_matrix(
                 "id": check_id,
                 "status": status,
                 "measured_scenarios": measured,
+                "verification_depths": measured_depths,
+                "primary_verification_depth": measured_depths[0] if measured_depths else None,
+                "scenario_depth_notes": measured_notes,
                 "language_commands": language,
                 "fixture": entry.get("fixture"),
                 "scenario_refs": entry.get("scenario_refs", []),
@@ -820,26 +967,53 @@ def build_coverage_matrix(
 
 def coverage_summary(matrix: list[dict[str, Any]]) -> dict[str, Any]:
     by_status: dict[str, int] = {}
+    by_depth: dict[str, int] = {}
+    by_local_depth: dict[str, int] = {}
     for row in matrix:
         by_status[row["status"]] = by_status.get(row["status"], 0) + 1
+        depth = row.get("primary_verification_depth") or "none"
+        by_depth[depth] = by_depth.get(depth, 0) + 1
+        local_depths = [item for item in row.get("verification_depths", []) if item != "language_conformance"]
+        local_depth = local_depths[0] if local_depths else "none"
+        by_local_depth[local_depth] = by_local_depth.get(local_depth, 0) + 1
     covered = [row for row in matrix if row["status"] != "manifest_only_not_run"]
     return {
         "required_check_count": len(matrix),
         "covered_check_count": len(covered),
         "not_run_count": len(matrix) - len(covered),
         "by_status": by_status,
+        "by_primary_verification_depth": by_depth,
+        "by_local_verification_depth": by_local_depth,
     }
 
 
-def validate_report(report: dict[str, Any], *, require_full_coverage: bool) -> list[str]:
+def benchmark_warnings(report: dict[str, Any]) -> list[str]:
+    warnings: list[str] = []
+    shallow_depths = {"contract_dry_run", "static_helper"}
+    for row in report["coverage_matrix"]:
+        depths = set(row.get("verification_depths", [])) - {"language_conformance"}
+        if depths and depths.issubset(shallow_depths):
+            warnings.append(f"{row['id']} is covered only by {', '.join(sorted(depths))}; run service-backed validation before production claims")
+    if report.get("execution_claim") == "local_runtime_smoke":
+        warnings.append("language conformance commands were skipped; this report is a local runtime smoke, not a full release gate")
+    return warnings
+
+
+def validate_report(report: dict[str, Any], *, require_full_coverage: bool, allow_language_skips: bool) -> list[str]:
     failures: list[str] = []
     if require_full_coverage and report["coverage_summary"]["not_run_count"]:
         failures.append(f"semantic coverage has {report['coverage_summary']['not_run_count']} unrun required checks")
+    if require_full_coverage and not report.get("language_commands"):
+        failures.append("language conformance commands did not run")
 
     summary = report["summary"]
     required_truthy = {
-        "tool_schema_validation": ("invalid_input_rejected",),
+        "build_idempotent_side_effect_run": ("completed",),
+        "build_model_evidence_run": ("model_failure_category_present", "model_evidence_refs", "tool_proposal_refs"),
+        "tool_schema_validation": ("invalid_input_rejected", "run_failed"),
         "policy_approval_sandbox": ("approval_created", "approval_approved", "approval_second_ok", "sandbox_failed_closed"),
+        "cost_failure_reports": ("model_tokens_present", "model_cost_present", "model_failure_category_present", "model_failure_export_refs", "tool_proposal_export_refs"),
+        "budget_exhaustion": ("blocked_before_tool_execution", "run_failed"),
         "failure_injection_suite": ("passed",),
         "adversarial_review": ("passed",),
         "evidence_regression": ("passed",),
@@ -855,9 +1029,34 @@ def validate_report(report: dict[str, Any], *, require_full_coverage: bool) -> l
         for key in keys:
             if not metrics.get(key):
                 failures.append(f"{scenario}.{key} was not truthy")
+    required_falsey = {
+        "policy_approval_sandbox": ("approval_first_ok",),
+        "budget_exhaustion": ("tool_executed",),
+    }
+    for scenario, keys in required_falsey.items():
+        metrics = summary.get(scenario, {}).get("last_metrics")
+        if not isinstance(metrics, dict):
+            continue
+        for key in keys:
+            if metrics.get(key):
+                failures.append(f"{scenario}.{key} was unexpectedly truthy")
+    expected_values = {
+        "build_idempotent_side_effect_run": {"external_side_effect_count": 1, "ledger_count": 1},
+        "build_model_evidence_run": {"model_call_requested_count": 1, "model_call_completed_count": 1, "model_call_failed_count": 1, "tool_call_proposed_count": 1},
+        "budget_exhaustion": {"tool_execution_count": 0},
+    }
+    for scenario, pairs in expected_values.items():
+        metrics = summary.get(scenario, {}).get("last_metrics")
+        if not isinstance(metrics, dict):
+            continue
+        for key, expected in pairs.items():
+            if metrics.get(key) != expected:
+                failures.append(f"{scenario}.{key} expected {expected!r}, got {metrics.get(key)!r}")
 
     for item in report.get("language_commands", []):
-        if item.get("status") not in {"passed", "skipped"}:
+        if item.get("status") == "skipped" and not allow_language_skips:
+            failures.append(f"{item.get('name')} status=skipped")
+        elif item.get("status") not in {"passed", "skipped"}:
             failures.append(f"{item.get('name')} status={item.get('status')}")
     return failures
 
@@ -892,6 +1091,7 @@ def build_report(
             "note": "Use this for same-machine regression tracking, not as a universal performance claim.",
             "artifact_dir": str(artifact_dir),
         },
+        "execution_claim": "release_gate" if language_commands else "local_runtime_smoke",
         "semantic_manifest": {
             "path": str(SEMANTIC_MANIFEST_PATH.relative_to(ROOT)),
             "schema_version": manifest.get("schema_version"),
@@ -943,6 +1143,12 @@ def write_markdown(report: dict[str, Any], path: Path) -> Path:
         lines.extend([f"- {failure}" for failure in failures])
     else:
         lines.append("- No validation failures.")
+    warnings = report.get("warnings", [])
+    lines.extend(["", "## Warnings", ""])
+    if warnings:
+        lines.extend([f"- {warning}" for warning in warnings])
+    else:
+        lines.append("- No benchmark warnings.")
     lines.extend(
         [
             "",
@@ -967,15 +1173,17 @@ def write_markdown(report: dict[str, Any], path: Path) -> Path:
             f"- Required semantic checks: `{report['coverage_summary']['required_check_count']}`",
             f"- Covered in this run: `{report['coverage_summary']['covered_check_count']}`",
             f"- Not run in this benchmark invocation: `{report['coverage_summary']['not_run_count']}`",
+            f"- Primary verification depth: `{report['coverage_summary']['by_primary_verification_depth']}`",
             "",
-            "| Check | Status | Measured scenarios | Language commands |",
-            "|---|---|---|---|",
+            "| Check | Status | Verification depth | Measured scenarios | Language commands |",
+            "|---|---|---|---|---|",
         ]
     )
     for row in report["coverage_matrix"]:
         measured = ", ".join(f"`{name}`" for name in row["measured_scenarios"]) or "-"
         language = ", ".join(f"`{name}`" for name in row["language_commands"]) or "-"
-        lines.append(f"| `{row['id']}` | {row['status']} | {measured} | {language} |")
+        depth = ", ".join(f"`{name}`" for name in row.get("verification_depths", [])) or "-"
+        lines.append(f"| `{row['id']}` | {row['status']} | {depth} | {measured} | {language} |")
     lines.extend(["", "## Scenario Runs", ""])
     for key, run_id in report["scenario_run_ids"].items():
         lines.append(f"- `{key}`: `{run_id}`")
@@ -989,6 +1197,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--iterations", type=int, default=20, help="Iterations for repeated local runtime scenarios.")
     parser.add_argument("--output-dir", type=Path, default=None, help="Output directory for benchmark artifacts.")
     parser.add_argument("--skip-language-commands", action="store_true", help="Skip Go/TypeScript/Rust/Python conformance command timing.")
+    parser.add_argument("--allow-language-skips", action="store_true", help="Do not fail the release gate if a local language toolchain is missing.")
     parser.add_argument("--command-timeout", type=int, default=60, help="Timeout in seconds for each optional language command.")
     return parser.parse_args()
 
@@ -1008,9 +1217,9 @@ def main() -> int:
     with make_runtime(runtime_root) as rt:
         samples.extend(bench_create_runs(rt, args.iterations))
         samples.extend(bench_managed_steps(rt, args.iterations))
-        samples.append(timed("build_idempotent_side_effect_run", lambda: {"run_id": build_side_effect_run(rt)}))
+        samples.append(timed("build_idempotent_side_effect_run", lambda: build_side_effect_run_metrics(rt)))
         scenario_run_ids["idempotent_side_effect"] = samples[-1].metrics["run_id"]
-        samples.append(timed("build_model_evidence_run", lambda: {"run_id": build_model_run(rt)}))
+        samples.append(timed("build_model_evidence_run", lambda: build_model_run_metrics(rt)))
         scenario_run_ids["model_evidence"] = samples[-1].metrics["run_id"]
         samples.append(timed("build_media_stream_run", lambda: {"run_id": build_media_stream_run(rt)}))
         scenario_run_ids["media_stream"] = samples[-1].metrics["run_id"]
@@ -1027,9 +1236,11 @@ def main() -> int:
     )
     json_path = output_dir / "benchmark.json"
     md_path = output_dir / "benchmark.md"
-    failures = validate_report(report, require_full_coverage=not args.skip_language_commands)
+    warnings = benchmark_warnings(report)
+    failures = validate_report(report, require_full_coverage=not args.skip_language_commands, allow_language_skips=args.allow_language_skips)
     report["passed"] = not failures
     report["validation_failures"] = failures
+    report["warnings"] = warnings
     json_path.write_text(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     write_markdown(report, md_path)
     print(
@@ -1042,6 +1253,7 @@ def main() -> int:
                 "markdown": str(md_path),
                 "coverage_summary": report["coverage_summary"],
                 "validation_failures": failures,
+                "warnings": warnings,
                 "scenario_count": len(report["summary"]),
             },
             indent=2,

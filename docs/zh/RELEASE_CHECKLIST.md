@@ -67,13 +67,14 @@ PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 scripts/benchmark_runtime.py --
 
 ```text
 ok=true
+execution_claim=release_gate
 required_check_count=27
 covered_check_count=27
 not_run_count=0
 validation_failures=[]
 ```
 
-`--skip-language-commands` 只适合本地开发 smoke。正式 release 应包含 Python、Go、TypeScript、Rust conformance command timing，这样 coverage matrix 才能对每个 required semantic check 报告 `measured_and_language_conformance`。
+`--skip-language-commands` 只适合本地开发 smoke。正式 release 应包含 Python、Go、TypeScript、Rust conformance command timing，这样 coverage matrix 才能对每个 required semantic check 报告 `measured_and_language_conformance`。语言命令被跳过时默认会让 release gate 失败；`--allow-language-skips` 只建议本地排查使用，如果出现在 release 证据中必须明确说明原因。
 
 ## Packaging Gate
 

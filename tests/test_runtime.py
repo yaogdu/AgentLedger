@@ -3526,15 +3526,24 @@ async def agent(ctx, state):
             self.assertEqual(payload["coverage_summary"]["required_check_count"], 27)
             self.assertEqual(payload["coverage_summary"]["covered_check_count"], 27)
             self.assertEqual(payload["validation_failures"], [])
+            self.assertTrue(any("local runtime smoke" in warning for warning in payload["warnings"]))
 
             report_path = Path(tmp) / "benchmark.json"
             markdown_path = Path(tmp) / "benchmark.md"
             self.assertTrue(report_path.exists())
             self.assertTrue(markdown_path.exists())
             report = json.loads(report_path.read_text(encoding="utf-8"))
+            self.assertEqual(report["execution_claim"], "local_runtime_smoke")
             manifest = json.loads((root / "contracts" / "conformance" / "runtime_semantics.v1.json").read_text(encoding="utf-8"))
             expected_ids = {entry["id"] for entry in manifest["required_semantic_checks"]}
             self.assertEqual({row["id"] for row in report["coverage_matrix"]}, expected_ids)
+            self.assertIn("contract_dry_run", report["coverage_summary"]["by_primary_verification_depth"])
+            official_adapter = next(row for row in report["coverage_matrix"] if row["id"] == "official_adapters_smoke")
+            self.assertIn("contract_dry_run", official_adapter["verification_depths"])
+            self.assertTrue(any("official_adapters_smoke" in warning for warning in report["warnings"]))
+            self.assertEqual(report["summary"]["build_idempotent_side_effect_run"]["last_metrics"]["external_side_effect_count"], 1)
+            self.assertEqual(report["summary"]["budget_exhaustion"]["last_metrics"]["tool_execution_count"], 0)
+            self.assertTrue(report["summary"]["cost_failure_reports"]["last_metrics"]["model_failure_category_present"])
             self.assertTrue(report["summary"]["failure_injection_suite"]["last_metrics"]["passed"])
             self.assertTrue(report["summary"]["policy_approval_sandbox"]["last_metrics"]["sandbox_failed_closed"])
             self.assertTrue(report["summary"]["boundary_lint"]["last_metrics"]["detected_expected_bypass"])

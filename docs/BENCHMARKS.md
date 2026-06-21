@@ -29,6 +29,8 @@ The command writes:
 - `benchmark.json`: machine-readable result, samples, coverage matrix, validation failures, and command output tails.
 - `benchmark.md`: human-readable report for release review.
 - `run-*/`: isolated runtime/evidence/static HTML artifacts for that invocation.
+- `execution_claim`: `release_gate` for the default full command, or `local_runtime_smoke` when language commands are skipped.
+- `warnings`: explicit caveats for dry-run, synthetic, or skipped validation paths.
 
 ## Coverage
 
@@ -62,6 +64,15 @@ not_run_count = 0
 by_status.measured_and_language_conformance = 27
 ```
 
+The coverage matrix also includes `verification_depths`:
+
+- `executable_local` / `executable_local_fault`: real local runtime execution.
+- `negative_runtime_path`: an intentionally failing runtime boundary such as invalid tool input, approval pause, sandbox fail-closed, or budget denial.
+- `read_model_local`: evidence, replay, failure, cost, Inspector, scheduler, retention, or backup read models over persisted local data.
+- `synthetic_probe`: deliberately generated failure/lint fixtures.
+- `contract_dry_run` / `static_helper`: adapter contracts, DDL helpers, or static surfaces that do not prove a live external service.
+- `language_conformance`: Python, Go, TypeScript, or Rust CLI conformance reported the shared semantic check id.
+
 ## Interpreting Results
 
 Use the timing numbers for same-machine regression tracking only. They are not a portable performance claim across laptops, CI runners, operating systems, or Python versions.
@@ -69,13 +80,18 @@ Use the timing numbers for same-machine regression tracking only. They are not a
 The benchmark intentionally measures several non-happy-path behaviors:
 
 - crash after a side effect, followed by safe retry
+- exactly-once external side-effect count through Tool Ledger idempotency
 - invalid tool input rejected before execution
 - approval pause and resume
 - required sandbox fail-closed path
+- model call evidence, model failure evidence, tool-call proposal evidence, and model cost attribution
+- budget exhaustion that blocks tool execution before a side effect can run
 - failure injection for retry exhaustion, stale lease fencing, cancellation fencing, and side-effect idempotency
 - boundary lint detecting a deliberately unsafe direct shell call
 
 Some adapter-related checks are contract/dry-run checks by design. Postgres, MySQL, S3, Docker, Langfuse, OTLP collectors, and Temporal require separate service-backed validation before production claims.
+
+By default, the full release gate fails if a language conformance command fails, times out, or is skipped because a toolchain is missing. Use `--allow-language-skips` only for local investigation, not for release evidence.
 
 ## Release Use
 
