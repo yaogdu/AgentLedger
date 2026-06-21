@@ -76,6 +76,8 @@ validation_failures=[]
 
 `--skip-language-commands` 只适合本地开发 smoke。正式 release 应包含 Python、Go、TypeScript、Rust conformance command timing，这样 coverage matrix 才能对每个 required semantic check 报告 `measured_and_language_conformance`。语言命令被跳过时默认会让 release gate 失败；`--allow-language-skips` 只建议本地排查使用，如果出现在 release 证据中必须明确说明原因。
 
+在 GitHub Actions 中，`Runtime benchmark gate` job 会执行同样的完整 benchmark，并上传 `agentledger-benchmark` artifact。发布时优先使用最新成功 CI artifact 作为 release evidence；但它不能替代 production adapter claim 所需的真实服务验证。
+
 ## Packaging Gate
 
 如果本次 release 修改了 package metadata、optional adapter package、companion package 或任一语言的发布面，发布前运行：

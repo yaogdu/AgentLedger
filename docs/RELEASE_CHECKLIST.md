@@ -78,6 +78,8 @@ validation_failures=[]
 
 Use `--skip-language-commands` only for local editing smoke. Release runs should include Python, Go, TypeScript, and Rust conformance command timing so the coverage matrix can report `measured_and_language_conformance` for every required semantic check. A skipped language command fails the release gate by default; use `--allow-language-skips` only for local investigation and call it out explicitly if it appears in release evidence.
 
+On GitHub Actions, the `Runtime benchmark gate` job runs the same full benchmark and uploads an `agentledger-benchmark` artifact. Use the latest successful CI artifact as release evidence when possible; do not use it as a substitute for service-backed validation of production adapter claims.
+
 ## Packaging Gate
 
 For a release that changes package metadata, optional adapter packages, companion packages, or published language surfaces, run the packaging checks before publishing:
