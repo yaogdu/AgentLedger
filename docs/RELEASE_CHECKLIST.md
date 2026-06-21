@@ -57,6 +57,26 @@ For a v1.x runtime-core parity release, `audit_python_parity.py` should report `
 
 This aggregate runner executes the Python reference tests, Go tests, TypeScript tests/check, Rust tests, each preview language conformance CLI, contract diff, Markdown local link check, and `git diff --check`. It loads the shared semantic manifest at `contracts/conformance/runtime_semantics.v1.json`; the JSON report includes `required_semantic_checks`, `semantic_manifest`, and `language_conformance` entries, so it is useful for release notes, CI artifacts, and adapter certification evidence.
 
+## Benchmark Gate
+
+For runtime-core, Inspector/debug-output, evidence-consumer, failure-handling, adapter-contract, or cross-language releases, run the benchmark suite and keep the generated report with the release artifacts:
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 scripts/benchmark_runtime.py --iterations 20 --output-dir /tmp/agentledger-benchmark
+```
+
+Expected result:
+
+```text
+ok=true
+required_check_count=27
+covered_check_count=27
+not_run_count=0
+validation_failures=[]
+```
+
+Use `--skip-language-commands` only for local editing smoke. Release runs should include Python, Go, TypeScript, and Rust conformance command timing so the coverage matrix can report `measured_and_language_conformance` for every required semantic check.
+
 ## Packaging Gate
 
 For a release that changes package metadata, optional adapter packages, companion packages, or published language surfaces, run the packaging checks before publishing:

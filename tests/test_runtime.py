@@ -7,6 +7,7 @@ import json
 import os
 import runpy
 import sqlite3
+import subprocess
 import sys
 import tempfile
 import tomllib
@@ -3492,6 +3493,51 @@ async def agent(ctx, state):
             self.assertEqual(plan["stream_checkpoint_count"], 1)
             self.assertEqual(plan["protected_blob_ref_count"], 1)
             self.assertTrue(any("media/stream nested blob refs" in action for action in plan["actions"]))
+
+    def test_runtime_benchmark_generates_full_local_coverage_report(self) -> None:
+        root = Path(__file__).resolve().parents[1]
+        with tempfile.TemporaryDirectory() as tmp:
+            env = os.environ.copy()
+            env["PYTHONDONTWRITEBYTECODE"] = "1"
+            env["PYTHONPATH"] = str(root / "src")
+            proc = subprocess.run(
+                [
+                    sys.executable,
+                    "scripts/benchmark_runtime.py",
+                    "--iterations",
+                    "1",
+                    "--skip-language-commands",
+                    "--output-dir",
+                    tmp,
+                ],
+                cwd=root,
+                env=env,
+                text=True,
+                capture_output=True,
+                check=False,
+                timeout=60,
+            )
+            self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+            start = proc.stdout.find("{")
+            end = proc.stdout.rfind("}")
+            self.assertGreaterEqual(start, 0, proc.stdout)
+            payload = json.loads(proc.stdout[start : end + 1])
+            self.assertTrue(payload["ok"], payload)
+            self.assertEqual(payload["coverage_summary"]["required_check_count"], 27)
+            self.assertEqual(payload["coverage_summary"]["covered_check_count"], 27)
+            self.assertEqual(payload["validation_failures"], [])
+
+            report_path = Path(tmp) / "benchmark.json"
+            markdown_path = Path(tmp) / "benchmark.md"
+            self.assertTrue(report_path.exists())
+            self.assertTrue(markdown_path.exists())
+            report = json.loads(report_path.read_text(encoding="utf-8"))
+            manifest = json.loads((root / "contracts" / "conformance" / "runtime_semantics.v1.json").read_text(encoding="utf-8"))
+            expected_ids = {entry["id"] for entry in manifest["required_semantic_checks"]}
+            self.assertEqual({row["id"] for row in report["coverage_matrix"]}, expected_ids)
+            self.assertTrue(report["summary"]["failure_injection_suite"]["last_metrics"]["passed"])
+            self.assertTrue(report["summary"]["policy_approval_sandbox"]["last_metrics"]["sandbox_failed_closed"])
+            self.assertTrue(report["summary"]["boundary_lint"]["last_metrics"]["detected_expected_bypass"])
 
 if __name__ == "__main__":
     unittest.main()

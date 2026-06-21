@@ -31,6 +31,7 @@ Python 仍然是 reference implementation；Go、TypeScript、Rust 已有 native
 | 找可运行示例 | [examples/README.md](examples/README.md)、[go/examples/README.md](go/examples/README.md)、[typescript/examples/README.md](typescript/examples/README.md)、[rust/examples/README.md](rust/examples/README.md) |
 | 查询 runtime 表 | [docs/zh/QUERY_EXAMPLES.md](docs/zh/QUERY_EXAMPLES.md) |
 | 可视化排查 run | [docs/zh/INSPECTOR.md](docs/zh/INSPECTOR.md) |
+| 运行 benchmark 和覆盖门禁 | [docs/zh/BENCHMARKS.md](docs/zh/BENCHMARKS.md) |
 | 理解 Harness stack 组合方式 | [docs/zh/HARNESS_STACK.md](docs/zh/HARNESS_STACK.md) |
 | 理解开源生态价值 | [docs/zh/OPEN_SOURCE_IMPACT.md](docs/zh/OPEN_SOURCE_IMPACT.md) |
 | 理解维护者职责 | [docs/zh/MAINTAINER_NOTES.md](docs/zh/MAINTAINER_NOTES.md) |
@@ -204,6 +205,7 @@ Temporal + LangGraph + AgentLedger 是合理的生产组合：Temporal 跑外层
 - 贡献方式：[CONTRIBUTING.md](CONTRIBUTING.md)
 - 社区行为：[CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
 - 发布检查：[docs/zh/RELEASE_CHECKLIST.md](docs/zh/RELEASE_CHECKLIST.md)
+- Benchmark 门禁：[docs/zh/BENCHMARKS.md](docs/zh/BENCHMARKS.md)
 - 兼容策略：[docs/VERSIONING.md](docs/VERSIONING.md)
 
 ## 快速开始

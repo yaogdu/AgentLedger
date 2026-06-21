@@ -23,6 +23,7 @@ AgentLedger is a runtime reliability layer for Agent Harness stacks. It is not a
 | Find examples | `../examples/README.md`, `../go/examples/README.md`, `../typescript/examples/README.md`, `../rust/examples/README.md` | same paths plus `zh/GETTING_STARTED.md` |
 | Query runtime tables | `QUERY_EXAMPLES.md` | `zh/QUERY_EXAMPLES.md` |
 | Inspect runtime evidence | `INSPECTOR.md` | `zh/INSPECTOR.md` |
+| Run benchmark and coverage gates | `BENCHMARKS.md` | `zh/BENCHMARKS.md` |
 | Understand open-source impact | `OPEN_SOURCE_IMPACT.md` | `zh/OPEN_SOURCE_IMPACT.md` |
 | Understand maintainer responsibilities | `MAINTAINER_NOTES.md` | `zh/MAINTAINER_NOTES.md` |
 | Plan adoption work | `ADOPTION.md` | `zh/ADOPTION.md` |
@@ -54,6 +55,7 @@ AgentLedger is a runtime reliability layer for Agent Harness stacks. It is not a
 - `HARNESS_STACK.md`: concrete stack patterns that combine AgentLedger with LangGraph, Temporal, Langfuse/LangSmith/OTel, MCP, model gateways, storage, and sandbox infrastructure.
 - `USE_CASES.md`: practical scenarios, non-goals, 3-minute demo path, and adoption checklist.
 - `INSPECTOR.md`: read-only Inspector commands, DB/evidence inputs, static HTML output, and extension API.
+- `BENCHMARKS.md`: runtime benchmark methodology, semantic coverage matrix, validation rules, and release usage.
 - `articles/what-happened-after-agent-tool-failure.zh-CN.md`: shareable Chinese article explaining the crash-after-tool-success problem.
 - `articles/social-posts.md`: short posts and GIF recording flow for the side-effect safety showcase.
 - `OPEN_SOURCE_IMPACT.md`: open-source ecosystem value and early-stage infrastructure positioning.
@@ -78,6 +80,7 @@ AgentLedger is a runtime reliability layer for Agent Harness stacks. It is not a
 - `S3_MINIO.md`: optional S3/MinIO BlobStore setup and conformance guidance.
 - `SECURITY_ENTERPRISE.md`: security model, permission boundaries, sandbox, secrets, and high-risk tools.
 - `RELEASE_CHECKLIST.md`: local gates for tests, conformance, lint, contract export, examples, and evidence checks.
+- `BENCHMARKS.md`: benchmark gate covering all required runtime semantic checks plus local timing output.
 
 ## Planning and Compatibility
 

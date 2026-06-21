@@ -55,6 +55,26 @@ python3.11 scripts/audit_python_parity.py > /tmp/agentledger-python-parity-audit
 
 该 runner 会一次执行 Python reference tests、Go tests、TypeScript tests/check、Rust tests、各 preview 语言 conformance CLI、contract diff、Markdown local link check 和 `git diff --check`。它会读取 `contracts/conformance/runtime_semantics.v1.json` 共享语义清单；JSON report 会包含 `required_semantic_checks`、`semantic_manifest` 与 `language_conformance`，可作为 release notes、CI artifact 和 adapter certification evidence。
 
+## Benchmark Gate
+
+如果本次 release 涉及 runtime-core、Inspector/debug output、evidence consumer、failure handling、adapter contract 或多语言实现，需要运行 benchmark suite，并把生成的 report 保留为 release artifact：
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 scripts/benchmark_runtime.py --iterations 20 --output-dir /tmp/agentledger-benchmark
+```
+
+预期：
+
+```text
+ok=true
+required_check_count=27
+covered_check_count=27
+not_run_count=0
+validation_failures=[]
+```
+
+`--skip-language-commands` 只适合本地开发 smoke。正式 release 应包含 Python、Go、TypeScript、Rust conformance command timing，这样 coverage matrix 才能对每个 required semantic check 报告 `measured_and_language_conformance`。
+
 ## Packaging Gate
 
 如果本次 release 修改了 package metadata、optional adapter package、companion package 或任一语言的发布面，发布前运行：

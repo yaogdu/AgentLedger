@@ -31,6 +31,7 @@ Python remains the reference implementation, and Go, TypeScript, and Rust now ha
 | Find runnable examples | [examples/README.md](examples/README.md), [go/examples/README.md](go/examples/README.md), [typescript/examples/README.md](typescript/examples/README.md), [rust/examples/README.md](rust/examples/README.md) |
 | Query runtime tables | [docs/QUERY_EXAMPLES.md](docs/QUERY_EXAMPLES.md) |
 | Inspect a run visually | [docs/INSPECTOR.md](docs/INSPECTOR.md) |
+| Run benchmark and coverage gates | [docs/BENCHMARKS.md](docs/BENCHMARKS.md) |
 | Understand Harness stack composition | [docs/HARNESS_STACK.md](docs/HARNESS_STACK.md) |
 | Understand open-source impact | [docs/OPEN_SOURCE_IMPACT.md](docs/OPEN_SOURCE_IMPACT.md) |
 | Understand maintainer responsibilities | [docs/MAINTAINER_NOTES.md](docs/MAINTAINER_NOTES.md) |
@@ -204,6 +205,7 @@ Temporal + LangGraph + AgentLedger is a valid production stack: Temporal runs th
 - Contributing guide: [CONTRIBUTING.md](CONTRIBUTING.md)
 - Community conduct: [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
 - Release gates: [docs/RELEASE_CHECKLIST.md](docs/RELEASE_CHECKLIST.md)
+- Benchmark gates: [docs/BENCHMARKS.md](docs/BENCHMARKS.md)
 - Compatibility policy: [docs/VERSIONING.md](docs/VERSIONING.md)
 
 ## Quick start

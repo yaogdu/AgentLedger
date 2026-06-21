@@ -6,7 +6,10 @@ This project follows semantic versioning for the stable runtime-core contract. O
 
 ## Unreleased
 
-No unreleased changes.
+### Added
+
+- Added a dependency-free runtime benchmark suite with a semantic coverage matrix for all required runtime checks.
+- Added benchmark documentation and release checklist gates for recording local timing, evidence/debug artifact generation, failure injection, adapter contract dry-runs, and cross-language conformance command baselines.
 
 ## 1.4.2 - 2026-06-19
 
