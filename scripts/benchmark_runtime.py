@@ -1207,6 +1207,7 @@ def main() -> int:
     if args.iterations < 1:
         raise SystemExit("--iterations must be >= 1")
     output_dir = args.output_dir or Path(tempfile.mkdtemp(prefix="agentledger-benchmark-"))
+    output_dir = output_dir.expanduser().resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
     artifact_dir = output_dir / f"run-{int(time.time() * 1000)}"
     artifact_dir.mkdir(parents=True, exist_ok=True)

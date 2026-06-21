@@ -26,7 +26,7 @@ async def main() -> None:
         tool_executions["ticket.create"] += 1
         tickets = _read_json(external_tickets)
         ticket = {"external_id": f"TICKET-{len(tickets) + 1}", "title": args["title"]}
-        external_tickets.write_text(json.dumps([*tickets, ticket], indent=2), encoding="utf-8")
+        external_tickets.write_text(json.dumps([*tickets, ticket], indent=2), encoding="utf-8")  # agentledger: ignore-boundary - demo external system behind a runtime-managed tool
         return ticket
 
     rt.registry.register(
@@ -45,7 +45,7 @@ async def main() -> None:
             {"title": "Investigate failed payment", "_logical_operation": "open-payment-ticket"},
         )
         if not crash_marker.exists():
-            crash_marker.write_text("crashed after tool success, before state commit\n", encoding="utf-8")
+            crash_marker.write_text("crashed after tool success, before state commit\n", encoding="utf-8")  # agentledger: ignore-boundary - deterministic crash marker for the demo
             raise SimulatedCrash("after external ticket create, before state commit")
         ctx.write_state_patch("ticket", ticket)
         ctx.write_state_patch("recovered", True)

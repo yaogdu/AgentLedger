@@ -258,10 +258,10 @@ async def main():
             input_schema={"type": "object", "required": ["city"]})(_search_hotels)
     rt.tool(name="travel.check_weather", side_effect="none", risk_level="low",
             input_schema={"type": "object", "required": ["city"]})(_check_weather)
-    rt.tool(name="travel.book_flight", side_effect="external_write", risk_level="high",
+    rt.tool(name="travel.book_flight", side_effect="external_write", risk_level="high",  # agentledger: ignore-boundary - approval-gated external booking API demo, not untrusted local execution
             idempotency=True, approval_required=True,
             input_schema={"type": "object", "required": ["flight_id", "passenger"]})(_book_flight)
-    rt.tool(name="travel.book_hotel", side_effect="external_write", risk_level="high",
+    rt.tool(name="travel.book_hotel", side_effect="external_write", risk_level="high",  # agentledger: ignore-boundary - approval-gated external booking API demo, not untrusted local execution
             idempotency=True, approval_required=True,
             input_schema={"type": "object", "required": ["hotel_id", "guest"]})(_book_hotel)
 

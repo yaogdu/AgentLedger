@@ -19,7 +19,7 @@ def _read_json(path: Path) -> list[dict[str, Any]]:
 def _append_email(path: Path, *, subject: str) -> dict[str, Any]:
     emails = _read_json(path)
     email = {"message_id": f"EMAIL-{len(emails) + 1}", "subject": subject}
-    path.write_text(json.dumps([*emails, email], indent=2, sort_keys=True), encoding="utf-8")
+    path.write_text(json.dumps([*emails, email], indent=2, sort_keys=True), encoding="utf-8")  # agentledger: ignore-boundary - demo external outbox behind a runtime-managed tool
     return email
 
 
@@ -42,14 +42,14 @@ def _reset_demo_root(root: Path) -> None:
                 f"refusing to reset non-empty unmarked showcase directory: {root}. "
                 "Choose an empty AGENTLEDGER_SHOWCASE_ROOT or remove the directory yourself."
             )
-        marker.write_text("AgentLedger duplicate side-effect showcase output\n", encoding="utf-8")
+        marker.write_text("AgentLedger duplicate side-effect showcase output\n", encoding="utf-8")  # agentledger: ignore-boundary - marks a generated demo output directory
 
     for name in generated_names - {marker.name}:
         path = root / name
         if path.is_dir():
             shutil.rmtree(path)
         elif path.exists():
-            path.unlink()
+            path.unlink()  # agentledger: ignore-boundary - cleans only generated demo artifacts guarded by marker file
 
 
 def _naive_retry(root: Path) -> dict[str, Any]:
@@ -105,7 +105,7 @@ async def _agentledger_retry(root: Path) -> dict[str, Any]:
             },
         )
         if not crash_marker.exists():
-            crash_marker.write_text("crashed after email send, before checkpoint\n", encoding="utf-8")
+            crash_marker.write_text("crashed after email send, before checkpoint\n", encoding="utf-8")  # agentledger: ignore-boundary - deterministic crash marker for the demo
             raise SimulatedCrash("worker crashed after email send, before checkpoint")
         ctx.write_state_patch("email", email)
         ctx.write_state_patch("recovered", True)
