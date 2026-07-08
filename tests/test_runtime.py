@@ -3069,9 +3069,11 @@ async def agent(ctx, state):
             "examples/mcp_context/basic_context_server.py",
             "examples/mcp_tool/basic_tool.py",
             "examples/model_evidence/demo.py",
+            "examples/openai_agents/approval_replay.py",
             "examples/openai_agents/basic_agent.py",
             "examples/sandbox/command_tool.py",
             "examples/semantic_kernel/basic_kernel.py",
+            "examples/temporal_bridge/demo.py",
             "examples/tool_catalog/basic_catalog.py",
         ]:
             stdout = io.StringIO()
@@ -3079,6 +3081,42 @@ async def agent(ctx, state):
                 runpy.run_path(path, run_name="__main__")
             payload = json.loads(stdout.getvalue())
             self.assertTrue(payload["ok"], path)
+
+    def test_openai_agents_approval_replay_example_proves_runtime_boundary(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            module = runpy.run_path("examples/openai_agents/approval_replay.py")
+            payload = asyncio.run(module["run_demo"](Path(tmp) / "openai-agents"))
+            self.assertTrue(payload["ok"])
+            self.assertTrue(payload["first_attempt_waited_for_approval"])
+            self.assertTrue(payload["second_attempt_ok"])
+            self.assertEqual(payload["model_call_count"], 1)
+            self.assertEqual(payload["tool_call_proposal_count"], 1)
+            self.assertEqual(payload["approval_count"], 1)
+            self.assertEqual(payload["approvals"][0]["status"], "APPROVED")
+            self.assertEqual(payload["external_action_count"], 1)
+            self.assertTrue(payload["resume_used_archived_tool_proposal"])
+            self.assertEqual(payload["tool_ledger"][0]["status"], "SUCCEEDED")
+            self.assertTrue(payload["replay"]["safe"])
+            self.assertTrue(Path(payload["evidence_dir"]).exists())
+            self.assertTrue(Path(payload["inspector_html"]).exists())
+
+    def test_temporal_bridge_example_retries_without_duplicate_side_effects(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            module = runpy.run_path("examples/temporal_bridge/demo.py")
+            payload = asyncio.run(module["run_demo"](Path(tmp) / "temporal"))
+            self.assertTrue(payload["ok"])
+            self.assertEqual(payload["activity_attempt_count"], 2)
+            self.assertEqual(payload["external_action_count"], 1)
+            self.assertEqual(payload["actual_tool_executions"], 1)
+            self.assertTrue(payload["retry_used_archived_tool_proposal"])
+            self.assertEqual(payload["model_call_count"], 1)
+            self.assertEqual(payload["tool_call_proposal_count"], 1)
+            self.assertEqual(payload["tool_ledger"][0]["status"], "SUCCEEDED")
+            self.assertTrue(payload["replay"]["safe"])
+            self.assertTrue(payload["replay"]["does_not_start_new_workflow"])
+            self.assertEqual(payload["workflow"]["workflow_id"], "wf-agent-review-001")
+            self.assertTrue(Path(payload["evidence_dir"]).exists())
+            self.assertTrue(Path(payload["inspector_html"]).exists())
 
     def test_showcase_duplicate_side_effect_crash_demo_runs(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

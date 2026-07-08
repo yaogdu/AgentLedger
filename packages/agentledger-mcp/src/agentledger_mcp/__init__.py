@@ -6,7 +6,7 @@ from agentledger.adapters_mcp import (
     MCPToolAdapter,
 )
 
-__version__ = "1.4.2"
+__version__ = "1.5.0"
 
 __all__ = [
     "InMemoryMCPContextServer",
@@ -16,4 +16,3 @@ __all__ = [
     "MCPToolAdapter",
     "__version__",
 ]
-

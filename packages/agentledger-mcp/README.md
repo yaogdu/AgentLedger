@@ -16,7 +16,7 @@ This package exposes the runtime-owned conversion between MCP-style descriptors 
 Certification:
 
 ```bash
-python3 -m agentledger adapter certify --kind mcp --adapter-version 1.4.2
+python3 -m agentledger adapter certify --kind mcp --adapter-version 1.5.0
 ```
 
 ---

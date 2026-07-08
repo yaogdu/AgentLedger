@@ -4,7 +4,7 @@
 
 本文明确四种语言的实现边界。AgentLedger 的“完全对齐”指 **portable runtime-core parity**，不是要求每种语言都有完全相同的 provider、云 SDK、沙箱执行器或生态框架 adapter。
 
-Patch 版本不需要在所有语言里强行同步。当某个 release 只修改某个语言的 package、companion tool、read model 或 adapter wrapper 时，只发布受影响的包即可。`1.4.x` 这条线不同：`1.4.0` 引入四语言 Agent Failure Lifecycle，`1.4.1` 引入四语言 Runtime Model Evidence Boundary，`1.4.2` 继续保持四语言 release train，并收敛 model evidence Inspector UX、export mappings、examples 和 boundary lint。Inspector 仍是通过 Python/PyPI 分发的 language-neutral companion viewer，但 failure lifecycle 和 model evidence contract 本身已经在四种 runtime package 中实现。
+Patch 版本不需要在所有语言里强行同步。当某个 release 只修改某个语言的 package、companion tool、read model 或 adapter wrapper 时，只发布受影响的包即可。`1.5.x` 这条线继续保持四语言 runtime-core release train 对齐：在 Python、Go、TypeScript、Rust 中保留 1.4 已完成的 failure lifecycle 和 model evidence contract，同时新增 framework/Temporal adoption examples、smoke coverage 和 benchmark gate。Inspector 仍是通过 Python/PyPI 分发的 language-neutral companion viewer，而 portable runtime-core contract 本身继续在四种 runtime package 中实现。
 
 ## 表格说明
 

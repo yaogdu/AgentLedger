@@ -135,7 +135,7 @@ Each adapter package should provide:
 
 ## First Adapter Packages
 
-| Package | Owns in current `1.4.x` release train | Dependency status |
+| Package | Owns in current `1.5.x` release train | Dependency status |
 | --- | --- | --- |
 | `agentledger-postgres` | `PostgresStore`, `PostgresStoreConfig`, migration/conformance helpers | Requires `psycopg[binary]`; production rollout still needs real-service drills. |
 | `agentledger-mysql` | `MySQLStore`, `MySQLStoreConfig`, migration/conformance helpers | Requires `pymysql`; production rollout still needs real-service drills. |

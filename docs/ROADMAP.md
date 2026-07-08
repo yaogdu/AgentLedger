@@ -123,10 +123,10 @@ debug viewer write/control plane in the first inspector release
 tool marketplace or app store
 ```
 
-### Current Implementation Order After 1.4.2
+### Current Implementation Order After 1.5.0
 
-1. Add framework-native examples and smoke fixtures for the most common adoption paths: OpenAI Agents SDK, LangGraph package compatibility, LangChain/CrewAI/AutoGen facades, and richer runtime-boundary examples.
-2. Add a Temporal bridge example and optional adapter boundary that makes the ownership split explicit: Temporal owns workflow lifecycle and retries; AgentLedger owns node-internal tool/model/state reliability.
+1. Extend framework adoption beyond the first batch: LangGraph package-compatibility smoke, dependency-backed smoke where upstream packages are stable, LangChain/CrewAI/AutoGen facades, and richer runtime-boundary examples.
+2. Turn the Temporal bridge into a clearer optional adapter boundary: keep workflow/activity ownership explicit, add stronger correlation examples, and preserve single-write retry semantics.
 3. Improve Inspector as a language-neutral companion: better run-index filtering/search and a standalone viewer path for Go/TypeScript/Rust users who do not want Python in the application runtime.
 4. Harden observability and eval exports beyond local JSON mapping: OTLP deployment recipes first, then Langfuse/Phoenix/promptfoo/DeepEval/Ragas/OpenAI-Evals/LangSmith-style evidence adapters without replacing those tools.
 5. Continue production-pilot adapter hardening for Postgres, MySQL, S3/MinIO, workers, OTLP transport, and sandbox packages with real-service conformance, permission boundaries, backup/restore drills, and failure semantics.
@@ -151,8 +151,8 @@ than overclaiming broad production adoption.
 
 Recommended work:
 
-1. Add a focused OpenAI Agents SDK example that shows a runtime-managed tool call, approval gate, Tool Ledger record, model evidence, evidence export, and replay-safe debugging flow.
-2. Add a Temporal bridge example that demonstrates the intended boundary: Temporal owns workflow lifecycle and retries; AgentLedger owns node-internal tool/model/state reliability.
+1. Keep the focused OpenAI Agents SDK-style example current and extend it with dependency-backed smoke only where upstream package versions are stable enough for release gates.
+2. Keep the Temporal bridge example current and extend it into an optional adapter boundary that demonstrates workflow/activity correlation, retry ownership, and node-internal reliability semantics.
 3. Add standalone Inspector adoption paths for non-Python users: Docker image, single executable, static web viewer over exported evidence JSON, and/or Node/npm CLI/viewer package.
 4. Add a Codex-assisted maintainer workflow document or script that helps with issue triage, release checklist preparation, adapter conformance checks, documentation consistency, and changelog drafting.
 5. Keep `OPEN_SOURCE_IMPACT.md`, `MAINTAINER_NOTES.md`, and `USE_CASES.md` current as the public explanation of ecosystem value, maintenance responsibility, and practical adoption scenarios.
@@ -165,7 +165,7 @@ Adoption evidence work:
 3. Record a short GIF or terminal screencast showing the runtime path: `run -> tool call -> approval -> crash -> resume -> replay evidence`.
 4. Write one technical article with a clear thesis, for example "Agents Need a Runtime, Not More Retries" or "Making AI Agents Durable, Auditable, and Replayable".
 5. Keep the README opening focused on the user pain: "Your agent called a tool. Did it happen? Can you retry safely? Can you prove it later?"
-6. Create public issues or discussions for the next adoption tasks: OpenAI Agents SDK approval/replay example, standalone Inspector viewer, Temporal bridge example, tool-injection risk scanner, and memory lifecycle design.
+6. Create public issues or discussions for the next adoption tasks: standalone Inspector viewer, Temporal optional adapter boundary, dependency-backed framework smoke matrix, tool-injection risk scanner, and memory lifecycle design.
 7. Publish one or two real integration notes or case studies, such as using AgentLedger to audit tool calls in a legal agent, without including private data.
 
 Companion product directions:
@@ -330,7 +330,6 @@ Verified release gates:
 Candidate follow-up release trains:
 
 ```text
-1.5.0  framework/Temporal adoption: OpenAI Agents SDK example, Temporal bridge, framework-native smoke fixtures; design draft in `FRAMEWORK_TEMPORAL_ADOPTION_DESIGN.md`
 1.6.0  standalone Inspector and evidence consumer UX: non-Python viewer path, model-call panel, filtering/search
 1.7.0  Runtime Memory Lifecycle: memory refs, snapshots, reads/writes, diffs, lineage, replay semantics
 1.8.0  sub-agent/multi-agent runtime semantics: parent-child runs, spawn/join, cancellation/failure/cost attribution
@@ -850,6 +849,30 @@ Exit criteria:
 - a model-proposed tool call can be traced to the eventual ToolGateway/Tool Ledger record when names or refs are available
 - failure exports expose model evidence and proposed-tool refs without sending data to third-party platforms
 - boundary lint catches common bypasses before runtime instrumentation is accidentally skipped
+
+## 1.5.0 - Framework And Temporal Adoption First Batch
+
+Status: implemented as a four-language 1.5.x release train with Python-side adoption examples, smoke coverage, and benchmark gates. Runtime-core semantics remain aligned across Python, Go, TypeScript, and Rust; the new framework/Temporal assets demonstrate adoption boundaries without changing the portable core contract.
+
+Implemented in `1.5.0`:
+
+- dependency-free OpenAI Agents SDK-style approval/replay example with model evidence, proposed tool calls, approval pause/resume, Tool Ledger reuse, and replay-safe debugging flow
+- dependency-free Temporal bridge example showing workflow/activity ownership, retry correlation, archived proposal reuse, and single-write side-effect safety after an activity crash
+- framework-native smoke coverage and CI entrypoints for both adoption examples
+- benchmark suite semantic coverage matrix and release gates for timing, artifact generation, failure injection, adapter dry-runs, and cross-language conformance command baselines
+- documentation entrypoints in README, getting started, adoption, execution backend, and use-case guides
+
+Explicit non-goals:
+
+- no new runtime-core semantics beyond the 1.4 failure lifecycle and model evidence contracts
+- no official OpenAI Agents SDK or Temporal endorsement claim
+- no requirement that Go/TypeScript/Rust ship identical framework-specific examples when upstream ecosystem paths differ
+
+Exit criteria:
+
+- a developer can run the OpenAI Agents SDK-style example locally and see approval wait/resume plus replay-safe Tool Ledger behavior
+- a developer can run the Temporal bridge example locally and see retry after crash without duplicate side effects
+- release gates cover both examples and benchmark metadata alongside the existing four-language runtime-core parity checks
 
 ## Post-v1 - Sub-agent And Multi-agent Runtime Semantics
 

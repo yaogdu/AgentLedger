@@ -64,6 +64,8 @@ These are the adoption problems AgentLedger is designed to make easier:
 | Temporal/Ray/Kubernetes workers run agent steps | The scheduler manages workers, but not agent-specific Tool Ledger, model evidence, or replay contracts. | Run AgentLedger inside worker steps for checkpoint, fencing, evidence, and governance. |
 | Incident review after model or prompt upgrade | The team needs to know if the model proposed a bad tool call or the runtime executed it incorrectly. | Link model-call evidence, proposed tool calls, approval/policy decisions, actual tool calls, failures, and costs. |
 
+For framework and workflow adoption, start with `../examples/openai_agents/approval_replay.py` and `../examples/temporal_bridge/README.md`. They are dependency-free examples that prove the boundary without requiring a real SDK or Temporal server.
+
 ## The 3-Minute Demo
 
 Start with the side-effect safety showcase if you want the quickest visual proof. It intentionally contrasts a naive retry that duplicates an external email with an AgentLedger-managed retry that records the side effect once, resumes safely, and exports Inspector HTML.

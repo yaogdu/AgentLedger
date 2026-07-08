@@ -20,7 +20,7 @@ pip install "agentledger-langgraph[sdk]"
 Certification:
 
 ```bash
-python3 -m agentledger adapter certify --kind langgraph --adapter-version 1.4.2
+python3 -m agentledger adapter certify --kind langgraph --adapter-version 1.5.0
 ```
 
 ---

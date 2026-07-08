@@ -1,12 +1,12 @@
 # Implementation Status
 
-Updated: 2026-06-19
+Updated: 2026-07-08
 
 This document tracks what is implemented in runtime-core, what remains planned for optional adapters, and what should stay outside runtime-core.
 
 ## Current Baseline
 
-AgentLedger 1.4.x is a stable runtime-core line with Python as the reference implementation and Go/TypeScript/Rust covered by shared runtime-core parity gates. The 1.4 line keeps the stable runtime-core contract, adds a language-neutral read-only Inspector companion path, completes the Agent Failure Lifecycle baseline, and adds the Runtime Model Evidence Boundary across all four runtime packages. It is suitable for:
+AgentLedger 1.5.x is a stable runtime-core line with Python as the reference implementation and Go/TypeScript/Rust covered by shared runtime-core parity gates. The 1.5 line preserves the stable runtime-core contract from 1.4, keeps the language-neutral read-only Inspector companion path, and adds first-batch framework/Temporal adoption examples and smoke coverage without changing portable runtime-core semantics. It is suitable for:
 
 - local use
 - runtime design review
@@ -15,7 +15,7 @@ AgentLedger 1.4.x is a stable runtime-core line with Python as the reference imp
 - reliability semantics validation
 - production pilot preparation with explicit adapter boundaries
 
-Release-scope note: 1.3.x added and hardened Inspector as a read-only evidence/runtime metadata consumer. It can read exported evidence bundles or connect to SQLite/Postgres/MySQL AgentLedger metadata with read-only credentials and can export static HTML debug reports. 1.4.0 added the four-language Agent Failure Lifecycle baseline: normalized failure envelopes, lifecycle stages, causal graph, replay plan, regression report, local alert records, and portable failure export mappings. 1.4.1 added the four-language Runtime Model Evidence Boundary: archived model request/response/failure evidence, model-proposed tool calls, and model cost/failure/replay semantics without provider routing. 1.4.2 consolidates that path with dedicated Inspector model-call/tool-proposal views, stronger failure export mappings, a model evidence example, and boundary lint hardening. MySQL remains the 1.2.2 storage adapter boundary and Langfuse remains the 1.2.3 observability adapter boundary; real-service production claims still require external validation.
+Release-scope note: 1.3.x added and hardened Inspector as a read-only evidence/runtime metadata consumer. It can read exported evidence bundles or connect to SQLite/Postgres/MySQL AgentLedger metadata with read-only credentials and can export static HTML debug reports. 1.4.0 added the four-language Agent Failure Lifecycle baseline: normalized failure envelopes, lifecycle stages, causal graph, replay plan, regression report, local alert records, and portable failure export mappings. 1.4.1 added the four-language Runtime Model Evidence Boundary: archived model request/response/failure evidence, model-proposed tool calls, and model cost/failure/replay semantics without provider routing. 1.4.2 consolidated that path with dedicated Inspector model-call/tool-proposal views, stronger failure export mappings, a model evidence example, and boundary lint hardening. 1.5.0 keeps that runtime-core contract intact while adding dependency-free OpenAI Agents SDK-style approval/replay and Temporal bridge examples, framework-native smoke coverage, benchmark gates, and documentation entrypoints. MySQL remains the 1.2.2 storage adapter boundary and Langfuse remains the 1.2.3 observability adapter boundary; real-service production claims still require external validation.
 
 The runtime-core contract is stable. Optional production adapters, external infrastructure hardening, and full eval systems remain outside the stable core boundary; non-Python runtime-core baselines are verified by the shared parity gates.
 
@@ -38,7 +38,7 @@ When this document says a feature is implemented or stable, it means the feature
 
 ## Current Completion Boundary
 
-For the current 1.4.x goal, "stable runtime-core plus failure lifecycle and read-only evidence consumers" means the Python reference runtime is usable, documented, tested, release-gated, and contract-frozen, with Go/TypeScript/Rust covered by runtime-core parity gates. It also means first-party adapter boundaries are packaged or importable in each ecosystem where they fit, and the Inspector can consume exported evidence across languages. It does not mean every optional production adapter or external eval integration is production-hardened in every language.
+For the current 1.5.x goal, "stable runtime-core plus adoption proof around framework/Temporal boundaries" means the Python reference runtime is usable, documented, tested, release-gated, and contract-frozen, with Go/TypeScript/Rust covered by runtime-core parity gates. It also means first-party adapter boundaries are packaged or importable in each ecosystem where they fit, the Inspector can consume exported evidence across languages, and the repo includes dependency-free examples that show how framework-owned execution can still record runtime-managed approval, Tool Ledger, model evidence, replay, and retry safety. It does not mean every optional production adapter or external eval integration is production-hardened in every language.
 
 Included in this boundary:
 

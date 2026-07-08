@@ -64,6 +64,8 @@ AgentLedger 主要降低这些采用和运维问题的处理成本：
 | Temporal/Ray/Kubernetes worker 执行 Agent step | scheduler 管 worker，但不管 Agent-specific Tool Ledger、model evidence 和 replay contract。 | 在 worker step 内运行 AgentLedger，提供 checkpoint、fencing、evidence 和 governance。 |
 | model 或 prompt 升级后的故障复盘 | 团队需要判断是模型建议了错误 tool call，还是 runtime 执行错了。 | 串起 model-call evidence、proposed tool call、approval/policy decision、actual tool call、failure 和 cost。 |
 
+framework 和 workflow adoption 可以先看 `../../examples/openai_agents/approval_replay.py` 和 `../../examples/temporal_bridge/README.md`。这两个都是 dependency-free 示例，不需要真实 SDK 或 Temporal server，也能证明边界。
+
 ## 3 分钟 Demo
 
 如果想最快看到可视化效果，建议先跑 side-effect safety showcase。它会对比：naive retry 在 worker 崩溃后重复发送外部邮件；AgentLedger-managed retry 只记录一次副作用、安全恢复，并导出 Inspector HTML。

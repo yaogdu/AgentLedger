@@ -123,10 +123,10 @@ deployment management service、billing、organization admin
 tool marketplace or app store
 ```
 
-### 1.4.2 之后的推荐实现顺序
+### 1.5.0 之后的推荐实现顺序
 
-1. 增加 framework-native examples 和 smoke fixtures，优先覆盖最常见接入路径：OpenAI Agents SDK、LangGraph package compatibility、LangChain/CrewAI/AutoGen facades，以及更丰富的 runtime-boundary examples。
-2. 增加 Temporal bridge example 和 optional adapter boundary，明确边界：Temporal 管 workflow lifecycle 和 retry；AgentLedger 管 node 内部 tool/model/state reliability。
+1. 在首批 adoption path 基础上继续扩展 framework 接入：LangGraph package-compatibility smoke、上游稳定后再加入 dependency-backed smoke、LangChain/CrewAI/AutoGen facades，以及更丰富的 runtime-boundary examples。
+2. 把 Temporal bridge 继续收敛成更清晰的 optional adapter boundary：保持 workflow/activity ownership 明确，增加更强的 correlation example，同时保留 single-write retry semantics。
 3. 继续改进 Inspector 作为 language-neutral companion：更好的 run-index filtering/search，以及面向不想在应用 runtime 安装 Python 的 Go/TypeScript/Rust 用户的 standalone viewer path。
 4. 强化 observability 和 eval exports，不只停留在本地 JSON mapping：先补 OTLP deployment recipes，再做 Langfuse/Phoenix/promptfoo/DeepEval/Ragas/OpenAI-Evals/LangSmith-style evidence adapters，但不替代这些工具。
 5. 继续做 production-pilot adapter hardening：Postgres、MySQL、S3/MinIO、worker、OTLP transport、sandbox packages 的真实服务 conformance、权限边界、backup/restore drill 和 failure semantics。
@@ -149,8 +149,8 @@ AgentLedger 是面向生产级 AI Agent 的早期开源 reliability and governan
 
 推荐工作：
 
-1. 增加聚焦的 OpenAI Agents SDK example，展示 runtime-managed tool call、approval gate、Tool Ledger record、model evidence、evidence export 和 replay-safe debugging flow。
-2. 增加 Temporal bridge example，说明推荐边界：Temporal 管 workflow lifecycle 和 retry；AgentLedger 管 node 内部 tool/model/state reliability。
+1. 持续维护聚焦的 OpenAI Agents SDK-style example，并只在上游版本足够稳定时补充 dependency-backed smoke gate。
+2. 持续维护 Temporal bridge example，并把它扩展成 optional adapter boundary，展示 workflow/activity correlation、retry ownership 和 node 内部 reliability semantics。
 3. 增加面向非 Python 用户的 standalone Inspector adoption path：Docker image、单文件可执行程序、读取导出 evidence JSON 的静态 Web viewer，以及/或 Node/npm CLI/viewer package。
 4. 增加 Codex-assisted maintainer workflow 文档或脚本，用于 issue triage、release checklist 准备、adapter conformance check、文档一致性和 changelog 草稿。
 5. 持续维护 `OPEN_SOURCE_IMPACT.md`、`MAINTAINER_NOTES.md` 和 `USE_CASES.md`，作为公开解释生态价值、维护职责和实际采用场景的入口。
@@ -163,7 +163,7 @@ Adoption evidence 工作：
 3. 录一个短 GIF 或 terminal screencast，展示 runtime path：`run -> tool call -> approval -> crash -> resume -> replay evidence`。
 4. 写一篇技术文章，主题可以是 "Agents Need a Runtime, Not More Retries" 或 "Making AI Agents Durable, Auditable, and Replayable"。
 5. README 开头继续聚焦用户痛点："Your agent called a tool. Did it happen? Can you retry safely? Can you prove it later?"
-6. 创建公开 issue 或 discussion，覆盖后续 adoption tasks：OpenAI Agents SDK approval/replay example、standalone Inspector viewer、Temporal bridge example、tool-injection risk scanner、memory lifecycle design。
+6. 创建公开 issue 或 discussion，覆盖后续 adoption tasks：standalone Inspector viewer、Temporal optional adapter boundary、dependency-backed framework smoke matrix、tool-injection risk scanner、memory lifecycle design。
 7. 发布一到两个真实 integration note 或 case study，例如用 AgentLedger 审计 legal agent 的 tool calls，但不包含私有数据。
 
 Companion product 方向：
@@ -334,7 +334,6 @@ complete core parity/package dry-run script
 候选后续 release trains：
 
 ```text
-1.5.0  framework/Temporal adoption：OpenAI Agents SDK example、Temporal bridge、framework-native smoke fixtures；设计草案见 `FRAMEWORK_TEMPORAL_ADOPTION_DESIGN.md`
 1.6.0  standalone Inspector and evidence consumer UX：非 Python viewer path、model-call panel、filtering/search
 1.7.0  Runtime Memory Lifecycle：memory refs、snapshots、reads/writes、diffs、lineage、replay semantics
 1.8.0  sub-agent/multi-agent runtime semantics：parent-child runs、spawn/join、cancellation/failure/cost attribution
@@ -917,6 +916,30 @@ runtime-core 不做 model gateway/router
 - model-proposed tool call 可以在有 name/ref 的情况下关联到后续 ToolGateway/Tool Ledger record
 - failure export 可以暴露 model evidence 和 proposed-tool refs，但不向第三方平台发送数据
 - boundary lint 可以在运行前抓住常见 bypass，避免 runtime instrumentation 被业务代码绕开
+
+## 1.5.0 - Framework And Temporal Adoption First Batch
+
+状态：已作为四语言 1.5.x release train 实现，新增 Python 侧 adoption examples、smoke coverage 和 benchmark gate。Runtime-core semantics 仍在 Python、Go、TypeScript、Rust 中保持对齐；新的 framework/Temporal 资产用于展示 adoption boundary，而不是改变 portable core contract。
+
+`1.5.0` 已实现：
+
+- dependency-free OpenAI Agents SDK-style approval/replay example，展示 model evidence、proposed tool call、approval pause/resume、Tool Ledger reuse 和 replay-safe debugging flow
+- dependency-free Temporal bridge example，展示 workflow/activity ownership、retry correlation、archived proposal reuse，以及 activity crash 后 single-write side-effect safety
+- 两条 adoption path 的 framework-native smoke coverage 和 CI 入口
+- benchmark suite semantic coverage matrix，以及 timing、artifact generation、failure injection、adapter dry-run、cross-language conformance command baseline 的 release gate
+- README、getting started、adoption、execution backend、use case 等文档入口同步更新
+
+明确不做：
+
+- 不新增超出 1.4 failure lifecycle 和 model evidence contract 的 runtime-core semantics
+- 不宣称 OpenAI Agents SDK 或 Temporal 官方 endorsement
+- 不要求 Go/TypeScript/Rust 在上游生态路径不同的情况下也提供完全相同的 framework-specific example
+
+退出标准：
+
+- 开发者可在本地运行 OpenAI Agents SDK-style example，并看到 approval wait/resume 与 replay-safe Tool Ledger 行为
+- 开发者可在本地运行 Temporal bridge example，并看到 crash 后 retry 不会产生重复副作用
+- release gate 在原有四语言 runtime-core parity 检查之外，也覆盖这两个 example 和 benchmark metadata
 
 ## v1.0 - Stable Runtime Contract
 

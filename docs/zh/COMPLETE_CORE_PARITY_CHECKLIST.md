@@ -26,7 +26,7 @@
 1. 四语言 CLI baseline 已有自动化检查，不再只依赖 conformance。
 2. Go、TypeScript、Rust 已有 runnable quickstart example files。
 3. TypeScript/Rust package surface 已有 `npm pack --dry-run` / `cargo package --allow-dirty --no-verify` 发布 dry-run；发布后仍需重复 clean install smoke。
-4. Python、TypeScript、Rust 的 package release family 已自动检查；当前 core release family 是 `1.4`。1.4.2 继续保持四语言 release train 对齐，并围绕 1.4.0/1.4.1 的 runtime-core feature 收敛 model evidence UX、export mappings、examples 和 boundary lint。
+4. Python、TypeScript、Rust 的 package release family 已自动检查；当前 core release family 是 `1.5`。1.5.0 保持四语言 release train 对齐，保留 1.4 的 runtime-core 语义，并新增 framework/Temporal adoption examples、smoke coverage 和 benchmark gate。
 5. Go module 外部消费依赖 Git tag/release；每次 release 推送 `go/vX.Y.Z` tag 后都需要重复 clean external `go get` smoke。
 6. 真实服务 hardening 仍不属于 core parity，继续作为 optional follow-up 记录。
 

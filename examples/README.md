@@ -18,12 +18,13 @@ If you are evaluating whether AgentLedger is useful for your project, start with
 | LangChain adapter | `langchain/basic_runnable.py` | Python-only ecosystem adapter. |
 | CrewAI adapter | `crewai/basic_crew.py` | Python-only ecosystem adapter. |
 | AutoGen adapter | `autogen/basic_agent.py` | Python-only ecosystem adapter. |
-| OpenAI Agents SDK adapter | `openai_agents/basic_agent.py` | Python-only ecosystem adapter. |
+| OpenAI Agents SDK adapter | `openai_agents/basic_agent.py`, `openai_agents/approval_replay.py` | Python-only ecosystem adapter. The approval/replay example shows model evidence, proposed tool calls, approval, Tool Ledger, evidence export, and replay. |
 | LlamaIndex adapter | `llamaindex/basic_query.py` | Python-only ecosystem adapter. |
 | Semantic Kernel adapter | `semantic_kernel/basic_kernel.py` | Python-only ecosystem adapter. |
 | MCP tool/context | `mcp_tool/basic_tool.py`, `mcp_context/basic_context_server.py` | Dependency-free MCP-style examples. |
 | MCP governance | `mcp_governance/README.md` | Shows approval, sandbox metadata, idempotency, and audit for MCP-style tools. Cross-language commands are listed below. |
 | Model evidence boundary | `model_evidence/README.md` | Records externally executed model calls, model failures, and model-proposed tool calls without routing providers through AgentLedger. |
+| Temporal bridge retry safety | `temporal_bridge/README.md` | Dependency-free Temporal-style workflow/activity facade showing activity retry without duplicate tool side effects. |
 | Tool catalog | `tool_catalog/basic_catalog.py` | Tool registry/catalog shape. |
 | Sandbox tool | `sandbox/command_tool.py` | Uses `sandbox/sandbox.yaml`. |
 | Boundary lint | `lint/boundary_rules.json` | Example lint rules. |

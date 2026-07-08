@@ -1,6 +1,6 @@
 from agentledger.storage_postgres import POSTGRES_SCHEMA_SQL, PostgresDependencyMissing, PostgresStore, PostgresStoreConfig
 
-__version__ = "1.4.2"
+__version__ = "1.5.0"
 
 __all__ = [
     "POSTGRES_SCHEMA_SQL",
@@ -9,4 +9,3 @@ __all__ = [
     "PostgresStoreConfig",
     "__version__",
 ]
-

@@ -82,6 +82,8 @@ artifact_created / cost_recorded / failure_classified
 
 当 agent node 调用模型和工具、写外部系统、需要权限或 sandbox、需要 evidence bundle，或者 replay 不能重复真实副作用时，AgentLedger 才有明显价值。
 
+见 `../../examples/temporal_bridge/README.md`。这个 dependency-free bridge example 会模拟 Temporal-style activity 在 worker crash 后 retry；它不需要 Temporal server，只演示 contract boundary，并展示 workflow/activity id 如何作为 runtime evidence metadata 传递。
+
 ## Temporal Adapter 形态
 
 Temporal 集成通常应是：

@@ -82,6 +82,8 @@ AgentLedger is unnecessary for some Temporal workflows. If an agent node has no 
 
 AgentLedger becomes valuable when agent nodes call models and tools, write external systems, need permissions or sandboxing, require evidence bundles, or must replay without repeating real side effects.
 
+See `../examples/temporal_bridge/README.md` for a dependency-free bridge example that simulates a Temporal-style activity retry after a worker crash. The example does not require a Temporal server; it demonstrates the contract boundary and shows how workflow/activity ids can be carried as runtime evidence metadata.
+
 ## Temporal Adapter Shape
 
 A Temporal integration should usually look like this:

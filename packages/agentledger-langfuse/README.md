@@ -18,7 +18,7 @@ This adapter is intentionally thin. It converts AgentLedger evidence spans into 
 Certification:
 
 ```bash
-python3 -m agentledger adapter certify --kind langfuse --adapter-version 1.4.2
+python3 -m agentledger adapter certify --kind langfuse --adapter-version 1.5.0
 ```
 
 ---

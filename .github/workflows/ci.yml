@@ -262,12 +262,16 @@ jobs:
           python -m json.tool /tmp/agentledger-example-mcp.json >/dev/null
           PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python examples/openai_agents/basic_agent.py >/tmp/agentledger-example-openai-agents.json
           python -m json.tool /tmp/agentledger-example-openai-agents.json >/dev/null
+          PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python examples/openai_agents/approval_replay.py >/tmp/agentledger-example-openai-approval-replay.json
+          python -m json.tool /tmp/agentledger-example-openai-approval-replay.json >/dev/null
           PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python examples/sandbox/command_tool.py >/tmp/agentledger-example-sandbox.json
           python -m json.tool /tmp/agentledger-example-sandbox.json >/dev/null
           PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python examples/tool_catalog/basic_catalog.py >/tmp/agentledger-example-tool-catalog.json
           python -m json.tool /tmp/agentledger-example-tool-catalog.json >/dev/null
           PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python examples/semantic_kernel/basic_kernel.py >/tmp/agentledger-example-semantic-kernel.json
           python -m json.tool /tmp/agentledger-example-semantic-kernel.json >/dev/null
+          PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python examples/temporal_bridge/demo.py >/tmp/agentledger-example-temporal-bridge.json
+          python -m json.tool /tmp/agentledger-example-temporal-bridge.json >/dev/null
           PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python -m agentledger --root /tmp/agentledger-ci-worker-run worker-run examples/transient_retry >/tmp/agentledger-example-worker-run.json
           python -m json.tool /tmp/agentledger-example-worker-run.json >/dev/null
 

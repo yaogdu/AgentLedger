@@ -21,6 +21,8 @@ Can I verify the reliability claim myself?
 | P0 | README first-screen pain point | The first screen explains the tool side-effect problem before listing architecture. |
 | P0 | Shareable article and short post | A maintainer can use `docs/articles/what-happened-after-agent-tool-failure.zh-CN.md` and `docs/articles/social-posts.md` without inventing positioning copy from scratch. |
 | P1 | MCP governance example | Dependency-free MCP-style tools demonstrate schema, approval, sandbox metadata, idempotency, and audit evidence across Python, Go, TypeScript, and Rust. |
+| P1 | OpenAI Agents SDK-style approval/replay example | A dependency-free SDK-style runner demonstrates model evidence, proposed tool calls, approval, Tool Ledger, evidence export, Inspector, and replay. |
+| P1 | Temporal bridge retry safety example | A dependency-free workflow/activity facade demonstrates backend retry while AgentLedger prevents duplicate node-internal side effects. |
 | P1 | Public issue/discussion list | The next adoption tasks are easy to open as GitHub issues or discussions. |
 | P1 | Case study template | A real integration can be documented without exposing private data. |
 
@@ -32,10 +34,10 @@ These can be opened as GitHub issues when the project is ready for public tracki
 |---|---|---|
 | Record a side-effect safety GIF from the showcase | adoption | Turns the core value into a short visual artifact for README, social posts, and issue discussions. |
 | Build a cross-language 3-minute Tool Ledger demo | example | Shows the core value in a few minutes across Python, Go, TypeScript, and Rust. |
-| Add OpenAI Agents SDK approval/replay example | example | Connects AgentLedger to a major agent SDK boundary without claiming official endorsement. |
+| Add OpenAI Agents SDK approval/replay example | example | Connects AgentLedger to a major agent SDK boundary without claiming official endorsement. Implemented as `examples/openai_agents/approval_replay.py`. |
 | Add MCP tool governance example | example | Shows how MCP-style tools should pass through policy, approval, sandbox, idempotency, and evidence. |
 | Prototype AgentLedger Inspector | debug tool | Makes run timelines, Tool Ledger, approvals, replay, and failures visible. |
-| Add Temporal bridge example | integration | Clarifies Temporal owns workflow lifecycle while AgentLedger owns node-internal reliability. |
+| Add Temporal bridge example | integration | Clarifies Temporal owns workflow lifecycle while AgentLedger owns node-internal reliability. Implemented as `examples/temporal_bridge/demo.py`. |
 | Add tool-injection risk scanner | security | Detects risky tool schemas, missing approval/sandbox, and runtime-boundary bypass patterns. |
 | Publish legal-agent case study | case study | Shows a realistic audit/evidence use case without private data. |
 

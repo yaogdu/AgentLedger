@@ -4,7 +4,7 @@
 
 This document makes the cross-language boundary explicit. AgentLedger's complete parity claim means **portable runtime-core parity**, not identical provider or ecosystem adapter implementations in every language.
 
-Patch versions do not need to move in lockstep when a release only changes a language-specific package, companion tool, read model, or adapter wrapper. The `1.4.x` line is different: `1.4.0` introduced the four-language Agent Failure Lifecycle, `1.4.1` introduced the four-language Runtime Model Evidence Boundary, and `1.4.2` keeps the four-language release train while consolidating model evidence Inspector UX, export mappings, examples, and boundary lint. Inspector remains a language-neutral companion viewer distributed through Python/PyPI, but the failure lifecycle and model evidence contracts themselves are implemented across all four runtime packages.
+Patch versions do not need to move in lockstep when a release only changes a language-specific package, companion tool, read model, or adapter wrapper. The `1.5.x` line keeps the four-language runtime-core release train aligned: it preserves the 1.4 failure lifecycle and model evidence contracts across Python, Go, TypeScript, and Rust while adding framework/Temporal adoption examples, smoke coverage, and benchmark gates. Inspector remains a language-neutral companion viewer distributed through Python/PyPI, and the portable runtime-core contracts themselves remain implemented across all four runtime packages.
 
 ## How To Read This Table
 

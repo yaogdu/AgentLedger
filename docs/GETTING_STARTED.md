@@ -9,7 +9,7 @@ This is the shortest path from install to a working AgentLedger run. If you are 
 | Language | Install / use | Quickstart | Examples | Package / command |
 |---|---|---|---|---|
 | Python | `pipx install agentledger-runtime` or `pip install agentledger-runtime` | `agentledger quickstart` | `../examples/README.md` | PyPI package `agentledger-runtime`, CLI `agentledger` |
-| Go | `go get github.com/yaogdu/AgentLedger/go@v1.4.2` inside a Go module | `cd go && go run ./examples/quickstart` from this repo | `../go/examples/README.md` | Go module `github.com/yaogdu/AgentLedger/go`, CLI package `.../go/cmd/agentledger-go` |
+| Go | `go get github.com/yaogdu/AgentLedger/go@v1.5.0` inside a Go module | `cd go && go run ./examples/quickstart` from this repo | `../go/examples/README.md` | Go module `github.com/yaogdu/AgentLedger/go`, CLI package `.../go/cmd/agentledger-go` |
 | TypeScript | `npm install agentledger-runtime` | `node typescript/examples/quickstart/quickstart.js` | `../typescript/examples/README.md` | npm package `agentledger-runtime`, CLI `agentledger-ts` |
 | Rust | crates.io package: `agentledger-runtime` | `cargo add agentledger-runtime` 或 `cd rust && cargo run --example quickstart` | `../rust/examples/README.md` | crate `agentledger-runtime`, binary `agentledger-rust` |
 
@@ -36,17 +36,17 @@ Use the library inside a Go module:
 
 ```bash
 go mod init your-module-name  # only if your project does not already have go.mod
-go get github.com/yaogdu/AgentLedger/go@v1.4.2
+go get github.com/yaogdu/AgentLedger/go@v1.5.0
 ```
 
 Install the optional CLI:
 
 ```bash
-go install github.com/yaogdu/AgentLedger/go/cmd/agentledger-go@v1.4.2
+go install github.com/yaogdu/AgentLedger/go/cmd/agentledger-go@v1.5.0
 agentledger-go --help
 ```
 
-Important: `go get` must run inside a Go module. `go install github.com/yaogdu/AgentLedger/go@v1.4.2` is not valid because that path is a library, not `package main`. Use `/cmd/agentledger-go` for the CLI.
+Important: `go get` must run inside a Go module. `go install github.com/yaogdu/AgentLedger/go@v1.5.0` is not valid because that path is a library, not `package main`. Use `/cmd/agentledger-go` for the CLI.
 
 ### TypeScript
 
@@ -95,6 +95,8 @@ The crate is published as `agentledger-runtime`; the library crate is imported a
 | Retry transient errors | `../examples/transient_retry/README.md` |
 | LangGraph integration | `../examples/langgraph/basic_graph.py` |
 | LangChain integration | `../examples/langchain/basic_runnable.py` |
+| OpenAI Agents SDK-style approval/replay | `../examples/openai_agents/approval_replay.py` |
+| Temporal-style workflow retry bridge | `../examples/temporal_bridge/README.md` |
 | MCP tool/context | `../examples/mcp_tool/basic_tool.py`, `../examples/mcp_context/basic_context_server.py` |
 | MCP governance | `../examples/mcp_governance/README.md`; Go `../go/examples/mcp_governance`; TypeScript `../typescript/examples/mcp_governance`; Rust `../rust/examples/mcp_governance.rs` |
 | Sandbox command tool | `../examples/sandbox/command_tool.py` |

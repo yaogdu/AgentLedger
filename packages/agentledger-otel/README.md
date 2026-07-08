@@ -16,7 +16,7 @@ The current package exports dependency-free OTLP JSON and POST helpers. Full Ope
 Certification:
 
 ```bash
-python3 -m agentledger adapter certify --kind otel --adapter-version 1.4.2
+python3 -m agentledger adapter certify --kind otel --adapter-version 1.5.0
 ```
 
 ---

@@ -1,13 +1,13 @@
 {
   "name": "agentledger-mysql",
-  "version": "1.4.2",
+  "version": "1.5.0",
   "private": false,
   "description": "MySQL adapter package for AgentLedger Runtime.",
   "type": "module",
   "main": "src/index.js",
   "types": "src/index.d.ts",
   "dependencies": {
-    "agentledger-runtime": "^1.4.2"
+    "agentledger-runtime": "^1.5.0"
   },
   "files": [
     "src/",

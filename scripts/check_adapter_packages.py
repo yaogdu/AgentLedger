@@ -125,11 +125,11 @@ def check_python_package_metadata(adapter: PythonAdapter, extras: dict, *, expec
         fail(f"{adapter.package}: package name mismatch")
     if expected_version is not None and metadata["version"] != expected_version:
         fail(f"{adapter.package}: expected version {expected_version}, got {metadata['version']}")
-    if not str(metadata["version"]).startswith("1.4."):
-        fail(f"{adapter.package}: expected 1.4.x package boundary, got {metadata['version']}")
+    if not str(metadata["version"]).startswith("1.5."):
+        fail(f"{adapter.package}: expected 1.5.x package boundary, got {metadata['version']}")
     deps = metadata.get("dependencies", [])
-    if not any(dep.startswith("agentledger-runtime>=1.4") for dep in deps):
-        fail(f"{adapter.package}: missing dependency on agentledger-runtime>=1.4")
+    if not any(dep.startswith("agentledger-runtime>=1.5") for dep in deps):
+        fail(f"{adapter.package}: missing dependency on agentledger-runtime>=1.5")
     if adapter.required_dependency and not any(adapter.required_dependency in dep for dep in deps):
         fail(f"{adapter.package}: missing dependency containing {adapter.required_dependency}")
     if adapter.package not in "\n".join(extras.get("all", [])):

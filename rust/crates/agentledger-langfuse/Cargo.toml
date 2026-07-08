@@ -1,6 +1,6 @@
 [package]
 name = "agentledger-langfuse"
-version = "1.4.2"
+version = "1.5.0"
 edition = "2021"
 description = "Langfuse evidence and trace export adapter package for AgentLedger"
 license = "Apache-2.0"
@@ -11,4 +11,4 @@ keywords = ["agent", "runtime", "langfuse", "tracing"]
 categories = ["development-tools"]
 
 [dependencies]
-agentledger = { package = "agentledger-runtime", version = ">=1.4, <2", path = "../.." }
+agentledger = { package = "agentledger-runtime", version = ">=1.5, <2", path = "../.." }

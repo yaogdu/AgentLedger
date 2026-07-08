@@ -6,10 +6,20 @@ This project follows semantic versioning for the stable runtime-core contract. O
 
 ## Unreleased
 
+## 1.5.0 - 2026-07-08
+
 ### Added
 
+- Added a dependency-free OpenAI Agents SDK-style approval/replay example that records model evidence, proposed tool calls, approval state, Tool Ledger history, and replay-safe resume behavior without requiring external framework installs.
+- Added a dependency-free Temporal bridge retry-safety example that shows workflow/activity ownership boundaries, retry correlation, archived tool-proposal reuse, and single-write side-effect behavior after an activity crash.
+- Added framework-native smoke coverage and CI checks for the new OpenAI Agents SDK-style and Temporal bridge adoption paths.
 - Added a dependency-free runtime benchmark suite with a semantic coverage matrix for all required runtime checks.
 - Added benchmark documentation and release checklist gates for recording local timing, evidence/debug artifact generation, failure injection, adapter contract dry-runs, and cross-language conformance command baselines.
+
+### Clarified
+
+- This is a four-language 1.5.0 runtime-core release train. Python, Go, TypeScript, and Rust keep the same portable runtime-core semantics introduced in the 1.4 line.
+- The new OpenAI Agents SDK-style and Temporal bridge assets are Python adoption examples and documentation entrypoints. They do not imply official upstream endorsement or new language-specific runtime-core requirements.
 
 ## 1.4.2 - 2026-06-19
 
