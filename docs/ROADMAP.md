@@ -330,7 +330,7 @@ Verified release gates:
 Candidate follow-up release trains:
 
 ```text
-1.5.0  framework/Temporal adoption: OpenAI Agents SDK example, Temporal bridge, framework-native smoke fixtures
+1.5.0  framework/Temporal adoption: OpenAI Agents SDK example, Temporal bridge, framework-native smoke fixtures; design draft in `FRAMEWORK_TEMPORAL_ADOPTION_DESIGN.md`
 1.6.0  standalone Inspector and evidence consumer UX: non-Python viewer path, model-call panel, filtering/search
 1.7.0  Runtime Memory Lifecycle: memory refs, snapshots, reads/writes, diffs, lineage, replay semantics
 1.8.0  sub-agent/multi-agent runtime semantics: parent-child runs, spawn/join, cancellation/failure/cost attribution

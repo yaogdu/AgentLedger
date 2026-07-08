@@ -334,7 +334,7 @@ complete core parity/package dry-run script
 候选后续 release trains：
 
 ```text
-1.5.0  framework/Temporal adoption：OpenAI Agents SDK example、Temporal bridge、framework-native smoke fixtures
+1.5.0  framework/Temporal adoption：OpenAI Agents SDK example、Temporal bridge、framework-native smoke fixtures；设计草案见 `FRAMEWORK_TEMPORAL_ADOPTION_DESIGN.md`
 1.6.0  standalone Inspector and evidence consumer UX：非 Python viewer path、model-call panel、filtering/search
 1.7.0  Runtime Memory Lifecycle：memory refs、snapshots、reads/writes、diffs、lineage、replay semantics
 1.8.0  sub-agent/multi-agent runtime semantics：parent-child runs、spawn/join、cancellation/failure/cost attribution

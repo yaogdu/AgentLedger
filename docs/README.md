@@ -37,6 +37,7 @@ AgentLedger is a runtime reliability layer for Agent Harness stacks. It is not a
 | Prepare a release | `RELEASE_CHECKLIST.md` | `zh/RELEASE_CHECKLIST.md` |
 | Understand multi-language parity | `LANGUAGE_IMPLEMENTATION_COMPARISON.md`, `LANGUAGE_PARITY_MATRIX.md`, `MULTI_LANGUAGE.md` | `zh/LANGUAGE_IMPLEMENTATION_COMPARISON.md`, `zh/LANGUAGE_PARITY_MATRIX.md`, `MULTI_LANGUAGE.md` |
 | Understand execution backends | `EXECUTION_BACKENDS.md` | `zh/EXECUTION_BACKENDS.md` |
+| Plan 1.5.0 framework/Temporal adoption | `FRAMEWORK_TEMPORAL_ADOPTION_DESIGN.md` | `zh/FRAMEWORK_TEMPORAL_ADOPTION_DESIGN.md` |
 
 ## Recommended Reader Paths
 
@@ -70,6 +71,7 @@ AgentLedger is a runtime reliability layer for Agent Harness stacks. It is not a
 - `QUERY_EXAMPLES.md`: single-table and multi-table SQL examples for runtime metadata, including large business-schema integration patterns.
 - `ADAPTER_CERTIFICATION.md`: compatibility checklist for storage, blob, framework, tool, sandbox, media/stream, and observability adapters.
 - `EXECUTION_BACKENDS.md`: Temporal/Ray/Kubernetes positioning and scheduler adapter boundary.
+- `FRAMEWORK_TEMPORAL_ADOPTION_DESIGN.md`: 1.5.0 adoption design for OpenAI Agents SDK-style examples, framework-native smokes, and Temporal bridge boundaries.
 
 ## Operations and Reliability
 
