@@ -85,6 +85,7 @@ async def run_demo(root: Path | None = None) -> dict[str, Any]:
         return action
 
     rt.registry.register(
+        # agentledger: ignore-next-line - approval-gated external API demo, not untrusted local execution
         ToolSpec(
             name="ticket.create",
             func=create_ticket,

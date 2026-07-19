@@ -15,6 +15,11 @@ This project follows semantic versioning for the stable runtime-core contract. O
 - Added cross-language OMP bridge tests with no OMP dependency and no application-specific assumptions.
 - Added Python, Go, TypeScript, and Rust OMP bridge examples using synthetic runtime events.
 
+### Fixed
+
+- Hardened the release gate audit so the built-in OMP runtime bridge is included in Python parity coverage through the aggregate four-language parity gate.
+- Clarified the OpenAI Agents SDK approval/replay example boundary lint exception for approval-gated external API side effects that are not untrusted local sandbox execution.
+
 ### Clarified
 
 - The OMP bridge is built into the current runtime packages as a generic runtime evidence adapter. A separate `agentledger-omp` package remains optional future packaging work, not a requirement for 1.5.2.

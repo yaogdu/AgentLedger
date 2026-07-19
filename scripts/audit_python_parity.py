@@ -50,6 +50,7 @@ COVERAGE: dict[str, dict[str, object]] = {
     "adapters_frameworks": {"status": "covered", "evidence": ["framework_adapters.v1.json", "optional_adapters.v1.json"], "note": "base adapter contract plus optional concrete framework capability descriptors are covered"},
     "adapters_langgraph": {"status": "covered", "evidence": ["framework_adapters.v1.json", "optional_adapters.v1.json"], "note": "LangGraph integration is covered as framework/checkpoint adapter boundary without importing LangGraph in core"},
     "adapters_mcp": {"status": "covered", "evidence": ["mcp_adapters.v1.json", "optional_adapters.v1.json"], "note": "in-memory MCP contract plus optional transport capability descriptor are covered"},
+    "adapters_omp": {"status": "covered", "evidence": ["scripts/check_language_parity.py"], "note": "OMP runtime bridge is covered by four-language unit tests and the aggregate parity gate; it remains a built-in runtime bridge, not a separate optional adapter fixture"},
     "adapter_certification": {"status": "covered", "evidence": ["optional_adapters.v1.json"], "note": "adapter certification bundles cover package metadata and optional adapter boundary claims"},
     "repro": {"status": "covered", "evidence": ["repro.v1.json"], "note": "built-in golden evidence/regression covered; file-backed corpus UX is language/package specific"},
     "contract": {"status": "covered", "evidence": ["contracts/agentledger.runtime.v1.json"]},
