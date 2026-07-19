@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "agentledger-runtime"
-version = "1.5.0"
+version = "1.5.2"
 description = "Runtime reliability layer for Agent Harness stacks"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -31,25 +31,25 @@ Documentation = "https://github.com/yaogdu/AgentLedger#readme"
 Issues = "https://github.com/yaogdu/AgentLedger/issues"
 
 [project.optional-dependencies]
-postgres = ["agentledger-postgres>=1.5,<2"]
-mysql = ["agentledger-mysql>=1.5,<2"]
-s3 = ["agentledger-s3>=1.5,<2"]
-langgraph = ["agentledger-langgraph>=1.5,<2"]
-mcp = ["agentledger-mcp>=1.5,<2"]
-otel = ["agentledger-otel>=1.5,<2"]
-langfuse = ["agentledger-langfuse>=1.5,<2"]
-docker = ["agentledger-sandbox-docker>=1.5,<2"]
-inspector = ["agentledger-inspector>=1.5.0,<2"]
+postgres = ["agentledger-postgres>=1.5.2,<2"]
+mysql = ["agentledger-mysql>=1.5.2,<2"]
+s3 = ["agentledger-s3>=1.5.2,<2"]
+langgraph = ["agentledger-langgraph>=1.5.2,<2"]
+mcp = ["agentledger-mcp>=1.5.2,<2"]
+otel = ["agentledger-otel>=1.5.2,<2"]
+langfuse = ["agentledger-langfuse>=1.5.2,<2"]
+docker = ["agentledger-sandbox-docker>=1.5.2,<2"]
+inspector = ["agentledger-inspector>=1.5.2,<2"]
 all = [
-  "agentledger-postgres>=1.5,<2",
-  "agentledger-mysql>=1.5,<2",
-  "agentledger-s3>=1.5,<2",
-  "agentledger-langgraph>=1.5,<2",
-  "agentledger-mcp>=1.5,<2",
-  "agentledger-otel>=1.5,<2",
-  "agentledger-langfuse>=1.5,<2",
-  "agentledger-sandbox-docker>=1.5,<2",
-  "agentledger-inspector>=1.5.0,<2",
+  "agentledger-postgres>=1.5.2,<2",
+  "agentledger-mysql>=1.5.2,<2",
+  "agentledger-s3>=1.5.2,<2",
+  "agentledger-langgraph>=1.5.2,<2",
+  "agentledger-mcp>=1.5.2,<2",
+  "agentledger-otel>=1.5.2,<2",
+  "agentledger-langfuse>=1.5.2,<2",
+  "agentledger-sandbox-docker>=1.5.2,<2",
+  "agentledger-inspector>=1.5.2,<2",
 ]
 
 [project.scripts]

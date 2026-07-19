@@ -102,6 +102,30 @@ class SQLiteStore:
             self._append_event_in_tx(run_id=run_id, session_id=session_id, step_id=step_id, event_type="step_created", payload={"step_id": step_id, "retry_policy": json.loads(retry_policy_json)})
         return run_id, step_id
 
+    def create_external_step(self, *, run_id: str, step_id: str | None = None, retry_policy: dict[str, Any] | None = None) -> str:
+        run = self.run(run_id)
+        step_id = step_id or new_id("step")
+        ts = now_ts()
+        retry_policy_json = json.dumps(RetryPolicy.from_dict(retry_policy).to_dict(), sort_keys=True)
+        with self.conn:
+            self.conn.execute(
+                """
+                INSERT INTO steps(step_id, run_id, session_id, status, attempt, state_version, retry_policy_json, created_at, updated_at)
+                VALUES(?,?,?,?,?,?,?,?,?)
+                """,
+                (step_id, run_id, run["session_id"], "pending", 0, int(run["state_version"]), retry_policy_json, ts, ts),
+            )
+            self.conn.execute("UPDATE runs SET status='pending', updated_at=? WHERE run_id=?", (ts, run_id))
+            self._append_event_in_tx(
+                run_id=run_id,
+                session_id=run["session_id"],
+                step_id=step_id,
+                event_type="step_created",
+                payload={"step_id": step_id, "external": True, "retry_policy": json.loads(retry_policy_json)},
+                state_version=int(run["state_version"]),
+            )
+        return step_id
+
     def claim_step(self, *, worker_id: str, run_id: str | None = None, lease_seconds: int = 60) -> StepClaim | None:
         clauses = "status IN ('pending','retry_scheduled')"
         params: list[Any] = []

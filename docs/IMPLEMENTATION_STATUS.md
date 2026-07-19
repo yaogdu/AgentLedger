@@ -1,6 +1,6 @@
 # Implementation Status
 
-Updated: 2026-07-08
+Updated: 2026-07-19
 
 This document tracks what is implemented in runtime-core, what remains planned for optional adapters, and what should stay outside runtime-core.
 
@@ -15,7 +15,7 @@ AgentLedger 1.5.x is a stable runtime-core line with Python as the reference imp
 - reliability semantics validation
 - production pilot preparation with explicit adapter boundaries
 
-Release-scope note: 1.3.x added and hardened Inspector as a read-only evidence/runtime metadata consumer. It can read exported evidence bundles or connect to SQLite/Postgres/MySQL AgentLedger metadata with read-only credentials and can export static HTML debug reports. 1.4.0 added the four-language Agent Failure Lifecycle baseline: normalized failure envelopes, lifecycle stages, causal graph, replay plan, regression report, local alert records, and portable failure export mappings. 1.4.1 added the four-language Runtime Model Evidence Boundary: archived model request/response/failure evidence, model-proposed tool calls, and model cost/failure/replay semantics without provider routing. 1.4.2 consolidated that path with dedicated Inspector model-call/tool-proposal views, stronger failure export mappings, a model evidence example, and boundary lint hardening. 1.5.0 keeps that runtime-core contract intact while adding dependency-free OpenAI Agents SDK-style approval/replay and Temporal bridge examples, framework-native smoke coverage, benchmark gates, and documentation entrypoints. MySQL remains the 1.2.2 storage adapter boundary and Langfuse remains the 1.2.3 observability adapter boundary; real-service production claims still require external validation.
+Release-scope note: 1.3.x added and hardened Inspector as a read-only evidence/runtime metadata consumer. It can read exported evidence bundles or connect to SQLite/Postgres/MySQL AgentLedger metadata with read-only credentials and can export static HTML debug reports. 1.4.0 added the four-language Agent Failure Lifecycle baseline: normalized failure envelopes, lifecycle stages, causal graph, replay plan, regression report, local alert records, and portable failure export mappings. 1.4.1 added the four-language Runtime Model Evidence Boundary: archived model request/response/failure evidence, model-proposed tool calls, and model cost/failure/replay semantics without provider routing. 1.4.2 consolidated that path with dedicated Inspector model-call/tool-proposal views, stronger failure export mappings, a model evidence example, and boundary lint hardening. 1.5.0 keeps that runtime-core contract intact while adding dependency-free OpenAI Agents SDK-style approval/replay and Temporal bridge examples, framework-native smoke coverage, benchmark gates, and documentation entrypoints. 1.5.2 adds the normalized Oh My Pi / OMP runtime bridge across Python, Go, TypeScript, and Rust: session, turn, model-call, tool-proposal, tool-execution, failure, artifact, and versioned state-change records map into existing AgentLedger evidence without application-specific semantics. MySQL remains the 1.2.2 storage adapter boundary and Langfuse remains the 1.2.3 observability adapter boundary; real-service production claims still require external validation.
 
 The runtime-core contract is stable. Optional production adapters, external infrastructure hardening, and full eval systems remain outside the stable core boundary; non-Python runtime-core baselines are verified by the shared parity gates.
 
@@ -71,7 +71,7 @@ Excluded from this boundary:
 | Scheduling semantics | leases, fencing, heartbeat, cancellation, retry policy, failure taxonomy |
 | Worker loop | local worker loop, process-shaped `WorkerService`, worker conformance runner |
 | Storage contracts | `StateStoreProtocol`, `BlobStoreProtocol`, SQLite migrations, DDL export |
-| Adapter contracts | framework adapter base, LangGraph facade, MCP tool/context mapping, dependency-free method facades, first-party adapter package boundaries |
+| Adapter contracts | framework adapter base, LangGraph facade, MCP tool/context mapping, dependency-free method facades, normalized OMP runtime bridge, first-party adapter package boundaries |
 | Sandbox boundary | fail-closed `none`, local executor, router, external executor contracts, Docker/bubblewrap command paths, Kubernetes dry-run/gated path |
 | Observability | trace JSONL export with media/stream spans, dependency-free OTLP JSON export, optional OTLP/JSON collector POST, evidence-linked audit records |
 | Inspector | `agentledger.inspector.v1` single-run read model, `agentledger.inspector.runs.v1` run-index read model, `agentledger inspector run/runs/evidence`, static HTML reports, section navigation, row anchors, cross-links between related records, evidence-bundle input, read-only SQLite input, Postgres/MySQL read paths through existing adapter boundaries, configurable redaction policy, optional `agentledger-inspector` companion package |
@@ -131,7 +131,3 @@ Large capabilities such as Eval, Observability, Guardrails, Tool Gateway/Sandbox
 3. Harden production-pilot adapter paths: Postgres, S3/MinIO, worker deployment, OTLP transport, and non-destructive retention/backup checks. These P2 claims require real services, load/concurrency checks, and restore or rollback drills; local certification manifests intentionally mark them as external-required.
 4. Build richer external evidence consumers and eval adapters outside runtime-core.
 5. Extend media/stream preview contracts into optional adapters only after the core reliability harness remains stable.
-
----
-
-generated by codex cli

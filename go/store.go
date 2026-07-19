@@ -133,6 +133,30 @@ func (s *JSONStore) CreateRun(sessionID string, initialState JSONObject) (string
 	return runID, stepID, s.flushLocked()
 }
 
+func (s *JSONStore) CreateExternalStep(runID string) (Step, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.ensureMapsLocked()
+	run, ok := s.data.Runs[runID]
+	if !ok {
+		return Step{}, fmt.Errorf("run not found: %s", runID)
+	}
+	now := nowSeconds()
+	stepID := newID("step")
+	step := Step{StepID: stepID, RunID: runID, SessionID: run.SessionID, Status: "pending", Attempt: 0, StateVersion: run.StateVersion, CreatedAt: now, UpdatedAt: now}
+	s.data.Steps[stepID] = step
+	run.Status = "pending"
+	run.UpdatedAt = now
+	s.data.Runs[runID] = run
+	if _, err := s.appendEventLocked(AppendEventInput{
+		RunID: runID, SessionID: run.SessionID, StepID: stepID, Type: "step_created", StateVersion: run.StateVersion,
+		Payload: JSONObject{"step_id": stepID, "external": true},
+	}); err != nil {
+		return Step{}, err
+	}
+	return step, s.flushLocked()
+}
+
 func (s *JSONStore) ClaimStep(workerID, runID string, leaseSeconds int) (*StepClaim, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -317,6 +341,28 @@ func (s *JSONStore) CommitStatePatch(runID, stepID, leaseToken string, baseVersi
 		return 0, err
 	}
 	if _, err := s.appendEventLocked(AppendEventInput{RunID: runID, SessionID: step.SessionID, StepID: stepID, Type: "step_completed", Payload: JSONObject{"step_id": stepID}, StateVersion: newVersion}); err != nil {
+		return 0, err
+	}
+	return newVersion, s.flushLocked()
+}
+
+func (s *JSONStore) ApplySystemStatePatch(runID string, patch JSONObject, reason string) (int, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	run, ok := s.data.Runs[runID]
+	if !ok {
+		return 0, fmt.Errorf("run not found: %s", runID)
+	}
+	now := nowSeconds()
+	newVersion := run.StateVersion + 1
+	run.State = mergePatch(run.State, patch)
+	run.StateVersion = newVersion
+	run.UpdatedAt = now
+	s.data.Runs[runID] = run
+	if _, err := s.appendEventLocked(AppendEventInput{
+		RunID: runID, SessionID: run.SessionID, Type: "system_state_patch_applied", StateVersion: newVersion,
+		Payload: JSONObject{"patch": cloneJSONObject(patch), "reason": reason, "state_version": newVersion},
+	}); err != nil {
 		return 0, err
 	}
 	return newVersion, s.flushLocked()

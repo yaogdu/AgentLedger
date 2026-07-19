@@ -13,6 +13,7 @@
 | 能力 | runtime-core 负责 | optional adapter 可负责 | core 明确不做 |
 |---|---|---|---|
 | Planning / Workflow | adapter contract、runtime-managed checkpoint、evidence hook、tool boundary integration | LangGraph、CrewAI、AutoGen、LangChain、Temporal、Prefect、Airflow、自定义 workflow adapter | 重新实现 planner、graph engine 或 workflow engine |
+| Runtime Adapters | stable event/evidence contracts、run/step/model/tool/failure/state mapping、replay 和 redaction invariants | Oh My Pi / OMP、framework runtime、自定义 runtime bridge | 学习应用专属产品语义、私有路径、memory 含义、账号/额度逻辑或 workspace 规则 |
 | Eval / Evidence Consumers | evidence export、replay、deterministic rerun hooks、最小 side-effect-free regression checks、conformance fixtures、eval-adapter output formats | Langfuse、Phoenix、promptfoo、DeepEval、Ragas、OpenAI Evals、LangSmith/Braintrust-style consumers、CI report sinks | standalone Eval Platform、跑 N 个 agent x M 个 case 的完整离线评测器、指标服务、case 管理、scorer 管理 UI 或长运行 eval Web 应用 |
 | Tracing / Observability | structured events、trace JSONL、OTLP/JSON export、evidence links | OpenTelemetry SDK packages、collector recipes、external trace stores | 完整观测套件 |
 | Guardrails | ToolSpec schema validation、policy checks、approval、pre/postcondition hooks、adversarial review gates | 更强 policy engine、项目规则包、外部 review 流程 | 业务治理后台 |
@@ -125,14 +126,15 @@ tool marketplace or app store
 
 ### 1.5.0 之后的推荐实现顺序
 
-1. 在首批 adoption path 基础上继续扩展 framework 接入：LangGraph package-compatibility smoke、上游稳定后再加入 dependency-backed smoke、LangChain/CrewAI/AutoGen facades，以及更丰富的 runtime-boundary examples。
-2. 把 Temporal bridge 继续收敛成更清晰的 optional adapter boundary：保持 workflow/activity ownership 明确，增加更强的 correlation example，同时保留 single-write retry semantics。
-3. 继续改进 Inspector 作为 language-neutral companion：更好的 run-index filtering/search，以及面向不想在应用 runtime 安装 Python 的 Go/TypeScript/Rust 用户的 standalone viewer path。
-4. 强化 observability 和 eval exports，不只停留在本地 JSON mapping：先补 OTLP deployment recipes，再做 Langfuse/Phoenix/promptfoo/DeepEval/Ragas/OpenAI-Evals/LangSmith-style evidence adapters，但不替代这些工具。
-5. 继续做 production-pilot adapter hardening：Postgres、MySQL、S3/MinIO、worker、OTLP transport、sandbox packages 的真实服务 conformance、权限边界、backup/restore drill 和 failure semantics。
-6. 在 model/tool/failure evidence 路径保持稳定后，启动 Runtime Memory Lifecycle baseline：memory refs、snapshot、read/write、diff、lineage、replay semantics 和 redaction hooks。
-7. 增加 sub-agent/multi-agent runtime semantics，但只作为可靠性层：parent-child run link、spawn/join event、cancellation propagation、replay-safe join、cost/failure attribution。
-8. 通过 optional processing adapters 扩展 media/stream，runtime-core 继续只保存 ref、metadata、lineage、checkpoint 和 replay validation。
+1. 落地 Oh My Pi / OMP runtime adapter 边界：作为通用 runtime adapter，把 OMP session、turn、model-call、tool-proposal、tool-execution、failure、artifact 和 versioned state-change record 翻译成现有 AgentLedger evidence，不加入应用专属语义。
+2. 在首批 adoption path 基础上继续扩展 framework 接入：LangGraph package-compatibility smoke、上游稳定后再加入 dependency-backed smoke、LangChain/CrewAI/AutoGen facades，以及更丰富的 runtime-boundary examples。
+3. 把 Temporal bridge 继续收敛成更清晰的 optional adapter boundary：保持 workflow/activity ownership 明确，增加更强的 correlation example，同时保留 single-write retry semantics。
+4. 继续改进 Inspector 作为 language-neutral companion：更好的 run-index filtering/search，以及面向不想在应用 runtime 安装 Python 的 Go/TypeScript/Rust 用户的 standalone viewer path。
+5. 强化 observability 和 eval exports，不只停留在本地 JSON mapping：先补 OTLP deployment recipes，再做 Langfuse/Phoenix/promptfoo/DeepEval/Ragas/OpenAI-Evals/LangSmith-style evidence adapters，但不替代这些工具。
+6. 继续做 production-pilot adapter hardening：Postgres、MySQL、S3/MinIO、worker、OTLP transport、sandbox packages 的真实服务 conformance、权限边界、backup/restore drill 和 failure semantics。
+7. 在 model/tool/failure evidence 路径保持稳定后，启动 Runtime Memory Lifecycle baseline：memory refs、snapshot、read/write、diff、lineage、replay semantics 和 redaction hooks。
+8. 增加 sub-agent/multi-agent runtime semantics，但只作为可靠性层：parent-child run link、spawn/join event、cancellation propagation、replay-safe join、cost/failure attribution。
+9. 通过 optional processing adapters 扩展 media/stream，runtime-core 继续只保存 ref、metadata、lineage、checkpoint 和 replay validation。
 
 ## Open Source Adoption And Maintainer Workflow
 
@@ -941,6 +943,51 @@ runtime-core 不做 model gateway/router
 - 开发者可在本地运行 Temporal bridge example，并看到 crash 后 retry 不会产生重复副作用
 - release gate 在原有四语言 runtime-core parity 检查之外，也覆盖这两个 example 和 benchmark metadata
 
+## 1.5.2 - Oh My Pi Runtime Bridge
+
+状态：已实现的 patch。runtime-core semantics 不变。
+
+目标：
+
+```text
+定义一个通用 OMP runtime bridge，把 normalized OMP-facing records 映射到
+AgentLedger 现有 evidence、Tool Ledger、model evidence、failure、replay
+和 versioned state contracts，同时不学习应用专属产品语义
+```
+
+已实现 bridge 边界：
+
+- OMP session metadata 映射到 AgentLedger run/session correlation metadata。
+- OMP turn lifecycle 映射到 AgentLedger step lifecycle events。
+- OMP model request/response 映射到 Runtime Model Evidence Boundary records。
+- OMP model-proposed tool call 映射到 `tool_call_proposed` evidence，并在可能时关联后续 Tool Ledger record。
+- OMP tool call/result 映射到 Tool Ledger request、execution status、idempotency、sandbox、approval 和 side-effect state。
+- OMP runtime error 映射到 Agent Failure Lifecycle 和 failure attribution records。
+- OMP artifact/file ref 映射到 AgentLedger artifact/evidence refs，并带 redaction metadata。
+- OMP-adjacent document 或 local-state mutation 映射到通用 versioned state snapshot、diff、commit/rollback status 和 causal run/step link。
+
+明确不做：
+
+- AgentLedger core 中不做应用专属 adapter
+- 不写入私有产品路径、workspace 规则、memory 含义、persona/harness 规则、账号/额度逻辑或 gateway 业务逻辑
+- runtime-core 不做 memory product、semantic memory engine、RAG system 或 document conflict-resolution product
+- 不依赖 OMP 内部实现或私有应用路径
+
+实施状态：
+
+1. 已完成：Documentation and contract：`OMP_RUNTIME_ADAPTER_DESIGN.md`、中文版本、roadmap entry 和 adapter-roadmap entry。
+2. 已完成：把规范化 OMP-facing records 映射到现有 AgentLedger runtime events，有测试，不依赖 OMP。
+3. 已完成：Python、Go、TypeScript、Rust 示例分别位于 `examples/omp_bridge`、`go/examples/omp_bridge`、`typescript/examples/omp_bridge` 和 `rust/examples/omp_bridge.rs`。
+4. Roadmap：只有当 bridge 超出内置薄翻译层后，才考虑创建 `agentledger-omp` / `agentledger-omp-adapter` package。
+5. Roadmap：补充 OMP 应用如何选择 emission points，同时把业务语义留在 AgentLedger 外部。
+
+退出标准：
+
+- 开发者不需要了解任何基于 OMP 的私有应用，也能理解 OMP adapter 边界
+- adapter 设计解释清楚 versioned document/state evidence 如何工作，但不把 AgentLedger 变成 memory product
+- bridge 已在 Python、Go、TypeScript、Rust 中提供，并有测试和示例
+- roadmap 明确这是 patch-level bridge implementation，不是 runtime-core semantic change
+
 ## v1.0 - Stable Runtime Contract
 
 状态：Python runtime-core contract 已实现。
@@ -989,7 +1036,3 @@ release gate：
 达到 parity 前，非 Python 实现可以发布 0.x preview packages。达到 parity 后，runtime contract 变更必须同步更新各语言实现和 conformance 结果。
 
 详见 `../MULTI_LANGUAGE.md` 和 `LANGUAGE_PARITY_MATRIX.md`。
-
----
-
-generated by codex cli

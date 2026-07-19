@@ -1,13 +1,13 @@
 {
   "name": "agentledger-langfuse",
-  "version": "1.5.0",
+  "version": "1.5.2",
   "private": false,
   "description": "Langfuse evidence and trace export adapter package for AgentLedger Runtime.",
   "type": "module",
   "main": "src/index.js",
   "types": "src/index.d.ts",
   "dependencies": {
-    "agentledger-runtime": "^1.5.0"
+    "agentledger-runtime": "^1.5.2"
   },
   "files": [
     "src/",

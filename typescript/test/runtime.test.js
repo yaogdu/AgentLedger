@@ -3,7 +3,7 @@ import { mkdtemp, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import test from 'node:test';
-import { DockerSandboxExecutor, JSONStore, LocalBlobStore, LocalWorker, RetryableAgentError, Runtime, WorkerService, exportEvidence, replay, costAttribution, failureAttribution } from '../src/index.js';
+import { DockerSandboxExecutor, JSONStore, LocalBlobStore, LocalWorker, OmpLedgerBridge, RetryableAgentError, Runtime, WorkerService, exportEvidence, replay, costAttribution, failureAttribution } from '../src/index.js';
 
 test('adapter subpath exports expose the current package boundary', async () => {
   const postgres = await import('../src/adapters/postgres.js');
@@ -15,8 +15,8 @@ test('adapter subpath exports expose the current package boundary', async () => 
   const docker = await import('../src/adapters/sandbox-docker.js');
   const langgraph = await import('../src/adapters/langgraph.js');
 
-  assert.equal(postgres.adapterPackage.version, '1.5.0');
-  assert.equal(mysql.adapterPackage.version, '1.5.0');
+  assert.equal(postgres.adapterPackage.version, '1.5.2');
+  assert.equal(mysql.adapterPackage.version, '1.5.2');
   assert.equal(typeof postgres.PostgresAdapter, 'function');
   assert.equal(typeof mysql.MySQLAdapter, 'function');
   assert.equal(typeof s3.S3BlobStoreAdapter, 'function');
@@ -340,6 +340,58 @@ test('model evidence boundary records failures and tool proposals', async () => 
   assert.equal(events.some((event) => event.type === 'tool_call_proposed'), true);
   const failure = failureAttribution(rt.store, runId);
   assert.equal(failure.failure_envelopes.some((item) => item.category === 'model'), true);
+});
+
+test('omp bridge records session turn model tool and state evidence', async () => {
+  const rt = new Runtime(JSONStore.memory());
+  const bridge = new OmpLedgerBridge(rt, { appName: 'omp-demo' });
+  const runId = await bridge.recordSessionStarted({ sessionId: 'sess-omp-1', initialState: { topic: 'contract' }, metadata: { runtime: 'omp' } });
+  const stepId = await bridge.recordTurnStarted({ sessionId: 'sess-omp-1', turnId: 'turn-1', agentRole: 'OMPPlanner', metadata: { phase: 'plan' } });
+  await bridge.recordModelCall({
+    sessionId: 'sess-omp-1',
+    turnId: 'turn-1',
+    provider: 'openai',
+    model: 'gpt-4.1',
+    request: { messages: [{ role: 'user', content: 'find payment clause' }] },
+    response: { tool_calls: [{ name: 'search_contract_clause' }] },
+    usage: { input_tokens: 9, output_tokens: 4 },
+    totalUsd: 0.003,
+  });
+  await bridge.recordToolProposal({ sessionId: 'sess-omp-1', turnId: 'turn-1', toolName: 'search_contract_clause', arguments: { clause: 'payment' }, provider: 'openai', model: 'gpt-4.1', reason: 'model requested clause search' });
+  const toolRecord = await bridge.recordToolExecution({ sessionId: 'sess-omp-1', turnId: 'turn-1', toolName: 'search_contract_clause', arguments: { clause: 'payment' }, result: { matches: ['Section 9'] }, ledgerStatus: 'SUCCEEDED' });
+  assert.equal(toolRecord.ledger_status, 'SUCCEEDED');
+  await bridge.recordStateChange({ sessionId: 'sess-omp-1', turnId: 'turn-1', reason: 'persist clause search results', patch: { memory_version: 1 }, beforeSnapshot: { memory_version: 0 }, afterSnapshot: { memory_version: 1 }, diff: { memory_version: [0, 1] } });
+  const version = await bridge.recordTurnCompleted({ sessionId: 'sess-omp-1', turnId: 'turn-1', agentRole: 'OMPPlanner', statePatch: { last_clause: 'payment' } });
+  assert.ok(version >= 2);
+  const eventTypes = rt.store.events(runId).map((event) => event.type);
+  assert.ok(eventTypes.includes('omp_session_started'));
+  assert.ok(eventTypes.includes('omp_turn_started'));
+  assert.ok(eventTypes.includes('model_call_requested'));
+  assert.ok(eventTypes.includes('tool_call_proposed'));
+  assert.ok(eventTypes.includes('tool_call_completed'));
+  assert.ok(eventTypes.includes('omp_state_change_recorded'));
+  assert.ok(eventTypes.includes('step_completed'));
+  assert.equal(rt.store.steps(runId).some((step) => step.step_id === stepId && step.status === 'completed'), true);
+  assert.equal(rt.store.finalState(runId).memory_version, 1);
+  assert.equal(rt.store.finalState(runId).last_clause, 'payment');
+  assert.equal(rt.store.ledger(runId)[0].status, 'SUCCEEDED');
+});
+
+test('omp bridge records model failure and retry lifecycle', async () => {
+  const rt = new Runtime(JSONStore.memory());
+  const bridge = new OmpLedgerBridge(rt, { appName: 'omp-demo' });
+  const runId = await bridge.recordSessionStarted({ sessionId: 'sess-omp-2' });
+  const stepId = await bridge.recordTurnStarted({ sessionId: 'sess-omp-2', turnId: 'turn-1', agentRole: 'OMPResearcher' });
+  await bridge.recordFailure({ sessionId: 'sess-omp-2', turnId: 'turn-1', category: 'model', provider: 'deepseek', model: 'deepseek-chat', errorType: 'RateLimitError', message: 'rate limited', retryable: true, request: { messages: ['hello'] }, terminal: false });
+  await bridge.recordFailure({ sessionId: 'sess-omp-2', turnId: 'turn-1', errorType: 'RetryableAgentError', message: 'retry later', retryable: true, status: 'retry_scheduled' });
+  const eventTypes = rt.store.events(runId).map((event) => event.type);
+  assert.ok(eventTypes.includes('model_call_failed'));
+  assert.ok(eventTypes.includes('step_retry_scheduled'));
+  assert.equal(rt.store.steps(runId)[0].status, 'retry_scheduled');
+  const retryStepId = await bridge.recordTurnStarted({ sessionId: 'sess-omp-2', turnId: 'turn-1', agentRole: 'OMPResearcher' });
+  assert.equal(retryStepId, stepId);
+  assert.equal(rt.store.steps(runId).length, 1);
+  assert.equal(rt.store.steps(runId)[0].status, 'running');
 });
 
 test('media and stream artifacts are indexed in evidence and replay', async () => {

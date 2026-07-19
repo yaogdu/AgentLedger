@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "agentledger-s3"
-version = "1.5.0"
+version = "1.5.2"
 description = "S3-compatible BlobStore adapter package for AgentLedger"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -12,7 +12,7 @@ license = {text = "Apache-2.0"}
 authors = [{name = "AgentLedger Contributors"}]
 keywords = ["agents", "runtime", "s3", "blob-store"]
 dependencies = [
-  "agentledger-runtime>=1.5,<2",
+  "agentledger-runtime>=1.5.2,<2",
   "boto3>=1.34",
 ]
 

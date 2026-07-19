@@ -1,12 +1,23 @@
 """AgentLedger stable agent runtime core."""
 
-__version__ = "1.5.0"
+__version__ = "1.5.2"
 
 from .adapters import FrameworkAdapter, PythonFunctionAdapter, python_agent
 from .adapter_certification import AdapterCertificationBundle, build_adapter_certification_bundle, supported_adapter_certification_profiles
 from .adapters_frameworks import AutoGenAdapter, CrewAIAdapter, LangChainRunnableAdapter, LlamaIndexAdapter, MethodFrameworkAdapter, OpenAIAgentsSDKAdapter, SemanticKernelAdapter
 from .approval import ApprovalDecision, ApprovalRequired
 from .adapters_langgraph import LangGraphCheckpointerAdapter, LangGraphNodeAdapter
+from .adapters_omp import (
+    OMP_ADAPTER_SCHEMA_VERSION,
+    OmpFailure,
+    OmpLedgerBridge,
+    OmpModelCall,
+    OmpSession,
+    OmpStateChange,
+    OmpToolExecution,
+    OmpToolProposal,
+    OmpTurn,
+)
 from .adapters_mcp import InMemoryMCPContextServer, InMemoryMCPToolServer, MCPContextAdapter, MCPResourceDescriptor, MCPToolAdapter
 from .backup import BackupCheck, BackupReadinessChecker, BackupReadinessReport
 from .blobstore import LocalBlobStore
@@ -176,6 +187,15 @@ __all__ = [
     "PolicyRequest",
     "DecisionComposer",
     "OpenAIAgentsSDKAdapter",
+    "OMP_ADAPTER_SCHEMA_VERSION",
+    "OmpFailure",
+    "OmpLedgerBridge",
+    "OmpModelCall",
+    "OmpSession",
+    "OmpStateChange",
+    "OmpToolExecution",
+    "OmpToolProposal",
+    "OmpTurn",
     "PythonFunctionAdapter",
     "ReadOnlyLocalBlobStore",
     "ReadOnlyMySQLStore",

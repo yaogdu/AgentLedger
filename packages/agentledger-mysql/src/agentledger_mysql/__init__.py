@@ -1,6 +1,6 @@
 from agentledger.storage_mysql import MYSQL_SCHEMA_SQL, MySQLDependencyMissing, MySQLStore, MySQLStoreConfig
 
-__version__ = "1.5.0"
+__version__ = "1.5.2"
 
 __all__ = [
     "MYSQL_SCHEMA_SQL",

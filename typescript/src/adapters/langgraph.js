@@ -72,6 +72,6 @@ export class LangGraphNodeAdapter {
 export const adapterPackage = {
   name: 'agentledger-langgraph',
   runtimePackage: 'agentledger-runtime',
-  version: '1.5.0',
+  version: '1.5.2',
   category: 'framework',
 };

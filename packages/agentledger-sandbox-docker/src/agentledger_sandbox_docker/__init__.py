@@ -1,6 +1,6 @@
 from agentledger.sandbox import DockerSandboxExecutor, SandboxConfig, SandboxPolicy, SandboxResult, SandboxRouter, SandboxUnavailable
 
-__version__ = "1.5.0"
+__version__ = "1.5.2"
 
 __all__ = [
     "DockerSandboxExecutor",

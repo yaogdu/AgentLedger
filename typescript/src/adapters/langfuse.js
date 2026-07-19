@@ -33,6 +33,6 @@ export function langfuseTracePayload(bundle, { project = null, environment = nul
 export const adapterPackage = {
   name: 'agentledger-langfuse',
   runtimePackage: 'agentledger-runtime',
-  version: '1.5.0',
+  version: '1.5.2',
   category: 'observability',
 };

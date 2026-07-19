@@ -47,12 +47,14 @@ export class JSONStore {
   static open(path: string): Promise<JSONStore>;
   flush(): Promise<void>;
   createRun(initialState?: JSONObject, sessionId?: string | null): Promise<RunRef>;
+  createExternalStep(runId: string): Promise<JSONObject>;
   claimStep(input: { workerId: string; runId?: string | null; leaseSeconds?: number }): Promise<JSONObject>;
   loadState(runId: string): { state: JSONObject; version: number; sessionId: string };
   heartbeat(input: { stepId: string; leaseToken: string; leaseSeconds?: number }): Promise<number>;
   recoverExpiredLeases(): Promise<number>;
   cancelRun(runId: string, reason: string): Promise<number>;
   commitStatePatch(input: { runId: string; stepId: string; leaseToken: string; baseVersion: number; patch?: JSONObject; checkpointId?: string | null }): Promise<number>;
+  applySystemStatePatch(input: { runId: string; patch?: JSONObject; reason?: string }): Promise<number>;
   markWaitingHuman(input: { runId: string; stepId: string; reason: string; approvalId?: string | null }): Promise<void>;
   approvalRequests(runId?: string | null): JSONObject[];
   approveRequest(approvalId: string, input?: { approver?: string; reason?: string }): Promise<JSONObject>;
@@ -163,6 +165,26 @@ export class AgentContext {
   recordModelFailure(input: { provider?: string; model: string; errorType?: string; message: string; retryable?: boolean; request?: JSONObject; usage?: JSONObject; totalUsd?: number; metadata?: JSONObject }): Promise<void>;
   recordToolCallProposal(input: { toolName: string; arguments?: JSONObject; provider?: string; model?: string; modelCallRef?: string; confidence?: number; reason?: string; metadata?: JSONObject }): Promise<void>;
   heartbeat(leaseSeconds?: number): Promise<number>;
+}
+
+export const OMP_ADAPTER_SCHEMA_VERSION: string;
+export interface OmpSession { sessionId: string; initialState?: JSONObject; metadata?: JSONObject; runId?: string | null; }
+export interface OmpTurn { sessionId: string; turnId: string; agentRole?: string; statePatch?: JSONObject; metadata?: JSONObject; }
+export interface OmpModelCall { sessionId: string; turnId: string; provider: string; model: string; request?: JSONObject; response?: JSONObject; usage?: JSONObject; totalUsd?: number; metadata?: JSONObject; }
+export interface OmpToolProposal { sessionId: string; turnId: string; toolName: string; arguments?: JSONObject; provider?: string; model?: string; modelCallRef?: string; confidence?: number; reason?: string; metadata?: JSONObject; }
+export interface OmpToolExecution { sessionId: string; turnId: string; toolName: string; arguments?: JSONObject; result?: unknown; toolCallId?: string; toolVersion?: string; idempotencyKey?: string; ledgerStatus?: string; errorType?: string; errorMessage?: string; externalId?: string; causalToken?: string; metadata?: JSONObject; }
+export interface OmpFailure { sessionId: string; turnId: string; errorType: string; message: string; retryable?: boolean | null; status?: string; terminal?: boolean; category?: string; provider?: string; model?: string; request?: JSONObject; usage?: JSONObject; totalUsd?: number; metadata?: JSONObject; approvalId?: string | null; }
+export interface OmpStateChange { sessionId: string; turnId?: string | null; reason: string; patch?: JSONObject; label?: string; commitStatus?: string; beforeSnapshot?: unknown; afterSnapshot?: unknown; diff?: unknown; metadata?: JSONObject; }
+export class OmpLedgerBridge {
+  constructor(runtime: Runtime, options?: { appName?: string; workerId?: string | null; leaseSeconds?: number });
+  recordSessionStarted(session: OmpSession): Promise<string>;
+  recordTurnStarted(turn: OmpTurn): Promise<string>;
+  recordTurnCompleted(turn: OmpTurn): Promise<number>;
+  recordModelCall(record: OmpModelCall): Promise<void>;
+  recordToolProposal(proposal: OmpToolProposal): Promise<void>;
+  recordToolExecution(execution: OmpToolExecution): Promise<JSONObject>;
+  recordFailure(failure: OmpFailure): Promise<void>;
+  recordStateChange(change: OmpStateChange): Promise<number>;
 }
 
 export function exportEvidence(store: JSONStore, runId: string): JSONObject;

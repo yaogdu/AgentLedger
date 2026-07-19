@@ -20,6 +20,7 @@ from agentledger.adapter_certification import build_adapter_certification_bundle
 from agentledger.adapters_frameworks import AutoGenAdapter, CrewAIAdapter, LangChainRunnableAdapter, LlamaIndexAdapter, OpenAIAgentsSDKAdapter, SemanticKernelAdapter
 from agentledger.adapters_langgraph import LangGraphCheckpointerAdapter, LangGraphNodeAdapter
 from agentledger.adapters_mcp import InMemoryMCPContextServer, InMemoryMCPToolServer, MCPContextAdapter, MCPToolAdapter
+from agentledger.adapters_omp import OmpFailure, OmpLedgerBridge, OmpModelCall, OmpSession, OmpStateChange, OmpToolExecution, OmpToolProposal, OmpTurn
 from agentledger.backup import BackupReadinessChecker
 from agentledger.blobstore_s3 import S3BlobStore, S3BlobStoreConfig
 from agentledger.conformance import BlobStoreConformanceRunner, FrameworkAdapterConformanceRunner, MediaRuntimeConformanceRunner, StateStoreConformanceRunner, WorkerConformanceRunner
@@ -1087,6 +1088,122 @@ class RuntimeTests(unittest.TestCase):
             self.assertEqual(report["summary"]["model_call_count"], 1)
             self.assertEqual(report["model_calls"][0]["status"], "completed")
             self.assertEqual(report["model_calls"][0]["total_tokens"], 9)
+
+    def test_omp_bridge_records_session_turn_model_tool_and_state(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            rt = Runtime.local(Path(tmp) / ".agentledger")
+            bridge = OmpLedgerBridge(rt, app_name="omp-demo")
+            run_id = bridge.record_session_started(OmpSession(session_id="sess-omp-1", initial_state={"topic": "contract"}, metadata={"runtime": "omp"}))
+            step_id = bridge.record_turn_started(OmpTurn(session_id="sess-omp-1", turn_id="turn-1", agent_role="OMPPlanner", metadata={"phase": "plan"}))
+            bridge.record_model_call(
+                OmpModelCall(
+                    session_id="sess-omp-1",
+                    turn_id="turn-1",
+                    provider="openai",
+                    model="gpt-4.1",
+                    request={"messages": [{"role": "user", "content": "find payment clause"}]},
+                    response={"tool_calls": [{"name": "search_contract_clause"}]},
+                    usage={"input_tokens": 9, "output_tokens": 4},
+                    total_usd=0.003,
+                )
+            )
+            bridge.record_tool_proposal(
+                OmpToolProposal(
+                    session_id="sess-omp-1",
+                    turn_id="turn-1",
+                    tool_name="search_contract_clause",
+                    arguments={"clause": "payment"},
+                    provider="openai",
+                    model="gpt-4.1",
+                    reason="model requested clause search",
+                )
+            )
+            tool_record = bridge.record_tool_execution(
+                OmpToolExecution(
+                    session_id="sess-omp-1",
+                    turn_id="turn-1",
+                    tool_name="search_contract_clause",
+                    arguments={"clause": "payment"},
+                    result={"matches": ["Section 9"]},
+                    ledger_status="SUCCEEDED",
+                )
+            )
+            self.assertEqual(tool_record["ledger_status"], "SUCCEEDED")
+            bridge.record_state_change(
+                OmpStateChange(
+                    session_id="sess-omp-1",
+                    turn_id="turn-1",
+                    reason="persist clause search results",
+                    patch={"memory_version": 1},
+                    before_snapshot={"memory_version": 0},
+                    after_snapshot={"memory_version": 1},
+                    diff={"memory_version": [0, 1]},
+                    metadata={"document": "MEMORY.md"},
+                )
+            )
+            version = bridge.record_turn_completed(
+                OmpTurn(
+                    session_id="sess-omp-1",
+                    turn_id="turn-1",
+                    agent_role="OMPPlanner",
+                    state_patch={"last_clause": "payment"},
+                )
+            )
+            self.assertGreaterEqual(version, 2)
+            report = InspectorDataSource().from_runtime_store(store=rt.store, blobs=rt.blobs, run_id=run_id).to_dict()
+            event_types = [event["type"] for event in report["timeline"]]
+            self.assertIn("omp_session_started", event_types)
+            self.assertIn("omp_turn_started", event_types)
+            self.assertIn("model_call_requested", event_types)
+            self.assertIn("tool_call_proposed", event_types)
+            self.assertIn("tool_call_completed", event_types)
+            self.assertIn("omp_state_change_recorded", event_types)
+            self.assertIn("step_completed", event_types)
+            self.assertTrue(any(step["step_id"] == step_id and step["status"] == "completed" for step in report["steps"]))
+            self.assertEqual(report["summary"]["model_call_count"], 1)
+            self.assertEqual(rt.store.final_state(run_id)["memory_version"], 1)
+            self.assertEqual(rt.store.final_state(run_id)["last_clause"], "payment")
+            self.assertEqual(rt.store.ledger(run_id)[0]["status"], "SUCCEEDED")
+
+    def test_omp_bridge_records_model_failure_and_retry_lifecycle(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            rt = Runtime.local(Path(tmp) / ".agentledger")
+            bridge = OmpLedgerBridge(rt, app_name="omp-demo")
+            run_id = bridge.record_session_started(OmpSession(session_id="sess-omp-2"))
+            step_id = bridge.record_turn_started(OmpTurn(session_id="sess-omp-2", turn_id="turn-1", agent_role="OMPResearcher"))
+            bridge.record_failure(
+                OmpFailure(
+                    session_id="sess-omp-2",
+                    turn_id="turn-1",
+                    category="model",
+                    provider="deepseek",
+                    model="deepseek-chat",
+                    error_type="RateLimitError",
+                    message="rate limited",
+                    retryable=True,
+                    request={"messages": ["hello"]},
+                    terminal=False,
+                )
+            )
+            bridge.record_failure(
+                OmpFailure(
+                    session_id="sess-omp-2",
+                    turn_id="turn-1",
+                    error_type="RetryableAgentError",
+                    message="retry later",
+                    retryable=True,
+                    status="retry_scheduled",
+                )
+            )
+            events = [dict(row) for row in rt.store.events(run_id)]
+            self.assertTrue(any(event["type"] == "model_call_failed" for event in events))
+            self.assertTrue(any(event["type"] == "step_retry_scheduled" for event in events))
+            self.assertEqual(rt.store.steps(run_id)[0]["status"], "retry_scheduled")
+            retry_step_id = bridge.record_turn_started(OmpTurn(session_id="sess-omp-2", turn_id="turn-1", agent_role="OMPResearcher"))
+            self.assertEqual(retry_step_id, step_id)
+            steps = [dict(row) for row in rt.store.steps(run_id)]
+            self.assertEqual(len(steps), 1)
+            self.assertEqual(steps[0]["status"], "running")
 
     def test_python_function_adapter_and_decorator(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

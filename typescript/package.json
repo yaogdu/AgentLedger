@@ -1,6 +1,6 @@
 {
   "name": "agentledger-runtime",
-  "version": "1.5.0",
+  "version": "1.5.2",
   "private": false,
   "description": "Runtime reliability layer for Agent Harness stacks.",
   "type": "module",
@@ -63,6 +63,7 @@
     "examples/quickstart/",
     "examples/three_minute_demo/",
     "examples/mcp_governance/",
+    "examples/omp_bridge/",
     "README.md"
   ]
 }

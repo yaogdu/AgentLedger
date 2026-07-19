@@ -508,6 +508,52 @@ impl MemoryStore {
         (run_id, step_id)
     }
 
+    pub fn create_external_step(&mut self, run_id: &str) -> Result<Step> {
+        let run = self
+            .runs
+            .get(run_id)
+            .ok_or_else(|| RuntimeError(format!("run not found: {run_id}")))?
+            .clone();
+        let step_id = new_id("step");
+        let now = now_seconds();
+        let step = Step {
+            step_id: step_id.clone(),
+            run_id: run_id.to_string(),
+            session_id: run.session_id.clone(),
+            status: "pending".to_string(),
+            owner: None,
+            lease_token: None,
+            lease_until: None,
+            attempt: 0,
+            state_version: run.state_version,
+            checkpoint_id: None,
+            last_error_type: None,
+            last_error: None,
+            cancelled_at: None,
+            created_at: now,
+            updated_at: now,
+        };
+        self.steps.insert(step_id.clone(), step.clone());
+        if let Some(run) = self.runs.get_mut(run_id) {
+            run.status = "pending".to_string();
+            run.updated_at = now;
+        }
+        let mut payload = State::new();
+        payload.insert("step_id".to_string(), Value::String(step_id));
+        payload.insert("external".to_string(), Value::Bool(true));
+        self.append_event(
+            run_id,
+            Some(&run.session_id),
+            Some(&step.step_id),
+            "step_created",
+            payload,
+            None,
+            Some(run.state_version),
+            None,
+        );
+        Ok(step)
+    }
+
     pub fn claim_step(
         &mut self,
         worker_id: &str,
@@ -786,6 +832,44 @@ impl MemoryStore {
             Some(step_id),
             "step_completed",
             complete_payload,
+            None,
+            Some(new_version),
+            None,
+        );
+        Ok(new_version)
+    }
+
+    pub fn apply_system_state_patch(
+        &mut self,
+        run_id: &str,
+        patch: State,
+        reason: &str,
+    ) -> Result<u64> {
+        let run = self
+            .runs
+            .get(run_id)
+            .ok_or_else(|| RuntimeError(format!("run not found: {run_id}")))?
+            .clone();
+        let new_version = run.state_version + 1;
+        let now = now_seconds();
+        if let Some(item) = self.runs.get_mut(run_id) {
+            item.state = merge_patch(&item.state, &patch);
+            item.state_version = new_version;
+            item.updated_at = now;
+        }
+        let mut payload = State::new();
+        payload.insert("patch".to_string(), Value::Object(patch));
+        payload.insert("reason".to_string(), Value::String(reason.to_string()));
+        payload.insert(
+            "state_version".to_string(),
+            Value::Number(new_version as f64),
+        );
+        self.append_event(
+            run_id,
+            Some(&run.session_id),
+            None,
+            "system_state_patch_applied",
+            payload,
             None,
             Some(new_version),
             None,
@@ -2287,6 +2371,722 @@ pub struct AgentContext {
 impl AgentContext {
     pub fn write_state(&mut self, key: &str, value: Value) {
         self.pending_patch.insert(key.to_string(), value);
+    }
+}
+
+pub const OMP_ADAPTER_SCHEMA_VERSION: &str = "agentledger.omp.adapter.v1";
+
+#[derive(Clone, Debug, Default)]
+pub struct OmpSession {
+    pub session_id: String,
+    pub initial_state: State,
+    pub metadata: State,
+    pub run_id: Option<String>,
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct OmpTurn {
+    pub session_id: String,
+    pub turn_id: String,
+    pub agent_role: String,
+    pub state_patch: State,
+    pub metadata: State,
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct OmpModelCall {
+    pub session_id: String,
+    pub turn_id: String,
+    pub provider: String,
+    pub model: String,
+    pub request: State,
+    pub response: State,
+    pub usage: State,
+    pub total_usd: f64,
+    pub metadata: State,
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct OmpToolProposal {
+    pub session_id: String,
+    pub turn_id: String,
+    pub tool_name: String,
+    pub arguments: State,
+    pub provider: Option<String>,
+    pub model: Option<String>,
+    pub model_call_ref: Option<String>,
+    pub confidence: Option<f64>,
+    pub reason: Option<String>,
+    pub metadata: State,
+}
+
+#[derive(Clone, Debug)]
+pub struct OmpToolExecution {
+    pub session_id: String,
+    pub turn_id: String,
+    pub tool_name: String,
+    pub arguments: State,
+    pub result: Option<Value>,
+    pub tool_call_id: Option<String>,
+    pub tool_version: String,
+    pub idempotency_key: Option<String>,
+    pub ledger_status: Option<String>,
+    pub error_type: Option<String>,
+    pub error_message: Option<String>,
+    pub external_id: Option<String>,
+    pub causal_token: Option<String>,
+    pub metadata: State,
+}
+
+impl Default for OmpToolExecution {
+    fn default() -> Self {
+        Self {
+            session_id: String::new(),
+            turn_id: String::new(),
+            tool_name: String::new(),
+            arguments: State::new(),
+            result: None,
+            tool_call_id: None,
+            tool_version: "external".to_string(),
+            idempotency_key: None,
+            ledger_status: None,
+            error_type: None,
+            error_message: None,
+            external_id: None,
+            causal_token: None,
+            metadata: State::new(),
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct OmpFailure {
+    pub session_id: String,
+    pub turn_id: String,
+    pub error_type: String,
+    pub message: String,
+    pub retryable: Option<bool>,
+    pub status: String,
+    pub terminal: Option<bool>,
+    pub category: String,
+    pub provider: Option<String>,
+    pub model: Option<String>,
+    pub request: State,
+    pub usage: State,
+    pub total_usd: f64,
+    pub metadata: State,
+    pub approval_id: Option<String>,
+}
+
+impl Default for OmpFailure {
+    fn default() -> Self {
+        Self {
+            session_id: String::new(),
+            turn_id: String::new(),
+            error_type: String::new(),
+            message: String::new(),
+            retryable: None,
+            status: "failed".to_string(),
+            terminal: None,
+            category: "runtime".to_string(),
+            provider: None,
+            model: None,
+            request: State::new(),
+            usage: State::new(),
+            total_usd: 0.0,
+            metadata: State::new(),
+            approval_id: None,
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct OmpStateChange {
+    pub session_id: String,
+    pub turn_id: Option<String>,
+    pub reason: String,
+    pub patch: State,
+    pub label: String,
+    pub commit_status: String,
+    pub before_snapshot: Option<Value>,
+    pub after_snapshot: Option<Value>,
+    pub diff: Option<Value>,
+    pub metadata: State,
+}
+
+impl Default for OmpStateChange {
+    fn default() -> Self {
+        Self {
+            session_id: String::new(),
+            turn_id: None,
+            reason: String::new(),
+            patch: State::new(),
+            label: "state".to_string(),
+            commit_status: "committed".to_string(),
+            before_snapshot: None,
+            after_snapshot: None,
+            diff: None,
+            metadata: State::new(),
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+struct OmpBridgeSession {
+    run_id: String,
+    session_id: String,
+    initial_step_id: Option<String>,
+}
+
+#[derive(Clone, Debug)]
+struct OmpActiveTurn {
+    run_id: String,
+    session_id: String,
+    step_id: String,
+    lease_token: String,
+    attempt: u64,
+    state_version: u64,
+    agent_role: String,
+}
+
+pub struct OmpLedgerBridge {
+    pub runtime: Runtime,
+    pub app_name: String,
+    pub worker_id: String,
+    pub lease_seconds: f64,
+    sessions: HashMap<String, OmpBridgeSession>,
+    active_turns: HashMap<String, OmpActiveTurn>,
+}
+
+impl OmpLedgerBridge {
+    pub fn new(runtime: Runtime, app_name: &str) -> Self {
+        let app = if app_name.is_empty() { "omp" } else { app_name };
+        Self {
+            runtime,
+            app_name: app.to_string(),
+            worker_id: format!("omp:{app}"),
+            lease_seconds: 60.0,
+            sessions: HashMap::new(),
+            active_turns: HashMap::new(),
+        }
+    }
+
+    pub fn record_session_started(&mut self, session: OmpSession) -> Result<String> {
+        if let Some(existing) = self.sessions.get(&session.session_id) {
+            return Ok(existing.run_id.clone());
+        }
+        let bridge_session = self.ensure_session(session.clone())?;
+        let run = self.runtime.store.run(&bridge_session.run_id)?;
+        let payload = compact_state([
+            ("schema_version", OMP_ADAPTER_SCHEMA_VERSION.into()),
+            ("adapter", "omp-ledger-bridge".into()),
+            ("app_name", self.app_name.clone().into()),
+            ("external_session_id", session.session_id.clone().into()),
+            ("metadata", Value::Object(session.metadata)),
+        ]);
+        self.runtime.store.append_event(
+            &bridge_session.run_id,
+            Some(&bridge_session.session_id),
+            None,
+            "omp_session_started",
+            payload,
+            None,
+            Some(run.state_version),
+            None,
+        );
+        Ok(bridge_session.run_id)
+    }
+
+    pub fn record_turn_started(&mut self, turn: OmpTurn) -> Result<String> {
+        let key = self.turn_key(&turn.session_id, &turn.turn_id);
+        if let Some(active) = self.active_turns.get(&key) {
+            return Ok(active.step_id.clone());
+        }
+        let mut session = self.ensure_session(OmpSession {
+            session_id: turn.session_id.clone(),
+            ..Default::default()
+        })?;
+        if session.initial_step_id.is_some() {
+            session.initial_step_id = None;
+            self.sessions.insert(turn.session_id.clone(), session.clone());
+        } else if self.next_runnable_step_id(&session.run_id).is_none() {
+            self.runtime.store.create_external_step(&session.run_id)?;
+        }
+        let claim = self.runtime.store.claim_step(&self.worker_id, &session.run_id, self.lease_seconds)?;
+        let role = if turn.agent_role.is_empty() { "OMPAgent".to_string() } else { turn.agent_role.clone() };
+        let active = OmpActiveTurn {
+            run_id: claim.run_id.clone(),
+            session_id: claim.session_id.clone(),
+            step_id: claim.step_id.clone(),
+            lease_token: claim.lease_token,
+            attempt: claim.attempt,
+            state_version: claim.state_version,
+            agent_role: role.clone(),
+        };
+        self.active_turns.insert(key, active.clone());
+        let payload = compact_state([
+            ("schema_version", OMP_ADAPTER_SCHEMA_VERSION.into()),
+            ("adapter", "omp-ledger-bridge".into()),
+            ("app_name", self.app_name.clone().into()),
+            ("external_session_id", turn.session_id.clone().into()),
+            ("external_turn_id", turn.turn_id.clone().into()),
+            ("metadata", Value::Object(turn.metadata)),
+        ]);
+        self.runtime.store.append_event(
+            &active.run_id,
+            Some(&active.session_id),
+            Some(&active.step_id),
+            "omp_turn_started",
+            payload,
+            Some(&active.agent_role),
+            Some(active.state_version),
+            None,
+        );
+        Ok(active.step_id)
+    }
+
+    pub fn record_turn_completed(&mut self, turn: OmpTurn) -> Result<u64> {
+        let active = self.require_turn(&turn.session_id, &turn.turn_id)?;
+        let next_version = self.runtime.store.commit_state_patch(
+            &active.run_id,
+            &active.step_id,
+            &active.lease_token,
+            active.state_version,
+            turn.state_patch,
+        )?;
+        let payload = compact_state([
+            ("schema_version", OMP_ADAPTER_SCHEMA_VERSION.into()),
+            ("adapter", "omp-ledger-bridge".into()),
+            ("app_name", self.app_name.clone().into()),
+            ("external_session_id", turn.session_id.clone().into()),
+            ("external_turn_id", turn.turn_id.clone().into()),
+            ("metadata", Value::Object(turn.metadata)),
+        ]);
+        self.runtime.store.append_event(
+            &active.run_id,
+            Some(&active.session_id),
+            Some(&active.step_id),
+            "omp_turn_completed",
+            payload,
+            Some(&active.agent_role),
+            Some(next_version),
+            None,
+        );
+        let key = self.turn_key(&turn.session_id, &turn.turn_id);
+        self.active_turns.remove(&key);
+        Ok(next_version)
+    }
+
+    pub fn record_model_call(&mut self, record: OmpModelCall) -> Result<()> {
+        let ctx = self.context_for(&record.session_id, &record.turn_id)?;
+        self.runtime.record_model_call_evidence(
+            &ctx,
+            &record.provider,
+            &record.model,
+            record.request,
+            record.response,
+            record.usage,
+            record.total_usd,
+            record.metadata,
+        )
+    }
+
+    pub fn record_tool_proposal(&mut self, proposal: OmpToolProposal) -> Result<()> {
+        let ctx = self.context_for(&proposal.session_id, &proposal.turn_id)?;
+        self.runtime.record_tool_call_proposal(
+            &ctx,
+            &proposal.tool_name,
+            proposal.arguments,
+            proposal.provider.as_deref(),
+            proposal.model.as_deref(),
+            proposal.model_call_ref.as_deref(),
+            proposal.confidence,
+            proposal.reason.as_deref(),
+            proposal.metadata,
+        );
+        Ok(())
+    }
+
+    pub fn record_tool_execution(&mut self, execution: OmpToolExecution) -> Result<State> {
+        let active = self.require_turn(&execution.session_id, &execution.turn_id)?;
+        let tool_call_id = execution.tool_call_id.clone().unwrap_or_else(|| new_id("toolcall"));
+        let tool_version = if execution.tool_version.is_empty() { "external".to_string() } else { execution.tool_version.clone() };
+        let request = compact_state([
+            ("schema_version", OMP_ADAPTER_SCHEMA_VERSION.into()),
+            ("tool", execution.tool_name.clone().into()),
+            ("args", Value::Object(execution.arguments.clone())),
+            ("tool_call_id", tool_call_id.clone().into()),
+            ("metadata", Value::Object(execution.metadata.clone())),
+        ]);
+        let request_ref = format_state(&request);
+        let request_hash = stable_hash(&request_ref);
+        let idempotency_key = execution.idempotency_key.clone().unwrap_or_else(|| {
+            format!(
+                "omp:{}:{}:{}:{}",
+                execution.session_id, execution.turn_id, execution.tool_name, tool_call_id
+            )
+        });
+        let causal_token = execution.causal_token.clone().unwrap_or_else(|| format!("omp:{}:{}:{}", execution.session_id, execution.turn_id, tool_call_id));
+        self.runtime.store.append_event(
+            &active.run_id,
+            Some(&active.session_id),
+            Some(&active.step_id),
+            "tool_call_requested",
+            request,
+            Some(&active.agent_role),
+            Some(active.state_version),
+            Some(&causal_token),
+        );
+        let now = now_seconds();
+        let entry = ToolLedgerEntry {
+            ledger_id: new_id("ledger"),
+            run_id: active.run_id.clone(),
+            session_id: active.session_id.clone(),
+            step_id: active.step_id.clone(),
+            tool_name: execution.tool_name.clone(),
+            tool_version,
+            tool_call_id: tool_call_id.clone(),
+            idempotency_key: idempotency_key.clone(),
+            causal_token: causal_token.clone(),
+            request_hash,
+            request_ref,
+            status: "RESERVED".to_string(),
+            external_id: None,
+            response_hash: None,
+            response_ref: None,
+            error_type: None,
+            response: None,
+            created_at: now,
+            updated_at: now,
+        };
+        if let Some(existing) = self.runtime.store.reserve_ledger(&idempotency_key, entry) {
+            if existing.status == "SUCCEEDED" {
+                let mut payload = State::new();
+                payload.insert("tool".into(), execution.tool_name.clone().into());
+                payload.insert("replayed_from_ledger".into(), Value::Bool(true));
+                payload.insert("idempotency_key".into(), idempotency_key.clone().into());
+                payload.insert("tool_call_id".into(), tool_call_id.clone().into());
+                self.runtime.store.append_event(
+                    &active.run_id,
+                    Some(&active.session_id),
+                    Some(&active.step_id),
+                    "tool_call_completed",
+                    payload,
+                    Some(&active.agent_role),
+                    Some(active.state_version),
+                    Some(&causal_token),
+                );
+                return Ok(compact_state([
+                    ("ledger_status", "SUCCEEDED".into()),
+                    ("replayed_from_ledger", Value::Bool(true)),
+                    ("idempotency_key", idempotency_key.into()),
+                    ("tool_call_id", tool_call_id.into()),
+                ]));
+            }
+            if existing.status == "PENDING_VERIFICATION" {
+                return Err(RuntimeError("tool side effect pending verification".to_string()));
+            }
+            if existing.status == "RESERVED" || existing.status == "RUNNING" {
+                return Err(RuntimeError("tool side effect already in progress".to_string()));
+            }
+        }
+        let ledger_status = normalize_omp_ledger_status(
+            execution.ledger_status.as_deref(),
+            execution.error_message.as_deref().or(execution.error_type.as_deref()),
+        )?;
+        let (response_hash, response_ref) = execution.result.as_ref().map(|value| {
+            let response_ref = format_value(value);
+            (Some(stable_hash(&response_ref)), Some(response_ref))
+        }).unwrap_or((None, None));
+        self.runtime.store.update_ledger(
+            &idempotency_key,
+            &ledger_status,
+            execution.result.clone(),
+            execution.error_type.clone(),
+        );
+        if let Some(entry) = self.runtime.store.tool_ledger.get_mut(&idempotency_key) {
+            entry.external_id = execution.external_id.clone().or_else(|| external_id_from_value(execution.result.as_ref()));
+            entry.response_hash = response_hash.clone();
+            entry.response_ref = response_ref.clone();
+        }
+        let event_type = if ledger_status == "SUCCEEDED" || ledger_status == "COMPENSATED" { "tool_call_completed" } else { "tool_call_failed" };
+        let payload = compact_state([
+            ("tool", execution.tool_name.clone().into()),
+            ("tool_call_id", tool_call_id.clone().into()),
+            ("idempotency_key", idempotency_key.clone().into()),
+            ("ledger_status", ledger_status.clone().into()),
+            ("error", execution.error_message.unwrap_or_default().into()),
+            ("error_type", execution.error_type.unwrap_or_default().into()),
+        ]);
+        self.runtime.store.append_event(
+            &active.run_id,
+            Some(&active.session_id),
+            Some(&active.step_id),
+            event_type,
+            payload,
+            Some(&active.agent_role),
+            Some(active.state_version),
+            Some(&causal_token),
+        );
+        if ledger_status != "RESERVED" && ledger_status != "RUNNING" {
+            let mut metadata = State::new();
+            metadata.insert("external_runtime".into(), "omp".into());
+            metadata.insert("ledger_status".into(), ledger_status.clone().into());
+            self.runtime.store.record_cost(&active.run_id, &active.session_id, &active.step_id, "tool", &execution.tool_name, 1.0, "call", metadata);
+        }
+        Ok(compact_state([
+            ("ledger_status", ledger_status.into()),
+            ("idempotency_key", idempotency_key.into()),
+            ("tool_call_id", tool_call_id.into()),
+        ]))
+    }
+
+    pub fn record_failure(&mut self, failure: OmpFailure) -> Result<()> {
+        let active = self.require_turn(&failure.session_id, &failure.turn_id)?;
+        if failure.category == "model" {
+            let ctx = self.context_for(&failure.session_id, &failure.turn_id)?;
+            self.runtime.record_model_failure(
+                &ctx,
+                failure.provider.as_deref().unwrap_or("custom"),
+                failure.model.as_deref().unwrap_or("unknown"),
+                &failure.error_type,
+                &failure.message,
+                failure.retryable,
+                failure.request,
+                failure.usage,
+                failure.total_usd,
+                failure.metadata,
+            )?;
+        }
+        if failure.terminal == Some(false) {
+            return Ok(());
+        }
+        let status = if failure.status.is_empty() { "failed".to_string() } else { failure.status.to_lowercase() };
+        if status == "waiting_human" || status == "approval_required" {
+            self.runtime.store.mark_waiting_human(&active.run_id, &active.step_id, &failure.message, failure.approval_id.as_deref().unwrap_or(""));
+        } else if status == "retry_scheduled" || status == "retry" || failure.retryable == Some(true) {
+            self.runtime.store.mark_retry(&active.run_id, &active.step_id, &failure.error_type, &failure.message);
+        } else {
+            self.runtime.store.mark_failed(&active.run_id, &active.step_id, &failure.error_type, &failure.message);
+        }
+        let key = self.turn_key(&failure.session_id, &failure.turn_id);
+        self.active_turns.remove(&key);
+        Ok(())
+    }
+
+    pub fn record_state_change(&mut self, change: OmpStateChange) -> Result<u64> {
+        let session = self.ensure_session(OmpSession { session_id: change.session_id.clone(), ..Default::default() })?;
+        let active_key = change.turn_id.as_ref().map(|turn_id| self.turn_key(&change.session_id, turn_id));
+        let active = active_key.as_ref().and_then(|key| self.active_turns.get(key)).cloned();
+        let mut artifacts = State::new();
+        let label = if change.label.is_empty() { "state".to_string() } else { change.label.clone() };
+        if let Some(value) = change.before_snapshot.clone() {
+            let id = self.store_artifact(
+                &session.run_id,
+                active.as_ref().map(|item| item.step_id.as_str()),
+                &format!("omp-{label}-before"),
+                value,
+                compact_state([
+                    ("schema_version", OMP_ADAPTER_SCHEMA_VERSION.into()),
+                    ("kind", "before_snapshot".into()),
+                    ("external_session_id", change.session_id.clone().into()),
+                ]),
+                active.as_ref(),
+            )?;
+            artifacts.insert("before_artifact_id".into(), id.into());
+        }
+        if let Some(value) = change.after_snapshot.clone() {
+            let id = self.store_artifact(
+                &session.run_id,
+                active.as_ref().map(|item| item.step_id.as_str()),
+                &format!("omp-{label}-after"),
+                value,
+                compact_state([
+                    ("schema_version", OMP_ADAPTER_SCHEMA_VERSION.into()),
+                    ("kind", "after_snapshot".into()),
+                    ("external_session_id", change.session_id.clone().into()),
+                ]),
+                active.as_ref(),
+            )?;
+            artifacts.insert("after_artifact_id".into(), id.into());
+        }
+        if let Some(value) = change.diff.clone() {
+            let id = self.store_artifact(
+                &session.run_id,
+                active.as_ref().map(|item| item.step_id.as_str()),
+                &format!("omp-{label}-diff"),
+                value,
+                compact_state([
+                    ("schema_version", OMP_ADAPTER_SCHEMA_VERSION.into()),
+                    ("kind", "diff".into()),
+                    ("external_session_id", change.session_id.clone().into()),
+                ]),
+                active.as_ref(),
+            )?;
+            artifacts.insert("diff_artifact_id".into(), id.into());
+        }
+        let mut version = self.runtime.store.run(&session.run_id)?.state_version;
+        let commit_status = if change.commit_status.is_empty() { "committed".to_string() } else { change.commit_status.clone() };
+        if !change.patch.is_empty() && (commit_status == "committed" || commit_status == "applied") {
+            version = self.runtime.store.apply_system_state_patch(&session.run_id, change.patch.clone(), &change.reason)?;
+            if let Some(key) = active_key.as_ref() {
+                if let Some(item) = self.active_turns.get_mut(key) {
+                    item.state_version = version;
+                }
+            }
+        }
+        let payload = compact_state([
+            ("schema_version", OMP_ADAPTER_SCHEMA_VERSION.into()),
+            ("adapter", "omp-ledger-bridge".into()),
+            ("app_name", self.app_name.clone().into()),
+            ("external_session_id", change.session_id.clone().into()),
+            ("external_turn_id", change.turn_id.clone().unwrap_or_default().into()),
+            ("reason", change.reason.into()),
+            ("commit_status", commit_status.into()),
+            ("patch", Value::Object(change.patch)),
+            ("artifacts", Value::Object(artifacts)),
+            ("metadata", Value::Object(change.metadata)),
+        ]);
+        let active_after = active_key.as_ref().and_then(|key| self.active_turns.get(key)).cloned();
+        self.runtime.store.append_event(
+            &session.run_id,
+            Some(&session.session_id),
+            active_after.as_ref().map(|item| item.step_id.as_str()),
+            "omp_state_change_recorded",
+            payload,
+            active_after.as_ref().map(|item| item.agent_role.as_str()),
+            Some(version),
+            None,
+        );
+        Ok(version)
+    }
+
+    fn ensure_session(&mut self, session: OmpSession) -> Result<OmpBridgeSession> {
+        if let Some(existing) = self.sessions.get(&session.session_id) {
+            return Ok(existing.clone());
+        }
+        let bridge_session = if let Some(run_id) = session.run_id.clone() {
+            let run = self.runtime.store.run(&run_id)?;
+            let initial_step_id = self
+                .runtime
+                .store
+                .steps(&run_id)
+                .into_iter()
+                .find(|step| step.status == "pending" || step.status == "retry_scheduled")
+                .map(|step| step.step_id);
+            OmpBridgeSession { run_id, session_id: run.session_id, initial_step_id }
+        } else {
+            let (run_id, step_id) = self.runtime.create_run(session.initial_state);
+            let run = self.runtime.store.run(&run_id)?;
+            OmpBridgeSession { run_id, session_id: run.session_id, initial_step_id: Some(step_id) }
+        };
+        self.sessions.insert(session.session_id, bridge_session.clone());
+        Ok(bridge_session)
+    }
+
+    fn require_turn(&self, session_id: &str, turn_id: &str) -> Result<OmpActiveTurn> {
+        self.active_turns
+            .get(&self.turn_key(session_id, turn_id))
+            .cloned()
+            .ok_or_else(|| RuntimeError(format!("OMP turn not active: {session_id}/{turn_id}")))
+    }
+
+    fn context_for(&self, session_id: &str, turn_id: &str) -> Result<AgentContext> {
+        let active = self.require_turn(session_id, turn_id)?;
+        Ok(AgentContext {
+            run_id: active.run_id,
+            session_id: active.session_id,
+            step_id: active.step_id,
+            agent_role: active.agent_role,
+            lease_token: active.lease_token,
+            attempt: active.attempt,
+            state_version: active.state_version,
+            pending_patch: State::new(),
+        })
+    }
+
+    fn store_artifact(
+        &mut self,
+        run_id: &str,
+        step_id: Option<&str>,
+        name: &str,
+        content: Value,
+        metadata: State,
+        active: Option<&OmpActiveTurn>,
+    ) -> Result<String> {
+        let mut artifact_content = State::new();
+        artifact_content.insert("value".to_string(), content);
+        let artifact = self.runtime.store.create_artifact(run_id, step_id, name, artifact_content, metadata);
+        let run = self.runtime.store.run(run_id)?;
+        let mut payload = State::new();
+        payload.insert("artifact_id".to_string(), artifact.artifact_id.clone().into());
+        payload.insert("name".to_string(), name.into());
+        self.runtime.store.append_event(
+            run_id,
+            Some(&run.session_id),
+            step_id,
+            "artifact_created",
+            payload,
+            active.map(|item| item.agent_role.as_str()),
+            Some(active.map(|item| item.state_version).unwrap_or(run.state_version)),
+            None,
+        );
+        Ok(artifact.artifact_id)
+    }
+
+    fn turn_key(&self, session_id: &str, turn_id: &str) -> String {
+        format!("{session_id}\x1f{turn_id}")
+    }
+
+    fn next_runnable_step_id(&self, run_id: &str) -> Option<String> {
+        self.runtime
+            .store
+            .steps(run_id)
+            .into_iter()
+            .find(|step| step.status == "pending" || step.status == "retry_scheduled")
+            .map(|step| step.step_id)
+    }
+}
+
+fn compact_state<const N: usize>(items: [(&str, Value); N]) -> State {
+    let mut out = State::new();
+    for (key, value) in items {
+        match &value {
+            Value::Null => continue,
+            Value::String(item) if item.is_empty() => continue,
+            Value::Object(item) if item.is_empty() => continue,
+            _ => {}
+        }
+        out.insert(key.to_string(), value);
+    }
+    out
+}
+
+fn normalize_omp_ledger_status(value: Option<&str>, error_message: Option<&str>) -> Result<String> {
+    let raw = value.unwrap_or("");
+    if raw.is_empty() {
+        return Ok(if error_message.unwrap_or("").is_empty() { "SUCCEEDED" } else { "PENDING_VERIFICATION" }.to_string());
+    }
+    let normalized = raw.trim().to_ascii_uppercase();
+    let status = match normalized.as_str() {
+        "SUCCESS" | "SUCCEEDED" | "COMPLETED" | "OK" => "SUCCEEDED",
+        "FAILED" | "PENDING_VERIFICATION" | "UNKNOWN" => "PENDING_VERIFICATION",
+        "FAILED_NO_EFFECT" | "NO_EFFECT" => "FAILED_NO_EFFECT",
+        "COMPENSATED" => "COMPENSATED",
+        "RUNNING" => "RUNNING",
+        "RESERVED" => "RESERVED",
+        other => other,
+    };
+    match status {
+        "SUCCEEDED" | "COMPENSATED" | "FAILED_NO_EFFECT" | "PENDING_VERIFICATION" | "RESERVED" | "RUNNING" => Ok(status.to_string()),
+        _ => Err(RuntimeError(format!("unsupported Tool Ledger status: {raw}"))),
+    }
+}
+
+fn external_id_from_value(value: Option<&Value>) -> Option<String> {
+    match value {
+        Some(Value::Object(item)) => item.get("external_id").map(format_value),
+        _ => None,
     }
 }
 
@@ -4729,6 +5529,211 @@ mod tests {
             .failure_envelopes
             .iter()
             .any(|item| item.get("category") == Some(&Value::String("model".to_string()))));
+    }
+
+    #[test]
+    fn omp_bridge_records_session_turn_model_tool_and_state_evidence() {
+        let runtime = Runtime::new();
+        let mut bridge = OmpLedgerBridge::new(runtime, "omp-demo");
+        let run_id = bridge
+            .record_session_started(OmpSession {
+                session_id: "sess-omp-1".to_string(),
+                initial_state: state(&[("topic", "contract".into())]),
+                metadata: state(&[("runtime", "omp".into())]),
+                ..Default::default()
+            })
+            .unwrap();
+        let step_id = bridge
+            .record_turn_started(OmpTurn {
+                session_id: "sess-omp-1".to_string(),
+                turn_id: "turn-1".to_string(),
+                agent_role: "OMPPlanner".to_string(),
+                metadata: state(&[("phase", "plan".into())]),
+                ..Default::default()
+            })
+            .unwrap();
+        bridge
+            .record_model_call(OmpModelCall {
+                session_id: "sess-omp-1".to_string(),
+                turn_id: "turn-1".to_string(),
+                provider: "openai".to_string(),
+                model: "gpt-4.1".to_string(),
+                request: state(&[(
+                    "messages",
+                    Value::Array(vec![Value::Object(state(&[
+                        ("role", "user".into()),
+                        ("content", "find payment clause".into()),
+                    ]))]),
+                )]),
+                response: state(&[(
+                    "tool_calls",
+                    Value::Array(vec![Value::Object(state(&[(
+                        "name",
+                        "search_contract_clause".into(),
+                    )]))]),
+                )]),
+                usage: state(&[
+                    ("input_tokens", Value::Number(9.0)),
+                    ("output_tokens", Value::Number(4.0)),
+                ]),
+                total_usd: 0.003,
+                ..Default::default()
+            })
+            .unwrap();
+        bridge
+            .record_tool_proposal(OmpToolProposal {
+                session_id: "sess-omp-1".to_string(),
+                turn_id: "turn-1".to_string(),
+                tool_name: "search_contract_clause".to_string(),
+                arguments: state(&[("clause", "payment".into())]),
+                provider: Some("openai".to_string()),
+                model: Some("gpt-4.1".to_string()),
+                reason: Some("model requested clause search".to_string()),
+                ..Default::default()
+            })
+            .unwrap();
+        let tool_record = bridge
+            .record_tool_execution(OmpToolExecution {
+                session_id: "sess-omp-1".to_string(),
+                turn_id: "turn-1".to_string(),
+                tool_name: "search_contract_clause".to_string(),
+                arguments: state(&[("clause", "payment".into())]),
+                result: Some(Value::Object(state(&[(
+                    "matches",
+                    Value::Array(vec!["Section 9".into()]),
+                )]))),
+                ledger_status: Some("SUCCEEDED".to_string()),
+                ..Default::default()
+            })
+            .unwrap();
+        assert_eq!(
+            tool_record.get("ledger_status"),
+            Some(&Value::String("SUCCEEDED".to_string()))
+        );
+        bridge
+            .record_state_change(OmpStateChange {
+                session_id: "sess-omp-1".to_string(),
+                turn_id: Some("turn-1".to_string()),
+                reason: "persist clause search results".to_string(),
+                patch: state(&[("memory_version", Value::Number(1.0))]),
+                before_snapshot: Some(Value::Object(state(&[(
+                    "memory_version",
+                    Value::Number(0.0),
+                )]))),
+                after_snapshot: Some(Value::Object(state(&[(
+                    "memory_version",
+                    Value::Number(1.0),
+                )]))),
+                diff: Some(Value::Object(state(&[(
+                    "memory_version",
+                    Value::Array(vec![Value::Number(0.0), Value::Number(1.0)]),
+                )]))),
+                metadata: state(&[("document", "MEMORY.md".into())]),
+                ..Default::default()
+            })
+            .unwrap();
+        let version = bridge
+            .record_turn_completed(OmpTurn {
+                session_id: "sess-omp-1".to_string(),
+                turn_id: "turn-1".to_string(),
+                agent_role: "OMPPlanner".to_string(),
+                state_patch: state(&[("last_clause", "payment".into())]),
+                ..Default::default()
+            })
+            .unwrap();
+        assert!(version >= 2);
+        let events = bridge.runtime.store.events(&run_id);
+        for event_type in [
+            "omp_session_started",
+            "omp_turn_started",
+            "model_call_requested",
+            "tool_call_proposed",
+            "tool_call_completed",
+            "omp_state_change_recorded",
+            "step_completed",
+        ] {
+            assert!(event_exists(&events, event_type), "missing event {event_type}");
+        }
+        assert!(bridge
+            .runtime
+            .store
+            .steps(&run_id)
+            .iter()
+            .any(|step| step.step_id == step_id && step.status == "completed"));
+        let final_state = bridge.runtime.store.final_state(&run_id).unwrap();
+        assert_eq!(final_state.get("memory_version"), Some(&Value::Number(1.0)));
+        assert_eq!(final_state.get("last_clause"), Some(&Value::String("payment".to_string())));
+        let ledger = bridge.runtime.store.ledger(&run_id);
+        assert_eq!(ledger.len(), 1);
+        assert_eq!(ledger[0].status, "SUCCEEDED");
+    }
+
+    #[test]
+    fn omp_bridge_records_model_failure_and_retry_lifecycle() {
+        let runtime = Runtime::new();
+        let mut bridge = OmpLedgerBridge::new(runtime, "omp-demo");
+        let run_id = bridge
+            .record_session_started(OmpSession {
+                session_id: "sess-omp-2".to_string(),
+                ..Default::default()
+            })
+            .unwrap();
+        bridge
+            .record_turn_started(OmpTurn {
+                session_id: "sess-omp-2".to_string(),
+                turn_id: "turn-1".to_string(),
+                agent_role: "OMPResearcher".to_string(),
+                ..Default::default()
+            })
+            .unwrap();
+        let step_id = bridge.runtime.store.steps(&run_id)[0].step_id.clone();
+        bridge
+            .record_failure(OmpFailure {
+                session_id: "sess-omp-2".to_string(),
+                turn_id: "turn-1".to_string(),
+                category: "model".to_string(),
+                provider: Some("deepseek".to_string()),
+                model: Some("deepseek-chat".to_string()),
+                error_type: "RateLimitError".to_string(),
+                message: "rate limited".to_string(),
+                retryable: Some(true),
+                request: state(&[(
+                    "messages",
+                    Value::Array(vec!["hello".into()]),
+                )]),
+                terminal: Some(false),
+                ..Default::default()
+            })
+            .unwrap();
+        bridge
+            .record_failure(OmpFailure {
+                session_id: "sess-omp-2".to_string(),
+                turn_id: "turn-1".to_string(),
+                error_type: "RetryableAgentError".to_string(),
+                message: "retry later".to_string(),
+                retryable: Some(true),
+                status: "retry_scheduled".to_string(),
+                ..Default::default()
+            })
+            .unwrap();
+        let events = bridge.runtime.store.events(&run_id);
+        assert!(event_exists(&events, "model_call_failed"));
+        assert!(event_exists(&events, "step_retry_scheduled"));
+        let steps = bridge.runtime.store.steps(&run_id);
+        assert_eq!(steps.len(), 1);
+        assert_eq!(steps[0].status, "retry_scheduled");
+        let retry_step_id = bridge
+            .record_turn_started(OmpTurn {
+                session_id: "sess-omp-2".to_string(),
+                turn_id: "turn-1".to_string(),
+                agent_role: "OMPResearcher".to_string(),
+                ..Default::default()
+            })
+            .unwrap();
+        assert_eq!(retry_step_id, step_id);
+        let steps = bridge.runtime.store.steps(&run_id);
+        assert_eq!(steps.len(), 1);
+        assert_eq!(steps[0].status, "running");
     }
 
     #[test]

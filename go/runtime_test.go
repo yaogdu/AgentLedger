@@ -574,6 +574,176 @@ func TestModelEvidenceBoundaryRecordsFailureAndProposal(t *testing.T) {
 	}
 }
 
+func TestOmpBridgeRecordsSessionTurnModelToolAndStateEvidence(t *testing.T) {
+	rt := NewRuntime(NewMemoryStore())
+	bridge := NewOmpLedgerBridge(rt, "omp-demo")
+	runID, err := bridge.RecordSessionStarted(OmpSession{
+		SessionID:    "sess-omp-1",
+		InitialState: JSONObject{"topic": "contract"},
+		Metadata:     JSONObject{"runtime": "omp"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	stepID, err := bridge.RecordTurnStarted(OmpTurn{
+		SessionID: "sess-omp-1",
+		TurnID:    "turn-1",
+		AgentRole: "OMPPlanner",
+		Metadata:  JSONObject{"phase": "plan"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := bridge.RecordModelCall(OmpModelCall{
+		SessionID: "sess-omp-1",
+		TurnID:    "turn-1",
+		Provider:  "openai",
+		Model:     "gpt-4.1",
+		Request:   JSONObject{"messages": []any{JSONObject{"role": "user", "content": "find payment clause"}}},
+		Response:  JSONObject{"tool_calls": []any{JSONObject{"name": "search_contract_clause"}}},
+		Usage:     JSONObject{"input_tokens": 9, "output_tokens": 4},
+		TotalUSD:  0.003,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := bridge.RecordToolProposal(OmpToolProposal{
+		SessionID: "sess-omp-1",
+		TurnID:    "turn-1",
+		ToolName:  "search_contract_clause",
+		Arguments: JSONObject{"clause": "payment"},
+		Provider:  "openai",
+		Model:     "gpt-4.1",
+		Reason:    "model requested clause search",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	toolRecord, err := bridge.RecordToolExecution(OmpToolExecution{
+		SessionID:    "sess-omp-1",
+		TurnID:       "turn-1",
+		ToolName:     "search_contract_clause",
+		Arguments:    JSONObject{"clause": "payment"},
+		Result:       JSONObject{"matches": []any{"Section 9"}},
+		LedgerStatus: "SUCCEEDED",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if toolRecord["ledger_status"] != "SUCCEEDED" {
+		t.Fatalf("unexpected OMP tool record: %#v", toolRecord)
+	}
+	if _, err := bridge.RecordStateChange(OmpStateChange{
+		SessionID:      "sess-omp-1",
+		TurnID:         "turn-1",
+		Reason:         "persist clause search results",
+		Patch:          JSONObject{"memory_version": 1},
+		BeforeSnapshot: JSONObject{"memory_version": 0},
+		AfterSnapshot:  JSONObject{"memory_version": 1},
+		Diff:           JSONObject{"memory_version": []any{0, 1}},
+		Metadata:       JSONObject{"document": "MEMORY.md"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	version, err := bridge.RecordTurnCompleted(OmpTurn{
+		SessionID:  "sess-omp-1",
+		TurnID:     "turn-1",
+		AgentRole:  "OMPPlanner",
+		StatePatch: JSONObject{"last_clause": "payment"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if version < 2 {
+		t.Fatalf("expected state version >=2, got %d", version)
+	}
+	events := rt.Store.Events(runID)
+	for _, eventType := range []string{"omp_session_started", "omp_turn_started", "model_call_requested", "tool_call_proposed", "tool_call_completed", "omp_state_change_recorded", "step_completed"} {
+		if !eventTypeExists(events, eventType) {
+			t.Fatalf("expected %s in events: %#v", eventType, events)
+		}
+	}
+	foundStep := false
+	for _, step := range rt.Store.Steps(runID) {
+		if step.StepID == stepID && step.Status == "completed" {
+			foundStep = true
+		}
+	}
+	if !foundStep {
+		t.Fatalf("expected completed OMP step %s: %#v", stepID, rt.Store.Steps(runID))
+	}
+	finalState, err := rt.Store.FinalState(runID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if finalState["memory_version"] != float64(1) && finalState["memory_version"] != 1 {
+		t.Fatalf("expected memory_version in final state: %#v", finalState)
+	}
+	if finalState["last_clause"] != "payment" {
+		t.Fatalf("expected last_clause in final state: %#v", finalState)
+	}
+	ledger := rt.Store.Ledger(runID)
+	if len(ledger) != 1 || ledger[0].Status != "SUCCEEDED" {
+		t.Fatalf("unexpected Tool Ledger rows: %#v", ledger)
+	}
+}
+
+func TestOmpBridgeRecordsModelFailureAndRetryLifecycle(t *testing.T) {
+	rt := NewRuntime(NewMemoryStore())
+	bridge := NewOmpLedgerBridge(rt, "omp-demo")
+	runID, err := bridge.RecordSessionStarted(OmpSession{SessionID: "sess-omp-2"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	stepID, err := bridge.RecordTurnStarted(OmpTurn{SessionID: "sess-omp-2", TurnID: "turn-1", AgentRole: "OMPResearcher"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	retryable := true
+	nonTerminal := false
+	if err := bridge.RecordFailure(OmpFailure{
+		SessionID: "sess-omp-2",
+		TurnID:    "turn-1",
+		Category:  "model",
+		Provider:  "deepseek",
+		Model:     "deepseek-chat",
+		ErrorType: "RateLimitError",
+		Message:   "rate limited",
+		Retryable: &retryable,
+		Request:   JSONObject{"messages": []any{"hello"}},
+		Terminal:  &nonTerminal,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := bridge.RecordFailure(OmpFailure{
+		SessionID: "sess-omp-2",
+		TurnID:    "turn-1",
+		ErrorType: "RetryableAgentError",
+		Message:   "retry later",
+		Retryable: &retryable,
+		Status:    "retry_scheduled",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	events := rt.Store.Events(runID)
+	if !eventTypeExists(events, "model_call_failed") || !eventTypeExists(events, "step_retry_scheduled") {
+		t.Fatalf("expected model failure and retry lifecycle events: %#v", events)
+	}
+	steps := rt.Store.Steps(runID)
+	if len(steps) != 1 || steps[0].Status != "retry_scheduled" {
+		t.Fatalf("expected retry_scheduled step: %#v", steps)
+	}
+	retryStepID, err := bridge.RecordTurnStarted(OmpTurn{SessionID: "sess-omp-2", TurnID: "turn-1", AgentRole: "OMPResearcher"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if retryStepID != stepID {
+		t.Fatalf("expected retry to reuse %s, got %s", stepID, retryStepID)
+	}
+	steps = rt.Store.Steps(runID)
+	if len(steps) != 1 || steps[0].Status != "running" {
+		t.Fatalf("expected retry start to reuse existing step without orphan: %#v", steps)
+	}
+}
+
 func TestMediaAndStreamArtifactsParity(t *testing.T) {
 	rt := NewRuntime(NewMemoryStore())
 	runID, _, err := rt.CreateRun(JSONObject{})

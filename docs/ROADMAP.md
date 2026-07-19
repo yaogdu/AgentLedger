@@ -13,6 +13,7 @@ Most capabilities should be evaluated in three layers: core contract, built-in m
 | Capability | Runtime-core owns | Optional adapters may own | Explicit non-goals for core |
 |---|---|---|---|
 | Planning / Workflow | adapter contract, runtime-managed checkpoints, evidence hooks, tool boundary integration | LangGraph, CrewAI, AutoGen, LangChain, Temporal, Prefect, Airflow, custom workflow adapters | building a competing planner, graph engine, or workflow engine |
+| Runtime Adapters | stable event/evidence contracts, run/step/model/tool/failure/state mapping, replay and redaction invariants | Oh My Pi / OMP, framework runtimes, custom runtime bridges | learning application-specific product semantics, private paths, memory meanings, account/quota logic, or workspace rules |
 | Eval / Evidence Consumers | evidence export, replay, deterministic rerun hooks, minimal side-effect-free regression checks, conformance fixtures, eval-adapter output formats | Langfuse, Phoenix, promptfoo, DeepEval, Ragas, OpenAI Evals, LangSmith/Braintrust-style consumers, CI report sinks | standalone Eval Platform, full offline evaluator that runs N agents x M cases, metrics service, test-case management, scorer management UI, or long-running eval web app |
 | Tracing / Observability | structured events, trace JSONL, OTLP/JSON export, evidence links | OpenTelemetry SDK packages, collector recipes, external trace stores | full observability suite |
 | Guardrails | ToolSpec schema validation, policy checks, approvals, pre/postcondition hooks, adversarial review gates | richer policy engines, org-specific rule packs, external review workflows | business-specific governance backend |
@@ -125,14 +126,15 @@ tool marketplace or app store
 
 ### Current Implementation Order After 1.5.0
 
-1. Extend framework adoption beyond the first batch: LangGraph package-compatibility smoke, dependency-backed smoke where upstream packages are stable, LangChain/CrewAI/AutoGen facades, and richer runtime-boundary examples.
-2. Turn the Temporal bridge into a clearer optional adapter boundary: keep workflow/activity ownership explicit, add stronger correlation examples, and preserve single-write retry semantics.
-3. Improve Inspector as a language-neutral companion: better run-index filtering/search and a standalone viewer path for Go/TypeScript/Rust users who do not want Python in the application runtime.
-4. Harden observability and eval exports beyond local JSON mapping: OTLP deployment recipes first, then Langfuse/Phoenix/promptfoo/DeepEval/Ragas/OpenAI-Evals/LangSmith-style evidence adapters without replacing those tools.
-5. Continue production-pilot adapter hardening for Postgres, MySQL, S3/MinIO, workers, OTLP transport, and sandbox packages with real-service conformance, permission boundaries, backup/restore drills, and failure semantics.
-6. Start the Runtime Memory Lifecycle baseline only after the model/tool/failure evidence path remains stable: memory refs, snapshots, reads/writes, diffs, lineage, replay semantics, and redaction hooks.
-7. Add sub-agent/multi-agent runtime semantics as a focused reliability layer: parent-child run links, spawn/join events, cancellation propagation, replay-safe joins, and cost/failure attribution.
-8. Extend media/stream support through optional processing adapters, keeping runtime-core limited to refs, metadata, lineage, checkpoints, and replay validation.
+1. Land the Oh My Pi / OMP runtime adapter boundary as a generic runtime adapter: translate OMP session, turn, model-call, tool-proposal, tool-execution, failure, artifact, and versioned state-change records into existing AgentLedger evidence without adding application-specific semantics.
+2. Extend framework adoption beyond the first batch: LangGraph package-compatibility smoke, dependency-backed smoke where upstream packages are stable, LangChain/CrewAI/AutoGen facades, and richer runtime-boundary examples.
+3. Turn the Temporal bridge into a clearer optional adapter boundary: keep workflow/activity ownership explicit, add stronger correlation examples, and preserve single-write retry semantics.
+4. Improve Inspector as a language-neutral companion: better run-index filtering/search and a standalone viewer path for Go/TypeScript/Rust users who do not want Python in the application runtime.
+5. Harden observability and eval exports beyond local JSON mapping: OTLP deployment recipes first, then Langfuse/Phoenix/promptfoo/DeepEval/Ragas/OpenAI-Evals/LangSmith-style evidence adapters without replacing those tools.
+6. Continue production-pilot adapter hardening for Postgres, MySQL, S3/MinIO, workers, OTLP transport, and sandbox packages with real-service conformance, permission boundaries, backup/restore drills, and failure semantics.
+7. Start the Runtime Memory Lifecycle baseline only after the model/tool/failure evidence path remains stable: memory refs, snapshots, reads/writes, diffs, lineage, replay semantics, and redaction hooks.
+8. Add sub-agent/multi-agent runtime semantics as a focused reliability layer: parent-child run links, spawn/join events, cancellation propagation, replay-safe joins, and cost/failure attribution.
+9. Extend media/stream support through optional processing adapters, keeping runtime-core limited to refs, metadata, lineage, checkpoints, and replay validation.
 
 ## Open Source Adoption And Maintainer Workflow
 
@@ -874,6 +876,52 @@ Exit criteria:
 - a developer can run the Temporal bridge example locally and see retry after crash without duplicate side effects
 - release gates cover both examples and benchmark metadata alongside the existing four-language runtime-core parity checks
 
+## 1.5.2 - Oh My Pi Runtime Bridge
+
+Status: implemented patch. Runtime-core semantics remain unchanged.
+
+Goal:
+
+```text
+define a generic OMP runtime bridge that maps normalized OMP-facing records into
+AgentLedger's existing evidence, Tool Ledger, model evidence, failure, replay,
+and versioned state contracts without learning application-specific product
+semantics
+```
+
+Implemented bridge boundary:
+
+- OMP session metadata maps to AgentLedger run/session correlation metadata.
+- OMP turn lifecycle maps to AgentLedger step lifecycle events.
+- OMP model requests/responses map to Runtime Model Evidence Boundary records.
+- OMP model-proposed tool calls map to `tool_call_proposed` evidence and link to later Tool Ledger records when possible.
+- OMP tool calls/results map to Tool Ledger requests, execution status, idempotency, sandbox, approval, and side-effect state.
+- OMP runtime errors map to the Agent Failure Lifecycle and failure attribution records.
+- OMP artifact/file refs map to AgentLedger artifact/evidence refs with redaction metadata.
+- OMP-adjacent document or local-state mutations map to generic versioned state snapshots, diffs, commit/rollback status, and causal run/step links.
+
+Explicit non-goals:
+
+- no application-specific adapter in AgentLedger core
+- no private product paths, workspace rules, memory meanings, persona/harness rules, account/quota logic, or gateway business logic
+- no memory product, semantic memory engine, RAG system, or document conflict-resolution product in runtime-core
+- no dependency on OMP internals or private application paths
+
+Implementation status:
+
+1. Complete: documentation and contract: `OMP_RUNTIME_ADAPTER_DESIGN.md`, Chinese counterpart, roadmap entry, and adapter-roadmap entry.
+2. Complete: normalized OMP-facing records mapped to existing AgentLedger runtime events, with tests and no OMP dependency.
+3. Complete: Python, Go, TypeScript, and Rust examples under `examples/omp_bridge`, `go/examples/omp_bridge`, `typescript/examples/omp_bridge`, and `rust/examples/omp_bridge.rs`.
+4. Roadmap: optional `agentledger-omp` / `agentledger-omp-adapter` package only if the bridge grows beyond the built-in thin translation layer.
+5. Roadmap: application integration guidance showing how OMP-based applications can choose their own emission points while keeping business semantics outside AgentLedger.
+
+Exit criteria:
+
+- a developer can understand the OMP adapter boundary without knowing any private application built on OMP
+- the adapter design explains how versioned document/state evidence works without turning AgentLedger into a memory product
+- the bridge is available across Python, Go, TypeScript, and Rust with tests and examples
+- the roadmap makes clear that this is a patch-level bridge implementation, not a runtime-core semantic change
+
 ## Post-v1 - Sub-agent And Multi-agent Runtime Semantics
 
 Status: roadmap. AgentLedger should not become a full multi-agent planner or collaboration framework, but it should provide reliable runtime primitives for sub-agent and multi-agent execution relationships.
@@ -1002,7 +1050,3 @@ Process:
 Before parity, non-Python implementations may publish 0.x preview packages. After parity, runtime contract changes require synchronized language updates and conformance results.
 
 See `MULTI_LANGUAGE.md` and `LANGUAGE_PARITY_MATRIX.md`.
-
----
-
-generated by codex cli

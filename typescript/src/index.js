@@ -142,6 +142,29 @@ export class JSONStore {
     return { runId, stepId };
   }
 
+  async createExternalStep(runId) {
+    const run = this.data.runs[runId];
+    if (!run) throw new Error(`run not found: ${runId}`);
+    const now = nowSeconds();
+    const stepId = newId('step');
+    const step = {
+      step_id: stepId,
+      run_id: runId,
+      session_id: run.session_id,
+      status: 'pending',
+      attempt: 0,
+      state_version: run.state_version,
+      created_at: now,
+      updated_at: now,
+    };
+    this.data.steps[stepId] = step;
+    run.status = 'pending';
+    run.updated_at = now;
+    this.appendEventSync({ runId, sessionId: run.session_id, stepId, type: 'step_created', stateVersion: run.state_version, payload: { step_id: stepId, external: true } });
+    await this.flush();
+    return clone(step);
+  }
+
   async claimStep({ workerId, runId = null, leaseSeconds = 60 }) {
     const candidates = Object.values(this.data.steps)
       .filter((step) => (!runId || step.run_id === runId) && ['pending', 'retry_scheduled'].includes(step.status))
@@ -256,6 +279,19 @@ export class JSONStore {
     step.updated_at = now;
     this.appendEventSync({ runId, sessionId: step.session_id, stepId, type: 'state_patch_committed', stateVersion: nextVersion, payload: { patch: clone(patch), state_version: nextVersion } });
     this.appendEventSync({ runId, sessionId: step.session_id, stepId, type: 'step_completed', stateVersion: nextVersion, payload: { step_id: stepId } });
+    await this.flush();
+    return nextVersion;
+  }
+
+  async applySystemStatePatch({ runId, patch = {}, reason = 'system state patch' }) {
+    const run = this.data.runs[runId];
+    if (!run) throw new Error(`run not found: ${runId}`);
+    const now = nowSeconds();
+    const nextVersion = run.state_version + 1;
+    run.state = mergePatch(run.state, patch);
+    run.state_version = nextVersion;
+    run.updated_at = now;
+    this.appendEventSync({ runId, sessionId: run.session_id, type: 'system_state_patch_applied', stateVersion: nextVersion, payload: { patch: clone(patch), reason, state_version: nextVersion } });
     await this.flush();
     return nextVersion;
   }
@@ -1034,6 +1070,233 @@ export class AgentContext {
   }
 }
 
+export const OMP_ADAPTER_SCHEMA_VERSION = 'agentledger.omp.adapter.v1';
+
+export class OmpLedgerBridge {
+  constructor(runtime, { appName = 'omp', workerId = null, leaseSeconds = 60 } = {}) {
+    this.runtime = runtime ?? new Runtime(JSONStore.memory());
+    this.appName = appName;
+    this.workerId = workerId ?? `omp:${appName}`;
+    this.leaseSeconds = leaseSeconds;
+    this.sessions = new Map();
+    this.activeTurns = new Map();
+  }
+
+  async recordSessionStarted(session) {
+    if (this.sessions.has(session.sessionId)) return this.sessions.get(session.sessionId).runId;
+    const bridgeSession = await this.#ensureSession(session);
+    const run = this.runtime.store.run(bridgeSession.runId);
+    await this.runtime.store.appendEvent({
+      runId: bridgeSession.runId,
+      sessionId: bridgeSession.sessionId,
+      type: 'omp_session_started',
+      stateVersion: run.state_version,
+      payload: compactObject({ schema_version: OMP_ADAPTER_SCHEMA_VERSION, adapter: 'omp-ledger-bridge', app_name: this.appName, external_session_id: session.sessionId, metadata: session.metadata ?? {} }),
+    });
+    return bridgeSession.runId;
+  }
+
+  async recordTurnStarted(turn) {
+    const key = this.#turnKey(turn.sessionId, turn.turnId);
+    if (this.activeTurns.has(key)) return this.activeTurns.get(key).stepId;
+    const session = await this.#ensureSession({ sessionId: turn.sessionId });
+    if (session.initialStepId) session.initialStepId = null;
+    else if (!this.#nextRunnableStepId(session.runId)) await this.runtime.store.createExternalStep(session.runId);
+    const claim = await this.runtime.store.claimStep({ workerId: this.workerId, runId: session.runId, leaseSeconds: this.leaseSeconds || 60 });
+    const active = {
+      runId: claim.run_id,
+      sessionId: claim.session_id,
+      stepId: claim.step_id,
+      leaseToken: claim.lease_token,
+      attempt: claim.attempt,
+      stateVersion: claim.state_version,
+      agentRole: turn.agentRole ?? 'OMPAgent',
+    };
+    this.activeTurns.set(key, active);
+    await this.runtime.store.appendEvent({
+      runId: active.runId,
+      sessionId: active.sessionId,
+      stepId: active.stepId,
+      type: 'omp_turn_started',
+      agentRole: active.agentRole,
+      stateVersion: active.stateVersion,
+      payload: compactObject({ schema_version: OMP_ADAPTER_SCHEMA_VERSION, adapter: 'omp-ledger-bridge', app_name: this.appName, external_session_id: turn.sessionId, external_turn_id: turn.turnId, metadata: turn.metadata ?? {} }),
+    });
+    return active.stepId;
+  }
+
+  async recordTurnCompleted(turn) {
+    const active = this.#requireTurn(turn.sessionId, turn.turnId);
+    const nextVersion = await this.runtime.store.commitStatePatch({
+      runId: active.runId,
+      stepId: active.stepId,
+      leaseToken: active.leaseToken,
+      baseVersion: active.stateVersion,
+      patch: turn.statePatch ?? {},
+      checkpointId: `omp:${turn.turnId}:${active.attempt}`,
+    });
+    await this.runtime.store.appendEvent({
+      runId: active.runId,
+      sessionId: active.sessionId,
+      stepId: active.stepId,
+      type: 'omp_turn_completed',
+      agentRole: active.agentRole,
+      stateVersion: nextVersion,
+      payload: compactObject({ schema_version: OMP_ADAPTER_SCHEMA_VERSION, adapter: 'omp-ledger-bridge', app_name: this.appName, external_session_id: turn.sessionId, external_turn_id: turn.turnId, metadata: turn.metadata ?? {} }),
+    });
+    this.activeTurns.delete(this.#turnKey(turn.sessionId, turn.turnId));
+    return nextVersion;
+  }
+
+  async recordModelCall(record) {
+    return this.#contextFor(record.sessionId, record.turnId).recordModelCallEvidence({
+      provider: record.provider,
+      model: record.model,
+      request: record.request ?? {},
+      response: record.response ?? {},
+      usage: record.usage ?? {},
+      totalUsd: Number(record.totalUsd ?? record.total_usd ?? 0),
+      metadata: record.metadata ?? {},
+    });
+  }
+
+  async recordToolProposal(proposal) {
+    return this.#contextFor(proposal.sessionId, proposal.turnId).recordToolCallProposal({
+      toolName: proposal.toolName,
+      arguments: proposal.arguments ?? {},
+      provider: proposal.provider,
+      model: proposal.model,
+      modelCallRef: proposal.modelCallRef,
+      confidence: proposal.confidence,
+      reason: proposal.reason,
+      metadata: proposal.metadata ?? {},
+    });
+  }
+
+  async recordToolExecution(execution) {
+    const active = this.#requireTurn(execution.sessionId, execution.turnId);
+    const toolCallId = execution.toolCallId ?? newId('toolcall');
+    const request = compactObject({ schema_version: OMP_ADAPTER_SCHEMA_VERSION, tool: execution.toolName, args: execution.arguments ?? {}, tool_call_id: toolCallId, metadata: execution.metadata ?? {} });
+    const requestHash = sha256JSON(request);
+    const requestRef = JSON.stringify(request);
+    const idempotencyKey = execution.idempotencyKey ?? `omp:${execution.sessionId}:${execution.turnId}:${execution.toolName}:${toolCallId}`;
+    const causalToken = execution.causalToken ?? `omp:${execution.sessionId}:${execution.turnId}:${toolCallId}`;
+    await this.runtime.store.appendEvent({ runId: active.runId, sessionId: active.sessionId, stepId: active.stepId, type: 'tool_call_requested', payload: request, agentRole: active.agentRole, stateVersion: active.stateVersion, causalToken, payloadHash: requestHash, payloadRef: requestRef });
+    const existing = await this.runtime.store.reserveLedger({ runId: active.runId, sessionId: active.sessionId, stepId: active.stepId, toolName: execution.toolName, toolVersion: execution.toolVersion ?? 'external', toolCallId, idempotencyKey, causalToken, requestHash, requestRef });
+    if (existing?.status === 'SUCCEEDED') {
+      await this.runtime.store.appendEvent({ runId: active.runId, sessionId: active.sessionId, stepId: active.stepId, type: 'tool_call_completed', payload: { tool: execution.toolName, replayed_from_ledger: true, idempotency_key: idempotencyKey, tool_call_id: toolCallId }, agentRole: active.agentRole, stateVersion: active.stateVersion, causalToken, payloadHash: existing.response_hash, payloadRef: existing.response_ref });
+      return { ledger_status: 'SUCCEEDED', replayed_from_ledger: true, idempotency_key: idempotencyKey, tool_call_id: toolCallId };
+    }
+    if (existing?.status === 'PENDING_VERIFICATION') throw new Error('tool side effect pending verification');
+    if (['RESERVED', 'RUNNING'].includes(existing?.status)) throw new Error('tool side effect already in progress');
+    const ledgerStatus = normalizeOmpLedgerStatus(execution.ledgerStatus, execution.errorMessage ?? execution.errorType);
+    const responseHash = execution.result === undefined ? null : sha256JSON(execution.result);
+    const responseRef = execution.result === undefined ? null : JSON.stringify(execution.result);
+    await this.runtime.store.updateLedger({ idempotencyKey, status: ledgerStatus, externalId: execution.externalId ?? externalIdFromResult(execution.result), responseHash, responseRef, errorType: execution.errorType, response: execution.result });
+    const eventType = ['SUCCEEDED', 'COMPENSATED'].includes(ledgerStatus) ? 'tool_call_completed' : 'tool_call_failed';
+    await this.runtime.store.appendEvent({ runId: active.runId, sessionId: active.sessionId, stepId: active.stepId, type: eventType, payload: compactObject({ tool: execution.toolName, tool_call_id: toolCallId, idempotency_key: idempotencyKey, ledger_status: ledgerStatus, error: execution.errorMessage, error_type: execution.errorType }), agentRole: active.agentRole, stateVersion: active.stateVersion, causalToken, payloadHash: responseHash, payloadRef: responseRef });
+    if (!['RESERVED', 'RUNNING'].includes(ledgerStatus)) {
+      await this.runtime.store.recordCost({ runId: active.runId, sessionId: active.sessionId, stepId: active.stepId, category: 'tool', name: execution.toolName, amount: 1, unit: 'call', metadata: { external_runtime: 'omp', ledger_status: ledgerStatus } });
+    }
+    return { ledger_status: ledgerStatus, idempotency_key: idempotencyKey, tool_call_id: toolCallId };
+  }
+
+  async recordFailure(failure) {
+    const active = this.#requireTurn(failure.sessionId, failure.turnId);
+    if (failure.category === 'model') {
+      await this.#contextFor(failure.sessionId, failure.turnId).recordModelFailure({
+        provider: failure.provider ?? 'custom',
+        model: failure.model ?? 'unknown',
+        errorType: failure.errorType,
+        message: failure.message,
+        retryable: failure.retryable,
+        request: failure.request ?? {},
+        usage: failure.usage ?? {},
+        totalUsd: Number(failure.totalUsd ?? failure.total_usd ?? 0),
+        metadata: failure.metadata ?? {},
+      });
+    }
+    if (failure.terminal === false) return;
+    const status = String(failure.status ?? 'failed').toLowerCase();
+    if (['waiting_human', 'approval_required'].includes(status)) {
+      await this.runtime.store.markWaitingHuman({ runId: active.runId, stepId: active.stepId, reason: failure.message, approvalId: failure.approvalId ?? null });
+    } else if (['retry_scheduled', 'retry'].includes(status) || failure.retryable === true) {
+      await this.runtime.store.markRetry({ runId: active.runId, stepId: active.stepId, errorType: failure.errorType, message: failure.message });
+    } else {
+      await this.runtime.store.markFailed({ runId: active.runId, stepId: active.stepId, errorType: failure.errorType, message: failure.message });
+    }
+    this.activeTurns.delete(this.#turnKey(failure.sessionId, failure.turnId));
+  }
+
+  async recordStateChange(change) {
+    const session = await this.#ensureSession({ sessionId: change.sessionId });
+    const active = change.turnId ? this.activeTurns.get(this.#turnKey(change.sessionId, change.turnId)) : null;
+    const artifacts = {};
+    const label = change.label ?? 'state';
+    if (change.beforeSnapshot !== undefined) artifacts.before_artifact_id = await this.#storeArtifact(session.runId, active?.stepId ?? null, `omp-${label}-before`, change.beforeSnapshot, { schema_version: OMP_ADAPTER_SCHEMA_VERSION, kind: 'before_snapshot', external_session_id: change.sessionId }, active);
+    if (change.afterSnapshot !== undefined) artifacts.after_artifact_id = await this.#storeArtifact(session.runId, active?.stepId ?? null, `omp-${label}-after`, change.afterSnapshot, { schema_version: OMP_ADAPTER_SCHEMA_VERSION, kind: 'after_snapshot', external_session_id: change.sessionId }, active);
+    if (change.diff !== undefined) artifacts.diff_artifact_id = await this.#storeArtifact(session.runId, active?.stepId ?? null, `omp-${label}-diff`, change.diff, { schema_version: OMP_ADAPTER_SCHEMA_VERSION, kind: 'diff', external_session_id: change.sessionId }, active);
+    let version = this.runtime.store.run(session.runId).state_version;
+    const commitStatus = change.commitStatus ?? 'committed';
+    if (Object.keys(change.patch ?? {}).length && ['committed', 'applied'].includes(String(commitStatus).toLowerCase())) {
+      version = await this.runtime.store.applySystemStatePatch({ runId: session.runId, patch: change.patch, reason: change.reason });
+      if (active) active.stateVersion = version;
+    }
+    await this.runtime.store.appendEvent({
+      runId: session.runId,
+      sessionId: session.sessionId,
+      stepId: active?.stepId ?? null,
+      type: 'omp_state_change_recorded',
+      agentRole: active?.agentRole ?? null,
+      stateVersion: version,
+      payload: compactObject({ schema_version: OMP_ADAPTER_SCHEMA_VERSION, adapter: 'omp-ledger-bridge', app_name: this.appName, external_session_id: change.sessionId, external_turn_id: change.turnId, reason: change.reason, commit_status: commitStatus, patch: change.patch ?? {}, artifacts, metadata: change.metadata ?? {} }),
+    });
+    return version;
+  }
+
+  async #ensureSession(session) {
+    if (this.sessions.has(session.sessionId)) return this.sessions.get(session.sessionId);
+    let bridgeSession;
+    if (session.runId) {
+      const run = this.runtime.store.run(session.runId);
+      const pending = this.runtime.store.steps(session.runId).find((step) => ['pending', 'retry_scheduled'].includes(step.status));
+      bridgeSession = { runId: session.runId, sessionId: run.session_id, initialStepId: pending?.step_id ?? null };
+    } else {
+      const { runId, stepId } = await this.runtime.createRun(session.initialState ?? {});
+      const run = this.runtime.store.run(runId);
+      bridgeSession = { runId, sessionId: run.session_id, initialStepId: stepId };
+    }
+    this.sessions.set(session.sessionId, bridgeSession);
+    return bridgeSession;
+  }
+
+  #requireTurn(sessionId, turnId) {
+    const active = this.activeTurns.get(this.#turnKey(sessionId, turnId));
+    if (!active) throw new Error(`OMP turn not active: ${sessionId}/${turnId}`);
+    return active;
+  }
+
+  #contextFor(sessionId, turnId) {
+    const active = this.#requireTurn(sessionId, turnId);
+    return new AgentContext({ runId: active.runId, sessionId: active.sessionId, stepId: active.stepId, agentRole: active.agentRole, leaseToken: active.leaseToken, attempt: active.attempt, stateVersion: active.stateVersion, store: this.runtime.store, gateway: this.runtime.gateway, budget: this.runtime.budget });
+  }
+
+  async #storeArtifact(runId, stepId, name, content, metadata, active) {
+    const artifact = await this.runtime.store.createArtifact({ runId, stepId, name, content, metadata });
+    const run = this.runtime.store.run(runId);
+    await this.runtime.store.appendEvent({ runId, sessionId: run.session_id, stepId, type: 'artifact_created', payload: { artifact_id: artifact.artifact_id, name }, agentRole: active?.agentRole ?? null, stateVersion: active?.stateVersion ?? run.state_version, payloadHash: artifact.blob_hash, payloadRef: artifact.blob_ref });
+    return artifact.artifact_id;
+  }
+
+  #turnKey(sessionId, turnId) {
+    return `${sessionId}\x1f${turnId ?? ''}`;
+  }
+
+  #nextRunnableStepId(runId) {
+    return this.runtime.store.steps(runId).find((step) => ['pending', 'retry_scheduled'].includes(step.status))?.step_id ?? null;
+  }
+}
+
 const TERMINAL_RUN_STATUSES = new Set(['completed', 'failed', 'cancelled']);
 
 export class LocalWorker {
@@ -1551,6 +1814,32 @@ function compactObject(value) {
     out[key] = clone(item);
   }
   return out;
+}
+
+function normalizeOmpLedgerStatus(value, errorMessage = null) {
+  if (value === undefined || value === null || value === '') return errorMessage ? 'PENDING_VERIFICATION' : 'SUCCEEDED';
+  const aliases = {
+    SUCCESS: 'SUCCEEDED',
+    SUCCEEDED: 'SUCCEEDED',
+    COMPLETED: 'SUCCEEDED',
+    OK: 'SUCCEEDED',
+    FAILED: 'PENDING_VERIFICATION',
+    FAILED_NO_EFFECT: 'FAILED_NO_EFFECT',
+    NO_EFFECT: 'FAILED_NO_EFFECT',
+    PENDING_VERIFICATION: 'PENDING_VERIFICATION',
+    UNKNOWN: 'PENDING_VERIFICATION',
+    COMPENSATED: 'COMPENSATED',
+    RUNNING: 'RUNNING',
+    RESERVED: 'RESERVED',
+  };
+  const status = aliases[String(value).trim().toUpperCase()] ?? String(value).trim().toUpperCase();
+  if (!['SUCCEEDED', 'COMPENSATED', 'FAILED_NO_EFFECT', 'PENDING_VERIFICATION', 'RESERVED', 'RUNNING'].includes(status)) throw new Error(`unsupported Tool Ledger status: ${value}`);
+  return status;
+}
+
+function externalIdFromResult(result) {
+  if (result && typeof result === 'object' && !Array.isArray(result) && result.external_id !== undefined && result.external_id !== null) return String(result.external_id);
+  return null;
 }
 
 function usageTotalTokens(usage = {}) {
