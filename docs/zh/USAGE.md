@@ -98,7 +98,10 @@ PYTHONPATH=src python3 -m agentledger --root .agentledger-demo run examples/side
 
 ```bash
 PYTHONPATH=src python3 -m agentledger --root .agentledger-demo debug <run_id>
+PYTHONPATH=src python3 -m agentledger --root .agentledger-demo debug --last --summary
 PYTHONPATH=src python3 -m agentledger --root .agentledger-demo ledger <run_id>
+PYTHONPATH=src python3 -m agentledger --root .agentledger-demo ledger <run_id> --pending
+PYTHONPATH=src python3 -m agentledger --root .agentledger-demo ledger-resolve <run_id> <idempotency_key> --status failed-no-effect --reason "checked provider"
 PYTHONPATH=src python3 -m agentledger --root .agentledger-demo replay <run_id>
 PYTHONPATH=src python3 -m agentledger --root .agentledger-demo evidence <run_id> --dir ./evidence/<run_id>
 ```

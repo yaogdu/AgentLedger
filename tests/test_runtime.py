@@ -26,7 +26,7 @@ from agentledger.blobstore_s3 import S3BlobStore, S3BlobStoreConfig
 from agentledger.conformance import BlobStoreConformanceRunner, FrameworkAdapterConformanceRunner, MediaRuntimeConformanceRunner, StateStoreConformanceRunner, WorkerConformanceRunner
 from agentledger.contract import contract_json, runtime_contract
 from agentledger.approval import ApprovalRequired
-from agentledger.cli import build_parser, cmd_adapter_certify, cmd_adapter_conformance, cmd_backup_check, cmd_blob_conformance, cmd_conformance, cmd_corpus_add, cmd_corpus_eval, cmd_corpus_list, cmd_corpus_seed, cmd_cost_report, cmd_debug, cmd_divergence, cmd_evidence, cmd_evidence_regression, cmd_failure_export, cmd_failure_inject, cmd_failure_regress, cmd_failure_report, cmd_inspector_evidence, cmd_inspector_run, cmd_inspector_runs, cmd_ledger_resolve, cmd_lint_boundary, cmd_migrate_status, cmd_migrate_up, cmd_review_checklist, cmd_state_conformance, cmd_timetravel, cmd_tools_manifest, cmd_worker_conformance, cmd_worker_plan, cmd_worker_serve, create_blob_store, create_state_store, main
+from agentledger.cli import build_parser, cmd_adapter_certify, cmd_adapter_conformance, cmd_backup_check, cmd_blob_conformance, cmd_conformance, cmd_corpus_add, cmd_corpus_eval, cmd_corpus_list, cmd_corpus_seed, cmd_cost_report, cmd_debug, cmd_divergence, cmd_evidence, cmd_evidence_regression, cmd_failure_export, cmd_failure_inject, cmd_failure_regress, cmd_failure_report, cmd_inspector_evidence, cmd_inspector_run, cmd_inspector_runs, cmd_ledger, cmd_ledger_resolve, cmd_lint_boundary, cmd_migrate_status, cmd_migrate_up, cmd_review_checklist, cmd_state_conformance, cmd_timetravel, cmd_tools_manifest, cmd_worker_conformance, cmd_worker_plan, cmd_worker_serve, create_blob_store, create_state_store, main
 from agentledger.cost import BudgetController, BudgetExceeded, BudgetLimits, CostAttributionReporter
 from agentledger.failure import FAILURE_ENVELOPE_SCHEMA_VERSION, FAILURE_EXPORT_SCHEMA_VERSION, FAILURE_LIFECYCLE_SCHEMA_VERSION, FailureAttributionReporter, FailureRegressionAnalyzer, RetryableAgentError
 from agentledger.failure_injection import FailureInjectionSuite
@@ -146,6 +146,7 @@ class RuntimeTests(unittest.TestCase):
             ["debug", "run-1", "--json", "--include-diffs"],
             ["replay", "run-1"],
             ["ledger", "run-1"],
+            ["ledger", "run-1", "--pending"],
             ["ledger-resolve", "run-1", "idem-1", "--status", "succeeded", "--external-id", "ext-1"],
             ["ledger-resolve", "run-1", "idem-1", "--status", "failed-no-effect", "--reason", "checked"],
             ["evidence", "run-1"],
@@ -2613,6 +2614,19 @@ roles:
             self.assertEqual(payload["counts"]["pending_verification"], 1)
             self.assertEqual(payload["tool_ledger_statuses"], {"PENDING_VERIFICATION": 1})
             self.assertFalse(payload["safe_to_replay"])
+            pending = payload["pending_ledger_resolutions"]
+            self.assertEqual(len(pending), 1)
+            self.assertEqual(pending[0]["tool_name"], "payments.charge")
+            self.assertIn("--root", pending[0]["suggested_commands"][0])
+            self.assertIn("ledger-resolve", pending[0]["suggested_commands"][0])
+            args.json = False
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                cmd_debug(args)
+            text = stdout.getvalue()
+            self.assertIn("pending_ledger tool=payments.charge", text)
+            self.assertIn("suggested agentledger --root", text)
+            self.assertIn(" ledger-resolve ", text)
 
     def test_cli_debug_summary_can_select_last_run(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -2692,6 +2706,17 @@ roles:
 
             self.assertFalse(asyncio.run(rt.run_once(agent_fn, run_id=run_id, agent_role="DebugAgent")))
             ledger_row = rt.store.ledger(run_id)[0]
+            list_args = type(
+                "Args",
+                (),
+                {"root": str(root), "policy": None, "sandbox_config": None, "run_id": run_id, "pending": True},
+            )()
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                cmd_ledger(list_args)
+            pending_rows = json.loads(stdout.getvalue())
+            self.assertEqual(len(pending_rows), 1)
+            self.assertEqual(pending_rows[0]["status"], "PENDING_VERIFICATION")
             args = type(
                 "Args",
                 (),
@@ -2715,6 +2740,25 @@ roles:
             self.assertEqual(payload["status"], "SUCCEEDED")
             self.assertEqual(payload["external_id"], "charge-1")
             self.assertTrue(payload["response_ref"])
+            summary_args = type(
+                "Args",
+                (),
+                {
+                    "root": str(root),
+                    "policy": None,
+                    "sandbox_config": None,
+                    "run_id": run_id,
+                    "summary": True,
+                    "json": True,
+                },
+            )()
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                cmd_debug(summary_args)
+            summary = json.loads(stdout.getvalue())
+            self.assertEqual(summary["counts"]["pending_verification"], 0)
+            self.assertEqual(summary["pending_ledger_resolutions"], [])
+            self.assertEqual(summary["next_action"], "retry_scheduled")
 
             self.assertTrue(asyncio.run(rt.run_once(agent_fn, run_id=run_id, agent_role="DebugAgent")))
             self.assertEqual(calls["count"], 1)

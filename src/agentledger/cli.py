@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import shlex
 import tempfile
 from pathlib import Path
 from typing import Any
@@ -157,7 +158,40 @@ def _resolve_debug_run_id(store: Any, args: argparse.Namespace) -> str:
     return str(resolved)
 
 
-def _debug_summary(report: dict[str, Any], *, ledger_replays: int | None = None) -> dict[str, Any]:
+def _quote(value: Any) -> str:
+    return shlex.quote(str(value))
+
+
+def _debug_command_prefix(args: argparse.Namespace) -> str:
+    root = getattr(args, "root", ".agentledger")
+    if root == ".agentledger":
+        return "agentledger"
+    return f"agentledger --root {_quote(root)}"
+
+
+def _pending_ledger_resolutions(run_id: str, ledger: list[dict[str, Any]], *, command_prefix: str = "agentledger") -> list[dict[str, Any]]:
+    rows = []
+    for row in ledger:
+        if row.get("status") != "PENDING_VERIFICATION":
+            continue
+        idempotency_key = row.get("idempotency_key")
+        if not idempotency_key:
+            continue
+        rows.append(
+            {
+                "tool_name": row.get("tool_name"),
+                "idempotency_key": idempotency_key,
+                "error_type": row.get("error_type"),
+                "suggested_commands": [
+                    f"{command_prefix} ledger-resolve {_quote(run_id)} {_quote(idempotency_key)} --status succeeded --external-id EXTERNAL_ID",
+                    f"{command_prefix} ledger-resolve {_quote(run_id)} {_quote(idempotency_key)} --status failed-no-effect --reason {_quote('checked provider')}",
+                ],
+            }
+        )
+    return rows
+
+
+def _debug_summary(report: dict[str, Any], *, ledger_replays: int | None = None, command_prefix: str = "agentledger") -> dict[str, Any]:
     summary = report.get("summary", {})
     replay_plan = report.get("failure_replay_plan", {})
     run = report.get("run", {})
@@ -168,10 +202,11 @@ def _debug_summary(report: dict[str, Any], *, ledger_replays: int | None = None)
     events = report.get("timeline", [])
     pending_approvals = [row for row in approvals if row.get("status") == "PENDING"]
     pending_verification = [row for row in ledger if row.get("status") == "PENDING_VERIFICATION"]
+    pending_resolutions = _pending_ledger_resolutions(str(run.get("run_id") or ""), ledger, command_prefix=command_prefix)
     retry_scheduled = [row for row in steps if row.get("status") == "retry_scheduled"]
     failed_steps = [row for row in steps if row.get("status") == "failed"]
     next_action = "none"
-    if pending_verification or replay_plan.get("manual_verification_count", 0):
+    if pending_verification:
         next_action = "manual_verification_required"
     elif pending_approvals:
         next_action = "approval_required"
@@ -211,6 +246,7 @@ def _debug_summary(report: dict[str, Any], *, ledger_replays: int | None = None)
         "approval_statuses": _count_values(approvals, "status"),
         "risk_flags": report.get("risk_flags", []),
         "safe_to_replay": replay_plan.get("safe_to_replay", True),
+        "pending_ledger_resolutions": pending_resolutions,
         "failures": [
             {
                 "status": row.get("status"),
@@ -238,6 +274,10 @@ def _print_debug_summary(summary: dict[str, Any]) -> None:
     print(f"tool_ledger_statuses={json.dumps(summary['tool_ledger_statuses'], sort_keys=True)}")
     print(f"risk_flags={', '.join(summary['risk_flags']) if summary['risk_flags'] else '-'}")
     print(f"safe_to_replay={str(summary['safe_to_replay']).lower()}")
+    for row in summary["pending_ledger_resolutions"]:
+        print(f"pending_ledger tool={row.get('tool_name') or '-'} idempotency_key={row['idempotency_key']} error_type={row.get('error_type') or '-'}")
+        for command in row["suggested_commands"]:
+            print(f"suggested {command}")
     for failure in summary["failures"]:
         location = failure.get("tool_name") or failure.get("step_id") or failure.get("event_seq") or "-"
         print(f"failure {failure.get('status') or '-'} owner={failure.get('owner') or '-'} at={location} message={failure.get('message') or '-'}")
@@ -248,7 +288,7 @@ def cmd_debug(args: argparse.Namespace) -> None:
     run_id = _resolve_debug_run_id(rt.store, args)
     if getattr(args, "summary", False):
         report = InspectorDataSource().from_runtime_store(store=rt.store, blobs=rt.blobs, run_id=run_id).to_dict()
-        summary = _debug_summary(report, ledger_replays=_ledger_replay_count(rt.store, run_id))
+        summary = _debug_summary(report, ledger_replays=_ledger_replay_count(rt.store, run_id), command_prefix=_debug_command_prefix(args))
         if getattr(args, "json", False):
             print(json.dumps(summary, indent=2, ensure_ascii=False))
             return
@@ -291,7 +331,10 @@ def _ledger_row(row: Any) -> dict[str, Any]:
 
 def cmd_ledger(args: argparse.Namespace) -> None:
     rt = runtime_from_root(args.root, args.policy, getattr(args, "sandbox_config", None))
-    print(json.dumps([_ledger_row(row) for row in rt.store.ledger(args.run_id)], indent=2))
+    rows = [_ledger_row(row) for row in rt.store.ledger(args.run_id)]
+    if getattr(args, "pending", False):
+        rows = [row for row in rows if row.get("status") == "PENDING_VERIFICATION"]
+    print(json.dumps(rows, indent=2))
 
 
 def _manual_ledger_response(args: argparse.Namespace) -> dict[str, Any]:
@@ -1138,6 +1181,7 @@ def build_parser() -> argparse.ArgumentParser:
     debug.set_defaults(func=cmd_debug)
     ledger = sub.add_parser("ledger")
     ledger.add_argument("run_id")
+    ledger.add_argument("--pending", action="store_true", help="only show ledger rows pending manual verification")
     ledger.set_defaults(func=cmd_ledger)
     ledger_resolve = sub.add_parser("ledger-resolve")
     ledger_resolve.add_argument("run_id")

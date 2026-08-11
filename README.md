@@ -267,6 +267,9 @@ This looks like a normal function call, but the runtime still creates a durable 
 PYTHONPATH=src python3 examples/hello_world/hello.py
 PYTHONPATH=src python3 -m agentledger init
 PYTHONPATH=src python3 -m agentledger run examples/side_effect_idempotency
+PYTHONPATH=src python3 -m agentledger debug --last --summary
+PYTHONPATH=src python3 -m agentledger ledger <run_id> --pending
+PYTHONPATH=src python3 -m agentledger ledger-resolve <run_id> <idempotency_key> --status failed-no-effect --reason "checked provider"
 PYTHONPATH=src python3 -m agentledger debug <run_id> --json --include-diffs
 PYTHONPATH=src python3 -m agentledger replay <run_id>
 PYTHONPATH=src python3 -m agentledger evidence <run_id> --dir ./evidence/<run_id>
