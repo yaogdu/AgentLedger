@@ -6,17 +6,22 @@ This project follows semantic versioning for the stable runtime-core contract. O
 
 ## Unreleased
 
+## 1.5.3 - 2026-08-11
+
 ### Added
 
 - Added local service-backed adapter validation with Docker Compose for disposable Postgres and MinIO services.
 - Added `scripts/validate_adapters_local.py` and `scripts/validate_adapters_local.sh` to run Postgres StateStore, Postgres worker concurrency, and MinIO/S3 BlobStore conformance and emit `adapter-validation.json` / `adapter-validation.md`.
 - Added `scripts/drill_postgres_backup_restore.py` and `scripts/drill_postgres_backup_restore.sh` to run a local Postgres `pg_dump` / restore drill, verify recovered AgentLedger metadata, and emit `postgres-backup-restore-drill.json` / `.md`.
 - Added adapter validation documentation in English and Chinese.
+- Added `agentledger debug --last/--failed --summary` for compact run recovery triage.
+- Added `agentledger ledger-resolve` and `agentledger ledger --pending` for manual Tool Ledger unknown-state recovery.
 
 ### Clarified
 
 - Local Postgres/MinIO validation is release evidence for service-backed adapter behavior, not a production hardening claim. Docker hardening, cloud S3 IAM/KMS/lifecycle, OTLP collector transport, Langfuse ingestion, and backup/restore drills remain external-required.
 - The local Postgres backup/restore drill is release evidence for metadata restore behavior. Production backup schedules, PITR/WAL archive, RTO/RPO timing, restore roles, and S3 blob-prefix pairing remain external-required.
+- This is a Python reference runtime and Inspector companion patch release. Optional adapter packages remain compatible on the `1.5.x` boundary and do not need a new package release.
 
 ## 1.5.2 - 2026-07-19
 
