@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
@@ -198,7 +199,87 @@ export function validateFixtures() {
 }
 
 function usage() {
-  return `AgentLedger TypeScript Runtime 1.5.2\n\nUsage:\n  agentledger-ts doctor\n  agentledger-ts version\n  agentledger-ts quickstart\n  agentledger-ts conformance\n  agentledger-ts contract validate\n  agentledger-ts contract export\n\nProject: https://github.com/yaogdu/AgentLedger`;
+  return `AgentLedger TypeScript Runtime 1.5.2\n\nUsage:\n  agentledger-ts doctor\n  agentledger-ts version\n  agentledger-ts quickstart\n  agentledger-ts conformance\n  agentledger-ts debug <store_path> <run_id> --summary [--json]\n  agentledger-ts ledger <store_path> <run_id> [--pending]\n  agentledger-ts ledger-resolve <store_path> <run_id> <idempotency_key> --status succeeded|failed-no-effect [--external-id id] [--reason text]\n  agentledger-ts contract validate\n  agentledger-ts contract export\n\nProject: https://github.com/yaogdu/AgentLedger`;
+}
+
+function argValue(args, name, fallback = null) {
+  const index = args.indexOf(name);
+  if (index === -1) return fallback;
+  if (index + 1 >= args.length) throw new Error(`${name} requires a value`);
+  return args[index + 1];
+}
+
+function hasFlag(args, name) {
+  return args.includes(name);
+}
+
+function normalizeResolutionStatus(status) {
+  const normalized = String(status ?? '').toLowerCase();
+  if (normalized === 'succeeded' || normalized === 'succeed' || normalized === 'success') return 'SUCCEEDED';
+  if (normalized === 'failed-no-effect' || normalized === 'failed_no_effect') return 'FAILED_NO_EFFECT';
+  throw new Error(`unsupported ledger resolve status: ${status}`);
+}
+
+function quoteShell(value) {
+  const text = String(value);
+  if (/^[A-Za-z0-9_./:=@+-]+$/.test(text)) return text;
+  return `'${text.replaceAll("'", "'\\''")}'`;
+}
+
+function pendingLedgerResolutions(command, storePath, runId, rows) {
+  return rows
+    .filter((row) => row.status === 'PENDING_VERIFICATION' && row.idempotency_key)
+    .map((row) => ({
+      tool_name: row.tool_name ?? null,
+      idempotency_key: row.idempotency_key,
+      error_type: row.error_type ?? null,
+      suggested_commands: [
+        `${command} ledger-resolve ${quoteShell(storePath)} ${quoteShell(runId)} ${quoteShell(row.idempotency_key)} --status succeeded --external-id EXTERNAL_ID`,
+        `${command} ledger-resolve ${quoteShell(storePath)} ${quoteShell(runId)} ${quoteShell(row.idempotency_key)} --status failed-no-effect --reason ${quoteShell('checked provider')}`,
+      ],
+    }));
+}
+
+function operatorDebugSummary(store, storePath, runId, command = 'agentledger-ts') {
+  const run = store.run(runId);
+  const steps = store.steps(runId);
+  const events = store.events(runId);
+  const ledger = store.ledger(runId);
+  const approvals = store.approvalRequests(runId);
+  const pendingLedger = ledger.filter((row) => row.status === 'PENDING_VERIFICATION');
+  const pendingApprovals = approvals.filter((row) => row.status === 'PENDING');
+  const failedSteps = steps.filter((row) => row.status === 'failed');
+  const retryScheduled = steps.filter((row) => row.status === 'retry_scheduled');
+  let nextAction = 'none';
+  if (pendingLedger.length) nextAction = 'manual_verification_required';
+  else if (pendingApprovals.length) nextAction = 'approval_required';
+  else if (retryScheduled.length) nextAction = 'retry_scheduled';
+  else if (failedSteps.length) nextAction = 'inspect_failure';
+  return {
+    run_id: runId,
+    run_status: run.status,
+    next_action: nextAction,
+    counts: {
+      steps: steps.length,
+      events: events.length,
+      ledger: ledger.length,
+      pending_verification: pendingLedger.length,
+      pending_approvals: pendingApprovals.length,
+      failed_steps: failedSteps.length,
+    },
+    pending_ledger_resolutions: pendingLedgerResolutions(command, storePath, runId, ledger),
+  };
+}
+
+function printOperatorDebugSummary(summary) {
+  console.log(`run_id=${summary.run_id}`);
+  console.log(`run_status=${summary.run_status}`);
+  console.log(`next_action=${summary.next_action}`);
+  console.log(`counts=${JSON.stringify(summary.counts)}`);
+  for (const row of summary.pending_ledger_resolutions) {
+    console.log(`pending_ledger tool=${row.tool_name ?? '-'} idempotency_key=${row.idempotency_key} error_type=${row.error_type ?? '-'}`);
+    for (const command of row.suggested_commands) console.log(`suggested ${command}`);
+  }
 }
 
 export async function runRuntimeSmoke() {
@@ -597,6 +678,47 @@ export async function main(args = process.argv.slice(2)) {
     const checks = validateFixtures();
     const semanticChecks = await runSemanticSmokes();
     console.log(JSON.stringify({ language: 'typescript', suite: 'agentledger_runtime_core', passed: true, checks: ['contract_validate', ...checks, ...semanticChecks] }, null, 2));
+    return 0;
+  }
+  if (args[0] === 'ledger' && args.length >= 3) {
+    const [, storePath, runId, ...flags] = args;
+    const store = await JSONStore.open(storePath);
+    let rows = store.ledger(runId);
+    if (hasFlag(flags, '--pending')) rows = rows.filter((row) => row.status === 'PENDING_VERIFICATION');
+    console.log(JSON.stringify(rows, null, 2));
+    return 0;
+  }
+  if (args[0] === 'ledger-resolve' && args.length >= 4) {
+    const [, storePath, runId, idempotencyKey, ...flags] = args;
+    const status = normalizeResolutionStatus(argValue(flags, '--status'));
+    const store = await JSONStore.open(storePath);
+    const row = store.ledger(runId).find((entry) => entry.idempotency_key === idempotencyKey);
+    if (!row) throw new Error(`ledger entry not found for run ${runId}: ${idempotencyKey}`);
+    if (row.status !== 'PENDING_VERIFICATION') throw new Error(`ledger entry is not pending verification: ${row.status}`);
+    const externalId = argValue(flags, '--external-id');
+    const reason = argValue(flags, '--reason', 'manual resolution');
+    const response = status === 'SUCCEEDED' ? { external_id: externalId ?? null, manual_resolution: true } : { manual_resolution: true, reason };
+    const responseRef = JSON.stringify(response);
+    const responseHash = createHash('sha256').update(responseRef).digest('hex');
+    await store.updateLedger({ idempotencyKey, status, externalId, responseHash, responseRef, errorType: status === 'FAILED_NO_EFFECT' ? 'ManualNoEffect' : null, response });
+    await store.appendEvent({
+      runId,
+      sessionId: row.session_id,
+      stepId: row.step_id,
+      type: 'tool_ledger_resolved',
+      payload: { ledger_id: row.ledger_id, tool: row.tool_name, idempotency_key: idempotencyKey, previous_status: row.status, status, reason, external_id: externalId ?? null },
+    });
+    const resolved = store.ledger(runId).find((entry) => entry.idempotency_key === idempotencyKey);
+    console.log(JSON.stringify(resolved, null, 2));
+    return 0;
+  }
+  if (args[0] === 'debug' && args.length >= 3) {
+    const [, storePath, runId, ...flags] = args;
+    if (!hasFlag(flags, '--summary')) throw new Error('debug currently supports --summary');
+    const store = await JSONStore.open(storePath);
+    const summary = operatorDebugSummary(store, storePath, runId);
+    if (hasFlag(flags, '--json')) console.log(JSON.stringify(summary, null, 2));
+    else printOperatorDebugSummary(summary);
     return 0;
   }
   if (args.length === 2 && args[0] === 'contract' && args[1] === 'validate') {

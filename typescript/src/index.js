@@ -867,7 +867,7 @@ export class ToolGateway {
           return clone(existing.response);
         }
         if (existing.status === 'PENDING_VERIFICATION') throw new Error('tool side effect pending verification');
-        throw new Error('tool side effect already in progress');
+        if (existing.status !== 'FAILED_NO_EFFECT') throw new Error('tool side effect already in progress');
       }
       await this.store.updateLedger({ idempotencyKey, status: 'RUNNING' });
     }
@@ -884,6 +884,7 @@ export class ToolGateway {
     } catch (error) {
       if (managedSideEffect) await this.store.updateLedger({ idempotencyKey, status: 'PENDING_VERIFICATION', errorType: error.constructor?.name ?? 'Error' });
       await this.store.appendEvent({ runId: agentCtx.runId, sessionId: agentCtx.sessionId, stepId: agentCtx.stepId, type: 'tool_call_failed', payload: { tool: toolName, error: String(error?.message ?? error) }, agentRole: agentCtx.agentRole, stateVersion: agentCtx.stateVersion, causalToken });
+      if (managedSideEffect) throw new RetryableAgentError(error?.message ?? String(error));
       throw error;
     }
   }

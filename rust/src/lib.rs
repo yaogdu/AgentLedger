@@ -1096,11 +1096,13 @@ impl MemoryStore {
         &mut self,
         key: &str,
         status: &str,
+        external_id: Option<String>,
         response: Option<Value>,
         error_type: Option<String>,
     ) {
         if let Some(entry) = self.tool_ledger.get_mut(key) {
             entry.status = status.to_string();
+            entry.external_id = external_id;
             entry.response = response.clone();
             entry.response_ref = response.as_ref().map(format_value);
             entry.response_hash = entry.response_ref.as_ref().map(|value| stable_hash(value));
@@ -1756,12 +1758,23 @@ impl Runtime {
                         .response
                         .ok_or_else(|| RuntimeError("missing ledger response".to_string()));
                 }
-                return Err(RuntimeError(
-                    "tool side effect already in progress".to_string(),
-                ));
+                if existing.status == "PENDING_VERIFICATION" {
+                    return Err(RuntimeError(
+                        "tool side effect pending verification".to_string(),
+                    ));
+                }
+                if existing.status == "FAILED_NO_EFFECT" {
+                    self.store
+                        .update_ledger(&idempotency_key, "RUNNING", None, None, None);
+                } else {
+                    return Err(RuntimeError(
+                        "tool side effect already in progress".to_string(),
+                    ));
+                }
+            } else {
+                self.store
+                    .update_ledger(&idempotency_key, "RUNNING", None, None, None);
             }
-            self.store
-                .update_ledger(&idempotency_key, "RUNNING", None, None);
         }
         if sandbox_required {
             let executor = if sandbox_executor.is_empty() { "default".to_string() } else { sandbox_executor.clone() };
@@ -1842,7 +1855,7 @@ impl Runtime {
                 validate_tool_schema(schema, &value, "$result")?;
             }
             if managed {
-                self.store.update_ledger(&idempotency_key, "SUCCEEDED", Some(value.clone()), None);
+                self.store.update_ledger(&idempotency_key, "SUCCEEDED", external_id_from_value(Some(&value)), Some(value.clone()), None);
             }
             let mut payload = State::new();
             payload.insert("tool".to_string(), Value::String(tool_name.to_string()));
@@ -1882,6 +1895,7 @@ impl Runtime {
                                 &idempotency_key,
                                 "PENDING_VERIFICATION",
                                 None,
+                                None,
                                 Some("ToolOutputValidationError".to_string()),
                             );
                         }
@@ -1902,6 +1916,9 @@ impl Runtime {
                             Some(ctx.state_version),
                             Some(&causal_token),
                         );
+                        if managed {
+                            return Err(RuntimeError("retryable".to_string()));
+                        }
                         return Err(err);
                     }
                 }
@@ -1909,6 +1926,7 @@ impl Runtime {
                     self.store.update_ledger(
                         &idempotency_key,
                         "SUCCEEDED",
+                        external_id_from_value(Some(&value)),
                         Some(value.clone()),
                         None,
                     );
@@ -1947,6 +1965,7 @@ impl Runtime {
                         &idempotency_key,
                         "PENDING_VERIFICATION",
                         None,
+                        None,
                         Some("RuntimeError".to_string()),
                     );
                 }
@@ -1963,7 +1982,11 @@ impl Runtime {
                     Some(ctx.state_version),
                     Some(&causal_token),
                 );
-                Err(err)
+                if managed {
+                    Err(RuntimeError("retryable".to_string()))
+                } else {
+                    Err(err)
+                }
             }
         }
     }
@@ -2801,11 +2824,11 @@ impl OmpLedgerBridge {
         self.runtime.store.update_ledger(
             &idempotency_key,
             &ledger_status,
+            execution.external_id.clone().or_else(|| external_id_from_value(execution.result.as_ref())),
             execution.result.clone(),
             execution.error_type.clone(),
         );
         if let Some(entry) = self.runtime.store.tool_ledger.get_mut(&idempotency_key) {
-            entry.external_id = execution.external_id.clone().or_else(|| external_id_from_value(execution.result.as_ref()));
             entry.response_hash = response_hash.clone();
             entry.response_ref = response_ref.clone();
         }
@@ -3085,7 +3108,11 @@ fn normalize_omp_ledger_status(value: Option<&str>, error_message: Option<&str>)
 
 fn external_id_from_value(value: Option<&Value>) -> Option<String> {
     match value {
-        Some(Value::Object(item)) => item.get("external_id").map(format_value),
+        Some(Value::Object(item)) => match item.get("external_id") {
+            Some(Value::String(value)) => Some(value.clone()),
+            Some(value) => Some(format_value(value)),
+            None => None,
+        },
         _ => None,
     }
 }
@@ -5227,6 +5254,58 @@ mod tests {
             .unwrap();
         assert_eq!(first, second);
         assert_eq!(runtime.store.ledger(&run_id).len(), 1);
+    }
+
+    #[test]
+    fn failed_no_effect_ledger_entry_allows_retry() {
+        let calls = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let calls_for_tool = calls.clone();
+        let mut runtime = Runtime::new();
+        runtime.register_tool(
+            ToolSpec::new(
+                "payments.charge",
+                Box::new(move |_| {
+                    let attempt = calls_for_tool.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                    if attempt == 0 {
+                        return Err(RuntimeError("provider timeout".to_string()));
+                    }
+                    Ok(Value::Object(state(&[("external_id", "charge-2".into())])))
+                }),
+            )
+            .side_effect("external")
+            .idempotency_required(true),
+        );
+        let (run_id, _) = runtime.create_run(State::new());
+        let ctx = claim_context(&mut runtime, &run_id, "worker-a", "BillingAgent");
+        let err = runtime
+            .call_tool(&ctx, "payments.charge", state(&[("amount", 10.0.into())]))
+            .unwrap_err();
+        assert_eq!(err.0, "retryable");
+        let key = runtime.store.ledger(&run_id)[0].idempotency_key.clone();
+        runtime
+            .store
+            .mark_retry(&run_id, &ctx.step_id, "RuntimeError", "provider timeout");
+        runtime.store.update_ledger(
+            &key,
+            "FAILED_NO_EFFECT",
+            None,
+            None,
+            Some("ManualNoEffect".to_string()),
+        );
+        let ctx2 = claim_context(&mut runtime, &run_id, "worker-b", "BillingAgent");
+        let result = runtime
+            .call_tool(&ctx2, "payments.charge", state(&[("amount", 10.0.into())]))
+            .unwrap();
+        assert_eq!(calls.load(std::sync::atomic::Ordering::SeqCst), 2);
+        assert_eq!(runtime.store.ledger(&run_id)[0].status, "SUCCEEDED");
+        assert_eq!(runtime.store.ledger(&run_id)[0].external_id.as_deref(), Some("charge-2"));
+        assert_eq!(
+            match result {
+                Value::Object(row) => row.get("external_id").cloned(),
+                _ => None,
+            },
+            Some(Value::String("charge-2".to_string()))
+        );
     }
 
     #[test]

@@ -396,6 +396,7 @@ func (g *ToolGateway) Call(ctx context.Context, agentCtx *AgentContext, toolName
 				return existing.Response, err
 			case "PENDING_VERIFICATION":
 				return nil, errors.New("tool side effect pending verification")
+			case "FAILED_NO_EFFECT":
 			default:
 				return nil, errors.New("tool side effect already in progress")
 			}
@@ -418,6 +419,9 @@ func (g *ToolGateway) Call(ctx context.Context, agentCtx *AgentContext, toolName
 		if appendErr != nil {
 			return nil, appendErr
 		}
+		if managedSideEffect {
+			return nil, ErrRetryable
+		}
 		return nil, err
 	}
 	if err := ValidateToolSchema(spec.OutputSchema, result, "$result"); err != nil {
@@ -427,6 +431,9 @@ func (g *ToolGateway) Call(ctx context.Context, agentCtx *AgentContext, toolName
 		_, appendErr := g.Store.AppendEvent(AppendEventInput{RunID: agentCtx.RunID, SessionID: agentCtx.SessionID, StepID: agentCtx.StepID, Type: "tool_call_failed", AgentRole: agentCtx.AgentRole, StateVersion: agentCtx.StateVersion, CausalToken: causal, Payload: JSONObject{"tool": toolName, "error": err.Error(), "phase": "output_validation"}})
 		if appendErr != nil {
 			return nil, appendErr
+		}
+		if managedSideEffect {
+			return nil, ErrRetryable
 		}
 		return nil, err
 	}

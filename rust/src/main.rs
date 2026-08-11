@@ -12,7 +12,7 @@ use agentledger::{
     simple_run, time_travel, time_travel_html, trace_jsonl, trace_spans, AgentContext,
     BudgetLimits, FunctionAdapter, InMemoryMCPContextServer, InMemoryMCPToolServer, LocalBlobStore,
     LocalWorker, MCPContextAdapter, MCPToolAdapter, MemoryStore, MethodFrameworkAdapter, Runtime,
-    RuntimeScheduler, SandboxExecutor, State, ToolSpec, Value, WorkerService,
+    RuntimeScheduler, SandboxExecutor, State, ToolLedgerEntry, ToolSpec, Value, WorkerService,
 };
 
 const FIXTURE_CHECKS: &[(&str, &[&str])] = &[
@@ -262,6 +262,19 @@ fn run(args: Vec<String>) -> Result<(), Box<dyn Error>> {
         [command] if command == "doctor" => { println!("{{\n  \"language\": \"rust\",\n  \"version\": \"1.5.2\",\n  \"status\": \"ok\",\n  \"runtime_core_parity\": true\n}}"); Ok(()) }
         [command] if command == "quickstart" => run_quickstart(),
         [command] if command == "conformance" => run_conformance(),
+        [command, path, run_id] if command == "ledger" => run_ledger(path, run_id, false),
+        [command, path, run_id, flag] if command == "ledger" && flag == "--pending" => {
+            run_ledger(path, run_id, true)
+        }
+        [command, path, run_id, key, flags @ ..] if command == "ledger-resolve" => {
+            run_ledger_resolve(path, run_id, key, flags)
+        }
+        [command, path, run_id, flags @ ..] if command == "debug" => {
+            if !has_flag(flags, "--summary") {
+                return Err("debug currently supports --summary".into());
+            }
+            run_debug_summary(path, run_id, has_flag(flags, "--json"))
+        }
         [command, action] if command == "contract" && action == "validate" => validate_contract(),
         [command, action] if command == "contract" && action == "export" => {
             print!("{}", fs::read_to_string(contract_path()?)?);
@@ -272,7 +285,315 @@ fn run(args: Vec<String>) -> Result<(), Box<dyn Error>> {
 }
 
 fn print_help() {
-    println!("AgentLedger Rust Runtime 1.5.2\n\nUsage:\n  agentledger-rust doctor\n  agentledger-rust version\n  agentledger-rust quickstart\n  agentledger-rust conformance\n  agentledger-rust contract validate\n  agentledger-rust contract export\n\nProject: https://github.com/yaogdu/AgentLedger");
+    println!("AgentLedger Rust Runtime 1.5.2\n\nUsage:\n  agentledger-rust doctor\n  agentledger-rust version\n  agentledger-rust quickstart\n  agentledger-rust conformance\n  agentledger-rust debug <store_path> <run_id> --summary [--json]\n  agentledger-rust ledger <store_path> <run_id> [--pending]\n  agentledger-rust ledger-resolve <store_path> <run_id> <idempotency_key> --status succeeded|failed-no-effect [--external-id id] [--reason text]\n  agentledger-rust contract validate\n  agentledger-rust contract export\n\nProject: https://github.com/yaogdu/AgentLedger");
+}
+
+fn has_flag(args: &[String], name: &str) -> bool {
+    args.iter().any(|arg| arg == name)
+}
+
+fn arg_value(args: &[String], name: &str, fallback: &str) -> Result<String, Box<dyn Error>> {
+    for (index, arg) in args.iter().enumerate() {
+        if arg == name {
+            return args
+                .get(index + 1)
+                .cloned()
+                .ok_or_else(|| format!("{name} requires a value").into());
+        }
+    }
+    Ok(fallback.to_string())
+}
+
+fn normalize_resolution_status(status: &str) -> Result<&'static str, Box<dyn Error>> {
+    match status.to_ascii_lowercase().as_str() {
+        "succeeded" | "succeed" | "success" => Ok("SUCCEEDED"),
+        "failed-no-effect" | "failed_no_effect" => Ok("FAILED_NO_EFFECT"),
+        _ => Err(format!("unsupported ledger resolve status: {status}").into()),
+    }
+}
+
+fn run_ledger(path: &str, run_id: &str, pending_only: bool) -> Result<(), Box<dyn Error>> {
+    let store = MemoryStore::load_from_path(path)?;
+    let mut rows = store.ledger(run_id);
+    if pending_only {
+        rows.retain(|row| row.status == "PENDING_VERIFICATION");
+    }
+    println!("[{}]", rows.iter().map(format_ledger_row).collect::<Vec<_>>().join(","));
+    Ok(())
+}
+
+fn run_ledger_resolve(path: &str, run_id: &str, key: &str, args: &[String]) -> Result<(), Box<dyn Error>> {
+    let status_arg = arg_value(args, "--status", "")?;
+    let status = normalize_resolution_status(&status_arg)?;
+    let external_id = arg_value(args, "--external-id", "")?;
+    let reason = arg_value(args, "--reason", "manual resolution")?;
+    let mut store = MemoryStore::load_from_path(path)?;
+    let existing = store.ledger(run_id).into_iter().find(|row| row.idempotency_key == key)
+        .ok_or_else(|| format!("ledger entry not found for run {run_id}: {key}"))?;
+    if existing.status != "PENDING_VERIFICATION" {
+        return Err(format!("ledger entry is not pending verification: {}", existing.status).into());
+    }
+    let response = if status == "SUCCEEDED" {
+        Some(Value::Object(state(&[
+            ("manual_resolution", Value::Bool(true)),
+            ("external_id", Value::String(external_id.clone())),
+        ])))
+    } else {
+        Some(Value::Object(state(&[
+            ("manual_resolution", Value::Bool(true)),
+            ("reason", Value::String(reason.clone())),
+        ])))
+    };
+    store.update_ledger(
+        key,
+        status,
+        if external_id.is_empty() { None } else { Some(external_id.clone()) },
+        response,
+        if status == "FAILED_NO_EFFECT" { Some("ManualNoEffect".to_string()) } else { None },
+    );
+    store.append_event(
+        run_id,
+        Some(&existing.session_id),
+        Some(&existing.step_id),
+        "tool_ledger_resolved",
+        state(&[
+            ("ledger_id", Value::String(existing.ledger_id)),
+            ("tool", Value::String(existing.tool_name)),
+            ("idempotency_key", Value::String(key.to_string())),
+            ("previous_status", Value::String(existing.status)),
+            ("status", Value::String(status.to_string())),
+            ("reason", Value::String(reason.clone())),
+            ("external_id", Value::String(external_id.clone())),
+        ]),
+        None,
+        None,
+        None,
+    );
+    store.save_to_path(path)?;
+    if let Some(row) = store.ledger(run_id).into_iter().find(|row| row.idempotency_key == key) {
+        println!("{}", format_ledger_row(&row));
+    }
+    Ok(())
+}
+
+fn run_debug_summary(path: &str, run_id: &str, json_output: bool) -> Result<(), Box<dyn Error>> {
+    let store = MemoryStore::load_from_path(path)?;
+    let summary = debug_summary_for_store(&store, path, run_id)?;
+    if json_output {
+        println!("{}", format_cli_value(&Value::Object(summary)));
+        return Ok(());
+    }
+    println!("run_id={}", string_field(&summary, "run_id"));
+    println!("run_status={}", string_field(&summary, "run_status"));
+    println!("next_action={}", string_field(&summary, "next_action"));
+    println!("counts={}", format_cli_value(summary.get("counts").unwrap()));
+    if let Some(Value::Array(rows)) = summary.get("pending_ledger_resolutions") {
+        for row in rows {
+            if let Value::Object(object) = row {
+                println!(
+                    "pending_ledger tool={} idempotency_key={} error_type={}",
+                    text_or_dash(object.get("tool_name")),
+                    string_field(object, "idempotency_key"),
+                    text_or_dash(object.get("error_type")),
+                );
+                if let Some(Value::Array(commands)) = object.get("suggested_commands") {
+                    for command in commands {
+                        if let Value::String(command) = command {
+                            println!("suggested {command}");
+                        }
+                    }
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+fn debug_summary_for_store(store: &MemoryStore, path: &str, run_id: &str) -> Result<State, Box<dyn Error>> {
+    let run = store.run(run_id)?;
+    let steps = store.steps(run_id);
+    let events = store.events(run_id);
+    let ledger = store.ledger(run_id);
+    let approvals = store.approval_requests(run_id);
+    let pending_ledger: Vec<ToolLedgerEntry> = ledger.iter().filter(|row| row.status == "PENDING_VERIFICATION").cloned().collect();
+    let pending_approvals = approvals.iter().filter(|row| row.status == "PENDING").count();
+    let failed_steps = steps.iter().filter(|row| row.status == "failed").count();
+    let retry_scheduled = steps.iter().filter(|row| row.status == "retry_scheduled").count();
+    let next_action = if !pending_ledger.is_empty() {
+        "manual_verification_required"
+    } else if pending_approvals > 0 {
+        "approval_required"
+    } else if retry_scheduled > 0 {
+        "retry_scheduled"
+    } else if failed_steps > 0 {
+        "inspect_failure"
+    } else {
+        "none"
+    };
+    let resolutions = pending_ledger
+        .iter()
+        .map(|row| Value::Object(state(&[
+            ("tool_name", Value::String(row.tool_name.clone())),
+            ("idempotency_key", Value::String(row.idempotency_key.clone())),
+            ("error_type", Value::String(row.error_type.clone().unwrap_or_default())),
+            ("suggested_commands", Value::Array(vec![
+                Value::String(format!("agentledger-rust ledger-resolve {} {} {} --status succeeded --external-id EXTERNAL_ID", quote_shell(path), quote_shell(run_id), quote_shell(&row.idempotency_key))),
+                Value::String(format!("agentledger-rust ledger-resolve {} {} {} --status failed-no-effect --reason {}", quote_shell(path), quote_shell(run_id), quote_shell(&row.idempotency_key), quote_shell("checked provider"))),
+            ])),
+        ])))
+        .collect();
+    Ok(state(&[
+        ("run_id", Value::String(run_id.to_string())),
+        ("run_status", Value::String(run.status)),
+        ("next_action", Value::String(next_action.to_string())),
+        ("counts", Value::Object(state(&[
+            ("steps", Value::Number(steps.len() as f64)),
+            ("events", Value::Number(events.len() as f64)),
+            ("ledger", Value::Number(ledger.len() as f64)),
+            ("pending_verification", Value::Number(pending_ledger.len() as f64)),
+            ("pending_approvals", Value::Number(pending_approvals as f64)),
+            ("failed_steps", Value::Number(failed_steps as f64)),
+        ]))),
+        ("pending_ledger_resolutions", Value::Array(resolutions)),
+    ]))
+}
+
+fn format_ledger_row(row: &ToolLedgerEntry) -> String {
+    format!(
+        "{{\"ledger_id\":\"{}\",\"run_id\":\"{}\",\"step_id\":\"{}\",\"tool_name\":\"{}\",\"idempotency_key\":\"{}\",\"status\":\"{}\",\"external_id\":{},\"error_type\":{}}}",
+        escape_json(&row.ledger_id),
+        escape_json(&row.run_id),
+        escape_json(&row.step_id),
+        escape_json(&row.tool_name),
+        escape_json(&row.idempotency_key),
+        escape_json(&row.status),
+        option_json(row.external_id.as_deref()),
+        option_json(row.error_type.as_deref()),
+    )
+}
+
+fn string_field(state: &State, key: &str) -> String {
+    match state.get(key) {
+        Some(Value::String(value)) => value.clone(),
+        Some(value) => format_cli_value(value),
+        None => String::new(),
+    }
+}
+
+fn text_or_dash(value: Option<&Value>) -> String {
+    match value {
+        Some(Value::String(text)) if !text.is_empty() => text.clone(),
+        Some(value) => format_cli_value(value),
+        None => "-".to_string(),
+    }
+}
+
+fn format_cli_value(value: &Value) -> String {
+    match value {
+        Value::Null => "null".to_string(),
+        Value::Bool(value) => value.to_string(),
+        Value::Number(value) => value.to_string(),
+        Value::String(value) => format!("\"{}\"", escape_json(value)),
+        Value::Array(values) => format!(
+            "[{}]",
+            values.iter().map(format_cli_value).collect::<Vec<_>>().join(",")
+        ),
+        Value::Object(values) => {
+            let mut keys = values.keys().collect::<Vec<_>>();
+            keys.sort();
+            format!(
+                "{{{}}}",
+                keys.into_iter()
+                    .map(|key| format!("\"{}\":{}", escape_json(key), format_cli_value(&values[key])))
+                    .collect::<Vec<_>>()
+                    .join(",")
+            )
+        }
+    }
+}
+
+fn option_json(value: Option<&str>) -> String {
+    value.map(|text| format!("\"{}\"", escape_json(text))).unwrap_or_else(|| "null".to_string())
+}
+
+fn escape_json(value: &str) -> String {
+    value.chars().flat_map(|ch| match ch {
+        '\\' => "\\\\".chars().collect::<Vec<_>>(),
+        '"' => "\\\"".chars().collect::<Vec<_>>(),
+        '\n' => "\\n".chars().collect::<Vec<_>>(),
+        '\r' => "\\r".chars().collect::<Vec<_>>(),
+        '\t' => "\\t".chars().collect::<Vec<_>>(),
+        ch if ch.is_control() => format!("\\u{:04x}", ch as u32).chars().collect::<Vec<_>>(),
+        ch => vec![ch],
+    }).collect()
+}
+
+fn quote_shell(value: &str) -> String {
+    if !value.is_empty() && value.chars().all(|ch| ch.is_ascii_alphanumeric() || "_./:=@+-".contains(ch)) {
+        return value.to_string();
+    }
+    format!("'{}'", value.replace('\'', "'\\''"))
+}
+
+#[cfg(test)]
+mod cli_tests {
+    use super::*;
+
+    #[test]
+    fn ledger_resolve_clears_pending_verification() {
+        let suffix = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let path = std::env::temp_dir()
+            .join(format!("agentledger-rust-cli-{}-{suffix}.json", std::process::id()));
+        let path_text = path.to_string_lossy().to_string();
+        let mut store = MemoryStore::new();
+        let (run_id, step_id) = store.create_run(State::new());
+        let session_id = store.run(&run_id).unwrap().session_id;
+        let key = "payment-key";
+        store.reserve_ledger(key, ToolLedgerEntry {
+            ledger_id: "ledger-cli".to_string(),
+            run_id: run_id.clone(),
+            session_id,
+            step_id,
+            tool_name: "payments.charge".to_string(),
+            tool_version: "v1".to_string(),
+            tool_call_id: "toolcall-cli".to_string(),
+            idempotency_key: key.to_string(),
+            causal_token: "causal".to_string(),
+            request_hash: "hash".to_string(),
+            request_ref: "{}".to_string(),
+            status: "PENDING_VERIFICATION".to_string(),
+            external_id: None,
+            response_hash: None,
+            response_ref: None,
+            error_type: Some("RuntimeError".to_string()),
+            response: None,
+            created_at: 1.0,
+            updated_at: 1.0,
+        });
+        store.save_to_path(&path_text).unwrap();
+
+        let summary = debug_summary_for_store(&store, &path_text, &run_id).unwrap();
+        assert_eq!(string_field(&summary, "next_action"), "manual_verification_required");
+        run_ledger_resolve(
+            &path_text,
+            &run_id,
+            key,
+            &["--status".to_string(), "failed-no-effect".to_string(), "--reason".to_string(), "checked".to_string()],
+        ).unwrap();
+        let row = MemoryStore::load_from_path(&path_text).unwrap().ledger(&run_id)[0].clone();
+        assert_eq!(row.status, "FAILED_NO_EFFECT");
+        assert_eq!(row.error_type.as_deref(), Some("ManualNoEffect"));
+        assert!(run_ledger_resolve(
+            &path_text,
+            &run_id,
+            key,
+            &["--status".to_string(), "failed-no-effect".to_string()],
+        ).is_err());
+        let _ = std::fs::remove_file(path);
+    }
 }
 
 fn run_quickstart() -> Result<(), Box<dyn Error>> {

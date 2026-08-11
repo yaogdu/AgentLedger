@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -203,6 +205,18 @@ func run(args []string) error {
 	if len(args) == 1 && args[0] == "conformance" {
 		return runConformance()
 	}
+	if len(args) >= 3 && args[0] == "ledger" {
+		return printLedger(args[1], args[2], hasArg(args[3:], "--pending"))
+	}
+	if len(args) >= 4 && args[0] == "ledger-resolve" {
+		return resolveLedger(args[1], args[2], args[3], args[4:])
+	}
+	if len(args) >= 3 && args[0] == "debug" {
+		if !hasArg(args[3:], "--summary") {
+			return fmt.Errorf("debug currently supports --summary")
+		}
+		return printDebugSummary(args[1], args[2], hasArg(args[3:], "--json"))
+	}
 	if len(args) == 2 && args[0] == "contract" && args[1] == "validate" {
 		return validateContract()
 	}
@@ -229,10 +243,260 @@ Usage:
   agentledger-go version
   agentledger-go quickstart
   agentledger-go conformance
+  agentledger-go debug <store_path> <run_id> --summary [--json]
+  agentledger-go ledger <store_path> <run_id> [--pending]
+  agentledger-go ledger-resolve <store_path> <run_id> <idempotency_key> --status succeeded|failed-no-effect [--external-id id] [--reason text]
   agentledger-go contract validate
   agentledger-go contract export
 
 Project: https://github.com/yaogdu/AgentLedger`)
+}
+
+func hasArg(args []string, name string) bool {
+	for _, arg := range args {
+		if arg == name {
+			return true
+		}
+	}
+	return false
+}
+
+func argValue(args []string, name string, fallback string) (string, error) {
+	for i, arg := range args {
+		if arg != name {
+			continue
+		}
+		if i+1 >= len(args) {
+			return "", fmt.Errorf("%s requires a value", name)
+		}
+		return args[i+1], nil
+	}
+	return fallback, nil
+}
+
+func normalizeResolveStatus(status string) (string, error) {
+	switch strings.ToLower(status) {
+	case "succeeded", "succeed", "success":
+		return "SUCCEEDED", nil
+	case "failed-no-effect", "failed_no_effect":
+		return "FAILED_NO_EFFECT", nil
+	default:
+		return "", fmt.Errorf("unsupported ledger resolve status: %s", status)
+	}
+}
+
+func printLedger(path, runID string, pendingOnly bool) error {
+	store, err := agentledger.NewJSONStore(path)
+	if err != nil {
+		return err
+	}
+	rows := store.Ledger(runID)
+	if pendingOnly {
+		filtered := []agentledger.ToolLedgerEntry{}
+		for _, row := range rows {
+			if row.Status == "PENDING_VERIFICATION" {
+				filtered = append(filtered, row)
+			}
+		}
+		rows = filtered
+	}
+	encoded, err := json.MarshalIndent(rows, "", "  ")
+	if err != nil {
+		return err
+	}
+	fmt.Println(string(encoded))
+	return nil
+}
+
+func resolveLedger(path, runID, idempotencyKey string, args []string) error {
+	rawStatus, err := argValue(args, "--status", "")
+	if err != nil {
+		return err
+	}
+	status, err := normalizeResolveStatus(rawStatus)
+	if err != nil {
+		return err
+	}
+	externalID, err := argValue(args, "--external-id", "")
+	if err != nil {
+		return err
+	}
+	reason, err := argValue(args, "--reason", "manual resolution")
+	if err != nil {
+		return err
+	}
+	store, err := agentledger.NewJSONStore(path)
+	if err != nil {
+		return err
+	}
+	var existing agentledger.ToolLedgerEntry
+	for _, row := range store.Ledger(runID) {
+		if row.IdempotencyKey == idempotencyKey {
+			existing = row
+			break
+		}
+	}
+	if existing.IdempotencyKey == "" {
+		return fmt.Errorf("ledger entry not found for run %s: %s", runID, idempotencyKey)
+	}
+	if existing.Status != "PENDING_VERIFICATION" {
+		return fmt.Errorf("ledger entry is not pending verification: %s", existing.Status)
+	}
+	update := agentledger.LedgerUpdate{IdempotencyKey: idempotencyKey, Status: status, ExternalID: externalID}
+	if status == "FAILED_NO_EFFECT" {
+		update.ErrorType = "ManualNoEffect"
+		update.Response = agentledger.JSONObject{"manual_resolution": true, "reason": reason}
+	} else {
+		update.Response = agentledger.JSONObject{"manual_resolution": true, "external_id": externalID}
+	}
+	responseHash, responseRef, err := manualResponseRef(update.Response)
+	if err != nil {
+		return err
+	}
+	update.ResponseHash = responseHash
+	update.ResponseRef = responseRef
+	if err := store.UpdateLedger(update); err != nil {
+		return err
+	}
+	_, _ = store.AppendEvent(agentledger.AppendEventInput{
+		RunID: runID, SessionID: existing.SessionID, StepID: existing.StepID, Type: "tool_ledger_resolved",
+		Payload: agentledger.JSONObject{"ledger_id": existing.LedgerID, "tool": existing.ToolName, "idempotency_key": idempotencyKey, "previous_status": existing.Status, "status": status, "reason": reason, "external_id": externalID},
+	})
+	for _, row := range store.Ledger(runID) {
+		if row.IdempotencyKey == idempotencyKey {
+			encoded, err := json.MarshalIndent(row, "", "  ")
+			if err != nil {
+				return err
+			}
+			fmt.Println(string(encoded))
+			return nil
+		}
+	}
+	return nil
+}
+
+func manualResponseRef(value any) (string, string, error) {
+	body, err := json.Marshal(value)
+	if err != nil {
+		return "", "", err
+	}
+	sum := sha256.Sum256(body)
+	return hex.EncodeToString(sum[:]), string(body), nil
+}
+
+func printDebugSummary(path, runID string, jsonOutput bool) error {
+	store, err := agentledger.NewJSONStore(path)
+	if err != nil {
+		return err
+	}
+	summary, err := debugSummaryForStore(store, path, runID)
+	if err != nil {
+		return err
+	}
+	if jsonOutput {
+		encoded, err := json.MarshalIndent(summary, "", "  ")
+		if err != nil {
+			return err
+		}
+		fmt.Println(string(encoded))
+		return nil
+	}
+	fmt.Printf("run_id=%s\n", summary["run_id"])
+	fmt.Printf("run_status=%s\n", summary["run_status"])
+	fmt.Printf("next_action=%s\n", summary["next_action"])
+	encoded, _ := json.Marshal(summary["counts"])
+	fmt.Printf("counts=%s\n", string(encoded))
+	for _, row := range summary["pending_ledger_resolutions"].([]agentledger.JSONObject) {
+		fmt.Printf("pending_ledger tool=%s idempotency_key=%s error_type=%s\n", textOrDash(row["tool_name"]), row["idempotency_key"], textOrDash(row["error_type"]))
+		for _, command := range row["suggested_commands"].([]string) {
+			fmt.Printf("suggested %s\n", command)
+		}
+	}
+	return nil
+}
+
+func debugSummaryForStore(store *agentledger.JSONStore, path, runID string) (agentledger.JSONObject, error) {
+	run, err := store.Run(runID)
+	if err != nil {
+		return nil, err
+	}
+	steps := store.Steps(runID)
+	events := store.Events(runID)
+	ledger := store.Ledger(runID)
+	approvals := store.ApprovalRequests(runID)
+	pendingLedger := []agentledger.ToolLedgerEntry{}
+	pendingApprovals := 0
+	failedSteps := 0
+	retryScheduled := 0
+	for _, row := range ledger {
+		if row.Status == "PENDING_VERIFICATION" {
+			pendingLedger = append(pendingLedger, row)
+		}
+	}
+	for _, row := range approvals {
+		if row.Status == "PENDING" {
+			pendingApprovals++
+		}
+	}
+	for _, row := range steps {
+		if row.Status == "failed" {
+			failedSteps++
+		}
+		if row.Status == "retry_scheduled" {
+			retryScheduled++
+		}
+	}
+	nextAction := "none"
+	if len(pendingLedger) > 0 {
+		nextAction = "manual_verification_required"
+	} else if pendingApprovals > 0 {
+		nextAction = "approval_required"
+	} else if retryScheduled > 0 {
+		nextAction = "retry_scheduled"
+	} else if failedSteps > 0 {
+		nextAction = "inspect_failure"
+	}
+	resolutions := []agentledger.JSONObject{}
+	for _, row := range pendingLedger {
+		if row.IdempotencyKey == "" {
+			continue
+		}
+		resolutions = append(resolutions, agentledger.JSONObject{
+			"tool_name":       row.ToolName,
+			"idempotency_key": row.IdempotencyKey,
+			"error_type":      row.ErrorType,
+			"suggested_commands": []string{
+				fmt.Sprintf("agentledger-go ledger-resolve %s %s %s --status succeeded --external-id EXTERNAL_ID", quoteShell(path), quoteShell(runID), quoteShell(row.IdempotencyKey)),
+				fmt.Sprintf("agentledger-go ledger-resolve %s %s %s --status failed-no-effect --reason %s", quoteShell(path), quoteShell(runID), quoteShell(row.IdempotencyKey), quoteShell("checked provider")),
+			},
+		})
+	}
+	return agentledger.JSONObject{
+		"run_id":                     runID,
+		"run_status":                 run.Status,
+		"next_action":                nextAction,
+		"counts":                     agentledger.JSONObject{"steps": len(steps), "events": len(events), "ledger": len(ledger), "pending_verification": len(pendingLedger), "pending_approvals": pendingApprovals, "failed_steps": failedSteps},
+		"pending_ledger_resolutions": resolutions,
+	}, nil
+}
+
+func quoteShell(value string) string {
+	if value == "" {
+		return "''"
+	}
+	for _, r := range value {
+		if !((r >= 'A' && r <= 'Z') || (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || strings.ContainsRune("_./:=@+-", r)) {
+			return "'" + strings.ReplaceAll(value, "'", "'\\''") + "'"
+		}
+	}
+	return value
+}
+
+func textOrDash(value any) string {
+	if value == nil || fmt.Sprint(value) == "" {
+		return "-"
+	}
+	return fmt.Sprint(value)
 }
 
 func runQuickstart() error {

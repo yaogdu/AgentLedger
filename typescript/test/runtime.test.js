@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import { mkdtemp, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import test from 'node:test';
+import { fileURLToPath } from 'node:url';
 import { DockerSandboxExecutor, JSONStore, LocalBlobStore, LocalWorker, OmpLedgerBridge, RetryableAgentError, Runtime, WorkerService, exportEvidence, replay, costAttribution, failureAttribution } from '../src/index.js';
 
 test('adapter subpath exports expose the current package boundary', async () => {
@@ -230,6 +232,101 @@ test('tool ledger idempotency reuses side effect response across retry', async (
   assert.equal(calls, 1);
   assert.equal(rt.store.ledger(runId).length, 1);
   assert.equal(rt.store.ledger(runId)[0].status, 'SUCCEEDED');
+});
+
+test('cli lists and resolves pending tool ledger entries', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'agentledger-ts-cli-'));
+  const path = join(dir, 'state.json');
+  const rt = await Runtime.local(path);
+  let fail = true;
+  let calls = 0;
+  const toolSpec = {
+    name: 'payments.charge',
+    sideEffect: 'external',
+    idempotencyRequired: true,
+    func: async () => {
+      calls += 1;
+      if (fail) throw new Error('provider timeout');
+      return { external_id: 'charge-2' };
+    },
+  };
+  rt.registerTool(toolSpec);
+  const { runId } = await rt.createRun({});
+  const agent = async (ctx) => {
+    const result = await ctx.callTool('payments.charge', { amount: 10 });
+    await ctx.writeState('charge', result);
+  };
+  assert.equal(await rt.runOnce({
+    runId,
+    workerId: 'worker-cli',
+    agentRole: 'BillingAgent',
+    agent,
+  }), false);
+
+  const [pending] = rt.store.ledger(runId);
+  assert.equal(pending.status, 'PENDING_VERIFICATION');
+  const cliPath = fileURLToPath(new URL('../src/cli.js', import.meta.url));
+  const ledger = spawnSync(process.execPath, [cliPath, 'ledger', path, runId, '--pending'], { encoding: 'utf8' });
+  assert.equal(ledger.status, 0, ledger.stderr);
+  assert.equal(JSON.parse(ledger.stdout).length, 1);
+
+  const debug = spawnSync(process.execPath, [cliPath, 'debug', path, runId, '--summary', '--json'], { encoding: 'utf8' });
+  assert.equal(debug.status, 0, debug.stderr);
+  const summary = JSON.parse(debug.stdout);
+  assert.equal(summary.next_action, 'manual_verification_required');
+  assert.match(summary.pending_ledger_resolutions[0].suggested_commands[1], /ledger-resolve/);
+
+  const resolved = spawnSync(process.execPath, [cliPath, 'ledger-resolve', path, runId, pending.idempotency_key, '--status', 'failed-no-effect', '--reason', 'checked'], { encoding: 'utf8' });
+  assert.equal(resolved.status, 0, resolved.stderr);
+  const [row] = (await JSONStore.open(path)).ledger(runId);
+  assert.equal(row.status, 'FAILED_NO_EFFECT');
+  assert.equal(row.error_type, 'ManualNoEffect');
+  const duplicate = spawnSync(process.execPath, [cliPath, 'ledger-resolve', path, runId, pending.idempotency_key, '--status', 'failed-no-effect'], { encoding: 'utf8' });
+  assert.notEqual(duplicate.status, 0);
+  fail = false;
+  const rt2 = new Runtime(await JSONStore.open(path));
+  rt2.registerTool(toolSpec);
+  assert.equal(await rt2.runOnce({ runId, workerId: 'worker-cli-2', agentRole: 'BillingAgent', agent }), true);
+  assert.equal(calls, 2);
+  assert.equal(rt2.store.ledger(runId)[0].status, 'SUCCEEDED');
+  assert.equal(rt2.store.finalState(runId).charge.external_id, 'charge-2');
+});
+
+test('cli succeeded manual ledger resolution replays response', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'agentledger-ts-cli-success-'));
+  const path = join(dir, 'state.json');
+  let calls = 0;
+  const rt = await Runtime.local(path);
+  rt.registerTool({
+    name: 'payments.charge',
+    sideEffect: 'external',
+    idempotencyRequired: true,
+    func: async () => {
+      calls += 1;
+      throw new Error('provider timeout');
+    },
+  });
+  const { runId } = await rt.createRun({});
+  const agent = async (ctx) => {
+    const result = await ctx.callTool('payments.charge', { amount: 10 });
+    await ctx.writeState('charge', result);
+  };
+  assert.equal(await rt.runOnce({ runId, workerId: 'worker-cli', agentRole: 'BillingAgent', agent }), false);
+
+  const key = rt.store.ledger(runId)[0].idempotency_key;
+  const cliPath = fileURLToPath(new URL('../src/cli.js', import.meta.url));
+  const resolved = spawnSync(process.execPath, [cliPath, 'ledger-resolve', path, runId, key, '--status', 'succeeded', '--external-id', 'charge-1'], { encoding: 'utf8' });
+  assert.equal(resolved.status, 0, resolved.stderr);
+  const resolvedRow = JSON.parse(resolved.stdout);
+  assert.ok(resolvedRow.response_hash);
+  assert.ok(resolvedRow.response_ref);
+
+  const rt2 = new Runtime(await JSONStore.open(path));
+  rt2.registerTool({ name: 'payments.charge', sideEffect: 'external', idempotencyRequired: true, func: async () => { calls += 1; throw new Error('should replay'); } });
+  assert.equal(await rt2.runOnce({ runId, workerId: 'worker-cli-2', agentRole: 'BillingAgent', agent }), true);
+  assert.equal(calls, 1);
+  assert.equal(rt2.store.finalState(runId).charge.external_id, 'charge-1');
+  assert.equal(rt2.store.events(runId).some((event) => event.type === 'tool_ledger_resolved'), true);
 });
 
 test('policy denies unapproved high-risk tool before execution', async () => {
