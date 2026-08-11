@@ -10,11 +10,13 @@ This project follows semantic versioning for the stable runtime-core contract. O
 
 - Added local service-backed adapter validation with Docker Compose for disposable Postgres and MinIO services.
 - Added `scripts/validate_adapters_local.py` and `scripts/validate_adapters_local.sh` to run Postgres StateStore, Postgres worker concurrency, and MinIO/S3 BlobStore conformance and emit `adapter-validation.json` / `adapter-validation.md`.
+- Added `scripts/drill_postgres_backup_restore.py` and `scripts/drill_postgres_backup_restore.sh` to run a local Postgres `pg_dump` / restore drill, verify recovered AgentLedger metadata, and emit `postgres-backup-restore-drill.json` / `.md`.
 - Added adapter validation documentation in English and Chinese.
 
 ### Clarified
 
 - Local Postgres/MinIO validation is release evidence for service-backed adapter behavior, not a production hardening claim. Docker hardening, cloud S3 IAM/KMS/lifecycle, OTLP collector transport, Langfuse ingestion, and backup/restore drills remain external-required.
+- The local Postgres backup/restore drill is release evidence for metadata restore behavior. Production backup schedules, PITR/WAL archive, RTO/RPO timing, restore roles, and S3 blob-prefix pairing remain external-required.
 
 ## 1.5.2 - 2026-07-19
 

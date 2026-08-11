@@ -59,6 +59,21 @@ PYTHONPATH=src python3 -m agentledger worker conformance --backend postgres --co
 PYTHONPATH=src python3 -m agentledger blob conformance --backend s3
 ```
 
+For a local Postgres `pg_dump` / restore drill, run:
+
+```bash
+python3 -m pip install "psycopg[binary]"
+bash scripts/drill_postgres_backup_restore.sh --output-dir /tmp/agentledger-postgres-backup-restore-drill
+```
+
+Or run with temporary dependencies:
+
+```bash
+UV_CACHE_DIR=/tmp/agentledger-uv-cache uv run --no-project --with "psycopg[binary]" --python python3 python scripts/drill_postgres_backup_restore.py --output-dir /tmp/agentledger-postgres-backup-restore-drill
+```
+
+The script defaults to a sibling `../docker-infra/docker-compose.yml` Postgres service when that shared infra stack exists; otherwise it falls back to `examples/adapter_validation/docker-compose.yml`. It seeds a temporary AgentLedger schema, dumps that schema with `pg_dump`, restores it into a temporary database, verifies the recovered run metadata, runs restored Postgres StateStore and worker concurrency conformance, then drops only the drill schema/database. It does not stop or remove a shared Docker infra stack.
+
 For selected recovered runs, export evidence and replay:
 
 ```bash

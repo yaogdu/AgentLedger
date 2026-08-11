@@ -130,6 +130,7 @@ Only run these when the external services are explicitly configured for test dat
 
 ```bash
 bash scripts/validate_adapters_local.sh --output-dir /tmp/agentledger-adapter-validation
+bash scripts/drill_postgres_backup_restore.sh --output-dir /tmp/agentledger-postgres-backup-restore-drill
 
 AGENTLEDGER_POSTGRES_DSN=postgresql://user:password@localhost:15432/database PYTHONPATH=src python3 -m agentledger state conformance --backend postgres
 AGENTLEDGER_POSTGRES_DSN=postgresql://user:password@localhost:15432/database PYTHONPATH=src python3 -m agentledger worker conformance --backend postgres --concurrent
@@ -139,6 +140,8 @@ PYTHONPATH=src python3 -m agentledger blob conformance --backend s3
 Do not point these gates at real application data.
 
 The shared validation script starts disposable Postgres and MinIO services, runs the same conformance commands, and writes `/tmp/agentledger-adapter-validation/adapter-validation.json` plus a Markdown report. Treat that report as local real-service adapter evidence, not as a substitute for production backup/restore, IAM/KMS, lifecycle, or sandbox hardening checks.
+
+The Postgres backup/restore drill script reuses a sibling `../docker-infra` Postgres service when present, restores a temporary schema dump into a temporary database, validates recovered AgentLedger metadata, runs restored Postgres conformance, and removes only the drill schema/database.
 
 ## Evidence Gates
 
