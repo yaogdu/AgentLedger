@@ -17,6 +17,7 @@ AgentLedger 是面向 Agent Harness stack 的 runtime reliability layer。它不
 | 查询 runtime 表 | `QUERY_EXAMPLES.md` | `../QUERY_EXAMPLES.md` |
 | 可视化排查 run | `INSPECTOR.md` | `../INSPECTOR.md` |
 | 运行 benchmark 和覆盖门禁 | `BENCHMARKS.md` | `../BENCHMARKS.md` |
+| 运行本地真实服务 adapter 验证 | `ADAPTER_VALIDATION.md` | `../ADAPTER_VALIDATION.md` |
 | 理解开源生态价值 | `OPEN_SOURCE_IMPACT.md` | `../OPEN_SOURCE_IMPACT.md` |
 | 理解维护者职责 | `MAINTAINER_NOTES.md` | `../MAINTAINER_NOTES.md` |
 | 规划 adoption 工作 | `ADOPTION.md` | `../ADOPTION.md` |
@@ -106,6 +107,7 @@ runtime-core contract 已稳定；optional production adapter、外部基础设�
 - `GETTING_STARTED.md` 和 `LANGUAGE_QUICKSTART.md` 是使用路径。
 - `ARCHITECTURE.md`、`DESIGN_AND_IMPLEMENTATION.md`、`RUNTIME_SPEC.md` 是设计路径。
 - `BENCHMARKS.md` 是 benchmark 和覆盖矩阵入口，说明如何验证全部 required semantic checks。
+- `ADAPTER_VALIDATION.md` 是本地 Postgres/MinIO 真实服务 adapter 验证入口，会生成 JSON/Markdown 证据报告。
 - `FRAMEWORK_TEMPORAL_ADOPTION_DESIGN.md` 是 1.5.0 adoption 设计入口，说明 OpenAI Agents SDK-style example、framework-native smoke 和 Temporal bridge 边界。
 - `OMP_RUNTIME_ADAPTER_DESIGN.md` 是 OMP runtime adapter 设计入口，说明 OMP runtime event 映射、state versioning、redaction、replay 和不做应用定制的边界。
 - `IMPLEMENTATION_STATUS.md`、`MATURITY_MODEL.md`、`LANGUAGE_IMPLEMENTATION_COMPARISON.md` 是 stable、parity、preview、optional、out-of-scope 的事实来源。

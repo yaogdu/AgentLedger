@@ -32,6 +32,7 @@ Python remains the reference implementation, and Go, TypeScript, and Rust now ha
 | Query runtime tables | [docs/QUERY_EXAMPLES.md](docs/QUERY_EXAMPLES.md) |
 | Inspect a run visually | [docs/INSPECTOR.md](docs/INSPECTOR.md) |
 | Run benchmark and coverage gates | [docs/BENCHMARKS.md](docs/BENCHMARKS.md) |
+| Run local Postgres/MinIO adapter validation | [docs/ADAPTER_VALIDATION.md](docs/ADAPTER_VALIDATION.md) |
 | Understand Harness stack composition | [docs/HARNESS_STACK.md](docs/HARNESS_STACK.md) |
 | Plan an Oh My Pi / OMP runtime adapter | [docs/OMP_RUNTIME_ADAPTER_DESIGN.md](docs/OMP_RUNTIME_ADAPTER_DESIGN.md) |
 | Understand open-source impact | [docs/OPEN_SOURCE_IMPACT.md](docs/OPEN_SOURCE_IMPACT.md) |

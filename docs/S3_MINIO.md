@@ -79,7 +79,18 @@ PYTHONPATH=src python3 -m unittest tests.test_s3_integration -v
 
 The test writes tiny content-addressed JSON objects under a unique `integration/<uuid>` child prefix. Configure bucket lifecycle rules for test prefixes in shared environments.
 
-CI includes a dedicated MinIO service job that installs the optional `s3` extra, creates a test bucket, and runs the same real-service BlobStore conformance suite.
+The default CI suite does not run this real-service path. Use the shared local adapter validation script below when producing service-backed release evidence.
+
+## Local Real-service Validation
+
+For the standard local validation path, run the shared adapter validation script instead of wiring MinIO by hand:
+
+```bash
+python3 -m pip install "psycopg[binary]" boto3
+bash scripts/validate_adapters_local.sh --output-dir /tmp/agentledger-adapter-validation
+```
+
+This starts disposable Postgres and MinIO services, creates the MinIO bucket, runs BlobStore conformance with a unique S3 prefix, writes `adapter-validation.json` and `adapter-validation.md`, then tears services down by default. See `docs/ADAPTER_VALIDATION.md`.
 
 ## Production-pilot Checklist
 

@@ -24,6 +24,7 @@ AgentLedger is a runtime reliability layer for Agent Harness stacks. It is not a
 | Query runtime tables | `QUERY_EXAMPLES.md` | `zh/QUERY_EXAMPLES.md` |
 | Inspect runtime evidence | `INSPECTOR.md` | `zh/INSPECTOR.md` |
 | Run benchmark and coverage gates | `BENCHMARKS.md` | `zh/BENCHMARKS.md` |
+| Run local real-service adapter validation | `ADAPTER_VALIDATION.md` | `zh/ADAPTER_VALIDATION.md` |
 | Understand open-source impact | `OPEN_SOURCE_IMPACT.md` | `zh/OPEN_SOURCE_IMPACT.md` |
 | Understand maintainer responsibilities | `MAINTAINER_NOTES.md` | `zh/MAINTAINER_NOTES.md` |
 | Plan adoption work | `ADOPTION.md` | `zh/ADOPTION.md` |
@@ -59,6 +60,7 @@ AgentLedger is a runtime reliability layer for Agent Harness stacks. It is not a
 - `USE_CASES.md`: practical scenarios, non-goals, 3-minute demo path, and adoption checklist.
 - `INSPECTOR.md`: read-only Inspector commands, DB/evidence inputs, static HTML output, and extension API.
 - `BENCHMARKS.md`: runtime benchmark methodology, semantic coverage matrix, validation rules, and release usage.
+- `ADAPTER_VALIDATION.md`: local Postgres/MinIO Docker validation path for service-backed adapter evidence.
 - `articles/what-happened-after-agent-tool-failure.zh-CN.md`: shareable Chinese article explaining the crash-after-tool-success problem.
 - `articles/social-posts.md`: short posts and GIF recording flow for the side-effect safety showcase.
 - `OPEN_SOURCE_IMPACT.md`: open-source ecosystem value and early-stage infrastructure positioning.
@@ -82,6 +84,7 @@ AgentLedger is a runtime reliability layer for Agent Harness stacks. It is not a
 - `POSTGRES.md`: optional Postgres StateStore setup and conformance guidance.
 - `MYSQL.md`: optional MySQL StateStore setup and conformance guidance.
 - `S3_MINIO.md`: optional S3/MinIO BlobStore setup and conformance guidance.
+- `ADAPTER_VALIDATION.md`: one-command local Postgres/MinIO validation and report output.
 - `SECURITY_ENTERPRISE.md`: security model, permission boundaries, sandbox, secrets, and high-risk tools.
 - `RELEASE_CHECKLIST.md`: local gates for tests, conformance, lint, contract export, examples, and evidence checks.
 - `BENCHMARKS.md`: benchmark gate covering all required runtime semantic checks plus local timing output.

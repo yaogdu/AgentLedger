@@ -129,12 +129,16 @@ PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m agentledger tools manifest -
 Only run these when the external services are explicitly configured for test data:
 
 ```bash
+bash scripts/validate_adapters_local.sh --output-dir /tmp/agentledger-adapter-validation
+
 AGENTLEDGER_POSTGRES_DSN=postgresql://user:password@localhost:15432/database PYTHONPATH=src python3 -m agentledger state conformance --backend postgres
 AGENTLEDGER_POSTGRES_DSN=postgresql://user:password@localhost:15432/database PYTHONPATH=src python3 -m agentledger worker conformance --backend postgres --concurrent
 PYTHONPATH=src python3 -m agentledger blob conformance --backend s3
 ```
 
 Do not point these gates at real application data.
+
+The shared validation script starts disposable Postgres and MinIO services, runs the same conformance commands, and writes `/tmp/agentledger-adapter-validation/adapter-validation.json` plus a Markdown report. Treat that report as local real-service adapter evidence, not as a substitute for production backup/restore, IAM/KMS, lifecycle, or sandbox hardening checks.
 
 ## Evidence Gates
 

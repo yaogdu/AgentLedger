@@ -115,7 +115,18 @@ PYTHONPATH=src python3 -m unittest tests.test_postgres_integration -v
 
 The test creates a unique child schema such as `agentledger_it_<uuid>`. It does not drop schemas automatically. Runtime core intentionally does not provide schema cleanup or destructive database maintenance commands; cleanup belongs to DBA/infra runbooks.
 
-CI includes a dedicated Postgres service job that installs the optional `postgres` extra and runs the same real-service conformance suite against PostgreSQL 16.
+The default CI suite does not run this real-service path. Use the shared local adapter validation script below when producing service-backed release evidence.
+
+## Local Real-service Validation
+
+For the standard local validation path, run the shared adapter validation script instead of wiring Postgres by hand:
+
+```bash
+python3 -m pip install "psycopg[binary]" boto3
+bash scripts/validate_adapters_local.sh --output-dir /tmp/agentledger-adapter-validation
+```
+
+This starts a disposable Postgres service, runs StateStore and worker concurrency conformance, writes `adapter-validation.json` and `adapter-validation.md`, then tears the service down by default. See `docs/ADAPTER_VALIDATION.md`.
 
 ## Production-pilot Checklist
 
