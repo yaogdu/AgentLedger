@@ -5,6 +5,7 @@ import asyncio
 import json
 import tempfile
 from pathlib import Path
+from typing import Any
 
 from . import __version__
 from .adapter_certification import build_adapter_certification_bundle, supported_adapter_certification_profiles
@@ -95,18 +96,174 @@ def cmd_run(args: argparse.Namespace) -> None:
     print(json.dumps({"run_id": run_id, "first_attempt_ok": first_ok, "second_attempt_ok": second_ok, "external_issue_count": len(issues), "external_issues_path": str(external_path)}, indent=2))
 
 
+def _count_values(rows: list[dict[str, Any]], key: str) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for row in rows:
+        value = str(row.get(key) or "-")
+        counts[value] = counts.get(value, 0) + 1
+    return counts
+
+
+def _row_value(row: Any, key: str) -> Any:
+    if isinstance(row, dict):
+        return row.get(key)
+    try:
+        return row[key]
+    except (KeyError, IndexError, TypeError):
+        return None
+
+
+def _metadata_from_row(row: Any) -> dict[str, Any]:
+    metadata = _row_value(row, "metadata")
+    if isinstance(metadata, dict):
+        return metadata
+    metadata_json = _row_value(row, "metadata_json")
+    if isinstance(metadata_json, str) and metadata_json:
+        try:
+            parsed = json.loads(metadata_json)
+        except json.JSONDecodeError:
+            return {}
+        return parsed if isinstance(parsed, dict) else {}
+    return {}
+
+
+def _ledger_replay_count(store: Any, run_id: str) -> int:
+    return sum(1 for row in store.cost_records(run_id) if _metadata_from_row(row).get("replayed_from_ledger") is True)
+
+
+def _resolve_debug_run_id(store: Any, args: argparse.Namespace) -> str:
+    run_id = getattr(args, "run_id", None)
+    use_last = getattr(args, "last", False)
+    use_failed = getattr(args, "failed", False)
+    if use_last and use_failed:
+        raise SystemExit("--last and --failed cannot be used together")
+    if run_id and (use_last or use_failed):
+        raise SystemExit("provide either run_id or --last/--failed")
+    if run_id:
+        return str(run_id)
+    if use_last:
+        rows = store.runs(limit=1)
+        label = "last"
+    elif use_failed:
+        rows = store.runs(limit=1, status="failed")
+        label = "failed"
+    else:
+        raise SystemExit("run_id required unless --last or --failed is set")
+    if not rows:
+        raise SystemExit(f"no {label} run found")
+    resolved = _row_value(rows[0], "run_id")
+    if resolved is None:
+        raise SystemExit(f"no {label} run found")
+    return str(resolved)
+
+
+def _debug_summary(report: dict[str, Any], *, ledger_replays: int | None = None) -> dict[str, Any]:
+    summary = report.get("summary", {})
+    replay_plan = report.get("failure_replay_plan", {})
+    run = report.get("run", {})
+    steps = report.get("steps", [])
+    ledger = report.get("tool_ledger", [])
+    approvals = report.get("approvals", [])
+    failure_envelopes = report.get("failure_envelopes", [])
+    events = report.get("timeline", [])
+    pending_approvals = [row for row in approvals if row.get("status") == "PENDING"]
+    pending_verification = [row for row in ledger if row.get("status") == "PENDING_VERIFICATION"]
+    retry_scheduled = [row for row in steps if row.get("status") == "retry_scheduled"]
+    failed_steps = [row for row in steps if row.get("status") == "failed"]
+    next_action = "none"
+    if pending_verification or replay_plan.get("manual_verification_count", 0):
+        next_action = "manual_verification_required"
+    elif pending_approvals:
+        next_action = "approval_required"
+    elif retry_scheduled:
+        next_action = "retry_scheduled"
+    elif run.get("status") == "completed" and replay_plan.get("safe_to_replay", True):
+        next_action = "none"
+    elif failed_steps or summary.get("failure_event_count", 0):
+        next_action = "inspect_failure_evidence"
+    elif not replay_plan.get("safe_to_replay", True):
+        next_action = "inspect_before_replay"
+    return {
+        "schema_version": "agentledger.debug.summary.v1",
+        "run_id": run.get("run_id"),
+        "agent_run_id": report.get("agent_run_id"),
+        "run_status": run.get("status"),
+        "state_version": run.get("state_version"),
+        "next_action": next_action,
+        "counts": {
+            "events": summary.get("event_count", len(events)),
+            "steps": len(steps),
+            "tool_ledger": len(ledger),
+            "approvals": len(approvals),
+            "artifacts": report.get("evidence", {}).get("artifact_count", 0),
+            "model_calls": summary.get("model_call_count", 0),
+            "tool_proposals": summary.get("tool_call_proposal_count", 0),
+            "failure_envelopes": summary.get("failure_envelope_count", len(failure_envelopes)),
+            "pending_approvals": len(pending_approvals),
+            "pending_verification": len(pending_verification),
+            "retry_scheduled": len(retry_scheduled),
+            "failed_steps": len(failed_steps),
+            "unsafe_replay_side_effects": replay_plan.get("unsafe_side_effect_count", 0),
+            "ledger_replays": ledger_replays if ledger_replays is not None else 0,
+        },
+        "step_statuses": _count_values(steps, "status"),
+        "tool_ledger_statuses": _count_values(ledger, "status"),
+        "approval_statuses": _count_values(approvals, "status"),
+        "risk_flags": report.get("risk_flags", []),
+        "safe_to_replay": replay_plan.get("safe_to_replay", True),
+        "failures": [
+            {
+                "status": row.get("status"),
+                "recoverability": row.get("recoverability"),
+                "owner": row.get("owner"),
+                "message": row.get("message"),
+                "step_id": row.get("step_id"),
+                "tool_name": row.get("tool_name"),
+                "event_seq": row.get("event_seq"),
+            }
+            for row in failure_envelopes[:5]
+        ],
+    }
+
+
+def _print_debug_summary(summary: dict[str, Any]) -> None:
+    counts = summary["counts"]
+    print(f"run={summary['run_id']} status={summary.get('run_status') or '-'} next={summary['next_action']}")
+    print(
+        "counts "
+        f"events={counts['events']} steps={counts['steps']} tools={counts['tool_ledger']} "
+        f"approvals={counts['approvals']} failures={counts['failure_envelopes']} "
+        f"ledger_replays={counts['ledger_replays']}"
+    )
+    print(f"tool_ledger_statuses={json.dumps(summary['tool_ledger_statuses'], sort_keys=True)}")
+    print(f"risk_flags={', '.join(summary['risk_flags']) if summary['risk_flags'] else '-'}")
+    print(f"safe_to_replay={str(summary['safe_to_replay']).lower()}")
+    for failure in summary["failures"]:
+        location = failure.get("tool_name") or failure.get("step_id") or failure.get("event_seq") or "-"
+        print(f"failure {failure.get('status') or '-'} owner={failure.get('owner') or '-'} at={location} message={failure.get('message') or '-'}")
+
+
 def cmd_debug(args: argparse.Namespace) -> None:
     rt = runtime_from_root(args.root, args.policy, getattr(args, "sandbox_config", None))
+    run_id = _resolve_debug_run_id(rt.store, args)
+    if getattr(args, "summary", False):
+        report = InspectorDataSource().from_runtime_store(store=rt.store, blobs=rt.blobs, run_id=run_id).to_dict()
+        summary = _debug_summary(report, ledger_replays=_ledger_replay_count(rt.store, run_id))
+        if getattr(args, "json", False):
+            print(json.dumps(summary, indent=2, ensure_ascii=False))
+            return
+        _print_debug_summary(summary)
+        return
     if getattr(args, "json", False) or getattr(args, "include_diffs", False) or getattr(args, "include_states", False) or getattr(args, "at_seq", None) is not None or getattr(args, "html", None):
         report = TimeTravelDebugger(store=rt.store, blobs=rt.blobs).inspect(
-            args.run_id,
+            run_id,
             at_seq=getattr(args, "at_seq", None),
             include_states=getattr(args, "include_states", False),
             include_diffs=getattr(args, "include_diffs", False),
         )
         if getattr(args, "html", None):
             path = report.write_html(args.html)
-            print(json.dumps({"run_id": args.run_id, "html_report": str(path), "event_count": report.event_count}, indent=2, ensure_ascii=False))
+            print(json.dumps({"run_id": run_id, "html_report": str(path), "event_count": report.event_count}, indent=2, ensure_ascii=False))
             return
         if getattr(args, "json", False):
             print(json.dumps(report.to_dict(), indent=2, ensure_ascii=False))
@@ -120,7 +277,7 @@ def cmd_debug(args: argparse.Namespace) -> None:
         if getattr(args, "at_seq", None) is not None:
             print(json.dumps({"state_at_seq": report.state_at_seq}, ensure_ascii=False, sort_keys=True))
         return
-    for event in rt.store.events(args.run_id):
+    for event in rt.store.events(run_id):
         state = event["state_version"] if event["state_version"] is not None else "-"
         print(f"{event['seq']:03d} {event['type']} step={event['step_id'] or '-'} state={state}")
 
@@ -928,8 +1085,11 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("example")
     run.set_defaults(func=cmd_run)
     debug = sub.add_parser("debug")
-    debug.add_argument("run_id")
-    debug.add_argument("--json", action="store_true", help="emit the time-travel debug timeline as JSON")
+    debug.add_argument("run_id", nargs="?")
+    debug.add_argument("--json", action="store_true", help="emit debug output as JSON")
+    debug.add_argument("--summary", action="store_true", help="emit a compact run diagnosis summary")
+    debug.add_argument("--last", action="store_true", help="debug the most recently updated run")
+    debug.add_argument("--failed", action="store_true", help="debug the most recently failed run")
     debug.add_argument("--at-seq", type=int, help="also show reconstructed state at this event sequence")
     debug.add_argument("--include-diffs", action="store_true", help="include state diff details in the debug timeline")
     debug.add_argument("--include-states", action="store_true", help="include reconstructed state after each event")

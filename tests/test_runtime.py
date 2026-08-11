@@ -139,6 +139,10 @@ class RuntimeTests(unittest.TestCase):
             ["version"],
             ["run", "examples/side_effect_idempotency"],
             ["debug", "run-1"],
+            ["debug", "run-1", "--summary"],
+            ["debug", "run-1", "--summary", "--json"],
+            ["debug", "--last", "--summary"],
+            ["debug", "--failed", "--summary"],
             ["debug", "run-1", "--json", "--include-diffs"],
             ["replay", "run-1"],
             ["ledger", "run-1"],
@@ -2540,6 +2544,132 @@ roles:
             changed = [frame for frame in payload["timeline"] if "x" in frame["changed_keys"]]
             self.assertTrue(changed)
             self.assertIn("state_diff", changed[-1])
+
+    def test_cli_debug_can_emit_run_summary(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / ".agentledger"
+            _, run_id, _ = self._run_side_effect_demo(root)
+            args = type(
+                "Args",
+                (),
+                {
+                    "root": str(root),
+                    "policy": None,
+                    "sandbox_config": None,
+                    "run_id": run_id,
+                    "summary": True,
+                    "json": True,
+                },
+            )()
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                cmd_debug(args)
+            payload = json.loads(stdout.getvalue())
+            self.assertEqual(payload["schema_version"], "agentledger.debug.summary.v1")
+            self.assertEqual(payload["run_id"], run_id)
+            self.assertEqual(payload["run_status"], "completed")
+            self.assertEqual(payload["next_action"], "none")
+            self.assertEqual(payload["tool_ledger_statuses"], {"SUCCEEDED": 1})
+            self.assertEqual(payload["counts"]["ledger_replays"], 1)
+            self.assertTrue(payload["safe_to_replay"])
+            self.assertGreater(payload["counts"]["failure_envelopes"], 0)
+            self.assertTrue(payload["failures"])
+
+    def test_cli_debug_summary_flags_pending_tool_verification(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / ".agentledger"
+            rt = Runtime.local(root)
+
+            def charge(_: dict[str, Any]) -> dict[str, Any]:
+                raise TimeoutError("charge result unknown")
+
+            rt.registry.register(ToolSpec(name="payments.charge", func=charge, side_effect="external_write", idempotency_required=True))
+            run_id, _ = rt.create_run(initial_state={})
+
+            async def agent_fn(ctx: Any, state: dict[str, Any]) -> None:
+                await ctx.call_tool("payments.charge", {"_logical_operation": "charge-1"})
+
+            ok = asyncio.run(rt.run_once(agent_fn, run_id=run_id, agent_role="DebugAgent"))
+            self.assertFalse(ok)
+            args = type(
+                "Args",
+                (),
+                {
+                    "root": str(root),
+                    "policy": None,
+                    "sandbox_config": None,
+                    "run_id": run_id,
+                    "summary": True,
+                    "json": True,
+                },
+            )()
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                cmd_debug(args)
+            payload = json.loads(stdout.getvalue())
+            self.assertEqual(payload["next_action"], "manual_verification_required")
+            self.assertEqual(payload["counts"]["pending_verification"], 1)
+            self.assertEqual(payload["tool_ledger_statuses"], {"PENDING_VERIFICATION": 1})
+            self.assertFalse(payload["safe_to_replay"])
+
+    def test_cli_debug_summary_can_select_last_run(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / ".agentledger"
+            _, run_id, _ = self._run_side_effect_demo(root)
+            args = type(
+                "Args",
+                (),
+                {
+                    "root": str(root),
+                    "policy": None,
+                    "sandbox_config": None,
+                    "run_id": None,
+                    "summary": True,
+                    "json": True,
+                    "last": True,
+                    "failed": False,
+                },
+            )()
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                cmd_debug(args)
+            payload = json.loads(stdout.getvalue())
+            self.assertEqual(payload["run_id"], run_id)
+            self.assertEqual(payload["run_status"], "completed")
+
+    def test_cli_debug_summary_can_select_failed_run(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / ".agentledger"
+            rt = Runtime.local(root)
+            rt.create_run(initial_state={"ok": True})
+            run_id, _ = rt.create_run(initial_state={})
+
+            async def agent_fn(ctx: Any, state: dict[str, Any]) -> None:
+                raise ValueError("broken")
+
+            with self.assertRaises(ValueError):
+                asyncio.run(rt.run_once(agent_fn, run_id=run_id, agent_role="DebugAgent"))
+            args = type(
+                "Args",
+                (),
+                {
+                    "root": str(root),
+                    "policy": None,
+                    "sandbox_config": None,
+                    "run_id": None,
+                    "summary": True,
+                    "json": True,
+                    "last": False,
+                    "failed": True,
+                },
+            )()
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                cmd_debug(args)
+            payload = json.loads(stdout.getvalue())
+            self.assertEqual(payload["run_id"], run_id)
+            self.assertEqual(payload["run_status"], "failed")
+            self.assertEqual(payload["next_action"], "inspect_failure_evidence")
 
     def test_postgres_store_skeleton_exposes_schema_ddl(self) -> None:
         ddl = PostgresStore.ddl()
