@@ -27,7 +27,7 @@ Use AgentLedger inside a Go module:
 
 ```bash
 go mod init your-module-name  # only if your project does not have go.mod yet
-go get github.com/yaogdu/AgentLedger/go@v1.5.2
+go get github.com/yaogdu/AgentLedger/go@v1.5.4
 ```
 
 Import:
@@ -39,11 +39,11 @@ import agentledger "github.com/yaogdu/AgentLedger/go"
 ## CLI Install
 
 ```bash
-go install github.com/yaogdu/AgentLedger/go/cmd/agentledger-go@v1.5.2
+go install github.com/yaogdu/AgentLedger/go/cmd/agentledger-go@v1.5.4
 agentledger-go quickstart
 ```
 
-Do not run `go install github.com/yaogdu/AgentLedger/go@v1.5.2`; that path is the library package and is not `package main`.
+Do not run `go install github.com/yaogdu/AgentLedger/go@v1.5.4`; that path is the library package and is not `package main`.
 
 ## Travel Assistant
 

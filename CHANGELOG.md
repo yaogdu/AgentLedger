@@ -6,6 +6,16 @@ This project follows semantic versioning for the stable runtime-core contract. O
 
 ## Unreleased
 
+## 1.5.4 - 2026-08-11
+
+### Added
+
+- Added Go, TypeScript, and Rust operator recovery CLI parity for pending Tool Ledger verification through `ledger-resolve`, including manual succeeded replay and failed-no-effect retry classification.
+
+### Clarified
+
+- Python reference recovery support shipped in 1.5.3; this patch aligns non-Python runtime package surfaces without changing the stable v1.x runtime-core contract or optional adapter packages.
+
 ## 1.5.3 - 2026-08-11
 
 ### Added

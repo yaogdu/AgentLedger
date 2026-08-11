@@ -66,13 +66,13 @@ Use the released Go module from a Go project:
 
 ```bash
 go mod init your-module-name  # only if your project does not have go.mod yet
-go get github.com/yaogdu/AgentLedger/go@v1.5.2
+go get github.com/yaogdu/AgentLedger/go@v1.5.4
 ```
 
 Install the optional CLI command:
 
 ```bash
-go install github.com/yaogdu/AgentLedger/go/cmd/agentledger-go@v1.5.2
+go install github.com/yaogdu/AgentLedger/go/cmd/agentledger-go@v1.5.4
 agentledger-go --help
 agentledger-go doctor
 agentledger-go quickstart
@@ -86,7 +86,7 @@ go test . ./cmd/agentledger-go
 go run ./cmd/agentledger-go conformance
 ```
 
-Note: `go get` must run inside a Go module. `go install github.com/yaogdu/AgentLedger/go@v1.5.2` fails because the library package is not a `package main`; use `/cmd/agentledger-go` for the CLI.
+Note: `go get` must run inside a Go module. `go install github.com/yaogdu/AgentLedger/go@v1.5.4` fails because the library package is not a `package main`; use `/cmd/agentledger-go` for the CLI.
 
 Minimal runtime:
 

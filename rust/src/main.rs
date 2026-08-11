@@ -258,8 +258,8 @@ fn run(args: Vec<String>) -> Result<(), Box<dyn Error>> {
     match args.as_slice() {
         [] => { print_help(); Ok(()) }
         [command] if command == "--help" || command == "help" => { print_help(); Ok(()) }
-        [command] if command == "version" => { println!("agentledger-rust 1.5.2"); Ok(()) }
-        [command] if command == "doctor" => { println!("{{\n  \"language\": \"rust\",\n  \"version\": \"1.5.2\",\n  \"status\": \"ok\",\n  \"runtime_core_parity\": true\n}}"); Ok(()) }
+        [command] if command == "version" => { println!("agentledger-rust 1.5.4"); Ok(()) }
+        [command] if command == "doctor" => { println!("{{\n  \"language\": \"rust\",\n  \"version\": \"1.5.4\",\n  \"status\": \"ok\",\n  \"runtime_core_parity\": true\n}}"); Ok(()) }
         [command] if command == "quickstart" => run_quickstart(),
         [command] if command == "conformance" => run_conformance(),
         [command, path, run_id] if command == "ledger" => run_ledger(path, run_id, false),
@@ -285,7 +285,7 @@ fn run(args: Vec<String>) -> Result<(), Box<dyn Error>> {
 }
 
 fn print_help() {
-    println!("AgentLedger Rust Runtime 1.5.2\n\nUsage:\n  agentledger-rust doctor\n  agentledger-rust version\n  agentledger-rust quickstart\n  agentledger-rust conformance\n  agentledger-rust debug <store_path> <run_id> --summary [--json]\n  agentledger-rust ledger <store_path> <run_id> [--pending]\n  agentledger-rust ledger-resolve <store_path> <run_id> <idempotency_key> --status succeeded|failed-no-effect [--external-id id] [--reason text]\n  agentledger-rust contract validate\n  agentledger-rust contract export\n\nProject: https://github.com/yaogdu/AgentLedger");
+    println!("AgentLedger Rust Runtime 1.5.4\n\nUsage:\n  agentledger-rust doctor\n  agentledger-rust version\n  agentledger-rust quickstart\n  agentledger-rust conformance\n  agentledger-rust debug <store_path> <run_id> --summary [--json]\n  agentledger-rust ledger <store_path> <run_id> [--pending]\n  agentledger-rust ledger-resolve <store_path> <run_id> <idempotency_key> --status succeeded|failed-no-effect [--external-id id] [--reason text]\n  agentledger-rust contract validate\n  agentledger-rust contract export\n\nProject: https://github.com/yaogdu/AgentLedger");
 }
 
 fn has_flag(args: &[String], name: &str) -> bool {
