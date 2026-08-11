@@ -485,6 +485,62 @@ class SQLiteStore:
                 (status, external_id, response_hash, response_ref, error_type, now_ts(), idempotency_key),
             )
 
+    def resolve_ledger(
+        self,
+        *,
+        run_id: str,
+        idempotency_key: str,
+        status: str,
+        resolved_by: str = "operator",
+        reason: str = "",
+        external_id: str | None = None,
+        response_hash: str | None = None,
+        response_ref: str | None = None,
+        error_type: str | None = None,
+    ) -> sqlite3.Row:
+        if status not in {"SUCCEEDED", "FAILED_NO_EFFECT"}:
+            raise ValueError(f"unsupported ledger resolution status: {status}")
+        if status == "SUCCEEDED" and not response_ref:
+            raise ValueError("SUCCEEDED ledger resolution requires response_ref")
+        ts = now_ts()
+        with self.conn:
+            row = self.conn.execute(
+                "SELECT * FROM tool_ledger WHERE idempotency_key=?",
+                (idempotency_key,),
+            ).fetchone()
+            if row is None:
+                raise KeyError(f"ledger row not found: {idempotency_key}")
+            if row["run_id"] != run_id:
+                raise ValueError("ledger row belongs to a different run")
+            if row["status"] != "PENDING_VERIFICATION":
+                raise ValueError(f"ledger row is not pending verification: {row['status']}")
+            self.conn.execute(
+                "UPDATE tool_ledger SET status=?, external_id=?, response_hash=?, response_ref=?, error_type=?, updated_at=? WHERE idempotency_key=?",
+                (status, external_id, response_hash, response_ref, error_type, ts, idempotency_key),
+            )
+            self._append_event_in_tx(
+                run_id=row["run_id"],
+                session_id=row["session_id"],
+                step_id=row["step_id"],
+                event_type="tool_ledger_resolved",
+                payload={
+                    "ledger_id": row["ledger_id"],
+                    "tool": row["tool_name"],
+                    "idempotency_key": idempotency_key,
+                    "previous_status": row["status"],
+                    "status": status,
+                    "resolved_by": resolved_by,
+                    "reason": reason,
+                    "external_id": external_id,
+                    "response_ref": response_ref,
+                    "error_type": error_type,
+                },
+            )
+        resolved = self.conn.execute("SELECT * FROM tool_ledger WHERE idempotency_key=?", (idempotency_key,)).fetchone()
+        if resolved is None:
+            raise KeyError(f"ledger row not found: {idempotency_key}")
+        return resolved
+
     def run(self, run_id: str) -> sqlite3.Row:
         row = self.conn.execute("SELECT * FROM runs WHERE run_id=?", (run_id,)).fetchone()
         if row is None:

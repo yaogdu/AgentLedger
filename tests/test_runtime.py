@@ -26,7 +26,7 @@ from agentledger.blobstore_s3 import S3BlobStore, S3BlobStoreConfig
 from agentledger.conformance import BlobStoreConformanceRunner, FrameworkAdapterConformanceRunner, MediaRuntimeConformanceRunner, StateStoreConformanceRunner, WorkerConformanceRunner
 from agentledger.contract import contract_json, runtime_contract
 from agentledger.approval import ApprovalRequired
-from agentledger.cli import build_parser, cmd_adapter_certify, cmd_adapter_conformance, cmd_backup_check, cmd_blob_conformance, cmd_conformance, cmd_corpus_add, cmd_corpus_eval, cmd_corpus_list, cmd_corpus_seed, cmd_cost_report, cmd_debug, cmd_divergence, cmd_evidence, cmd_evidence_regression, cmd_failure_export, cmd_failure_inject, cmd_failure_regress, cmd_failure_report, cmd_inspector_evidence, cmd_inspector_run, cmd_inspector_runs, cmd_lint_boundary, cmd_migrate_status, cmd_migrate_up, cmd_review_checklist, cmd_state_conformance, cmd_timetravel, cmd_tools_manifest, cmd_worker_conformance, cmd_worker_plan, cmd_worker_serve, create_blob_store, create_state_store, main
+from agentledger.cli import build_parser, cmd_adapter_certify, cmd_adapter_conformance, cmd_backup_check, cmd_blob_conformance, cmd_conformance, cmd_corpus_add, cmd_corpus_eval, cmd_corpus_list, cmd_corpus_seed, cmd_cost_report, cmd_debug, cmd_divergence, cmd_evidence, cmd_evidence_regression, cmd_failure_export, cmd_failure_inject, cmd_failure_regress, cmd_failure_report, cmd_inspector_evidence, cmd_inspector_run, cmd_inspector_runs, cmd_ledger_resolve, cmd_lint_boundary, cmd_migrate_status, cmd_migrate_up, cmd_review_checklist, cmd_state_conformance, cmd_timetravel, cmd_tools_manifest, cmd_worker_conformance, cmd_worker_plan, cmd_worker_serve, create_blob_store, create_state_store, main
 from agentledger.cost import BudgetController, BudgetExceeded, BudgetLimits, CostAttributionReporter
 from agentledger.failure import FAILURE_ENVELOPE_SCHEMA_VERSION, FAILURE_EXPORT_SCHEMA_VERSION, FAILURE_LIFECYCLE_SCHEMA_VERSION, FailureAttributionReporter, FailureRegressionAnalyzer, RetryableAgentError
 from agentledger.failure_injection import FailureInjectionSuite
@@ -146,6 +146,8 @@ class RuntimeTests(unittest.TestCase):
             ["debug", "run-1", "--json", "--include-diffs"],
             ["replay", "run-1"],
             ["ledger", "run-1"],
+            ["ledger-resolve", "run-1", "idem-1", "--status", "succeeded", "--external-id", "ext-1"],
+            ["ledger-resolve", "run-1", "idem-1", "--status", "failed-no-effect", "--reason", "checked"],
             ["evidence", "run-1"],
             ["evidence", "run-1", "--dir", "./evidence/run-1"],
             ["evidence", "run-1", "--html", "./evidence.html"],
@@ -2670,6 +2672,104 @@ roles:
             self.assertEqual(payload["run_id"], run_id)
             self.assertEqual(payload["run_status"], "failed")
             self.assertEqual(payload["next_action"], "inspect_failure_evidence")
+
+    def test_cli_ledger_resolve_succeeded_reuses_manual_response(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / ".agentledger"
+            rt = Runtime.local(root)
+            calls = {"count": 0}
+
+            def charge(_: dict[str, Any]) -> dict[str, Any]:
+                calls["count"] += 1
+                raise TimeoutError("charge result unknown")
+
+            rt.registry.register(ToolSpec(name="payments.charge", func=charge, side_effect="external_write", idempotency_required=True))
+            run_id, _ = rt.create_run(initial_state={})
+
+            async def agent_fn(ctx: Any, state: dict[str, Any]) -> None:
+                result = await ctx.call_tool("payments.charge", {"_logical_operation": "charge-1"})
+                ctx.write_state_patch("charge", result)
+
+            self.assertFalse(asyncio.run(rt.run_once(agent_fn, run_id=run_id, agent_role="DebugAgent")))
+            ledger_row = rt.store.ledger(run_id)[0]
+            args = type(
+                "Args",
+                (),
+                {
+                    "root": str(root),
+                    "policy": None,
+                    "sandbox_config": None,
+                    "run_id": run_id,
+                    "idempotency_key": ledger_row["idempotency_key"],
+                    "status": "succeeded",
+                    "external_id": "charge-1",
+                    "response_json": None,
+                    "operator": "alice",
+                    "reason": "provider shows the charge succeeded",
+                },
+            )()
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                cmd_ledger_resolve(args)
+            payload = json.loads(stdout.getvalue())
+            self.assertEqual(payload["status"], "SUCCEEDED")
+            self.assertEqual(payload["external_id"], "charge-1")
+            self.assertTrue(payload["response_ref"])
+
+            self.assertTrue(asyncio.run(rt.run_once(agent_fn, run_id=run_id, agent_role="DebugAgent")))
+            self.assertEqual(calls["count"], 1)
+            self.assertEqual(rt.store.final_state(run_id)["charge"]["external_id"], "charge-1")
+            event_types = [row["type"] for row in rt.store.events(run_id)]
+            self.assertIn("tool_ledger_resolved", event_types)
+
+    def test_cli_ledger_resolve_failed_no_effect_allows_retry(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / ".agentledger"
+            rt = Runtime.local(root)
+            calls = {"count": 0}
+
+            def unknown_charge(_: dict[str, Any]) -> dict[str, Any]:
+                calls["count"] += 1
+                raise TimeoutError("charge result unknown")
+
+            def successful_charge(_: dict[str, Any]) -> dict[str, Any]:
+                calls["count"] += 1
+                return {"external_id": "charge-2"}
+
+            rt.registry.register(ToolSpec(name="payments.charge", func=unknown_charge, side_effect="external_write", idempotency_required=True))
+            run_id, _ = rt.create_run(initial_state={})
+
+            async def agent_fn(ctx: Any, state: dict[str, Any]) -> None:
+                result = await ctx.call_tool("payments.charge", {"_logical_operation": "charge-2"})
+                ctx.write_state_patch("charge", result)
+
+            self.assertFalse(asyncio.run(rt.run_once(agent_fn, run_id=run_id, agent_role="DebugAgent")))
+            ledger_row = rt.store.ledger(run_id)[0]
+            args = type(
+                "Args",
+                (),
+                {
+                    "root": str(root),
+                    "policy": None,
+                    "sandbox_config": None,
+                    "run_id": run_id,
+                    "idempotency_key": ledger_row["idempotency_key"],
+                    "status": "failed-no-effect",
+                    "external_id": None,
+                    "response_json": None,
+                    "operator": "alice",
+                    "reason": "provider shows no charge was created",
+                },
+            )()
+            with contextlib.redirect_stdout(io.StringIO()):
+                cmd_ledger_resolve(args)
+            self.assertEqual(rt.store.ledger(run_id)[0]["status"], "FAILED_NO_EFFECT")
+
+            rt.registry.register(ToolSpec(name="payments.charge", func=successful_charge, side_effect="external_write", idempotency_required=True))
+            self.assertTrue(asyncio.run(rt.run_once(agent_fn, run_id=run_id, agent_role="DebugAgent")))
+            self.assertEqual(calls["count"], 2)
+            self.assertEqual(rt.store.ledger(run_id)[0]["status"], "SUCCEEDED")
+            self.assertEqual(rt.store.final_state(run_id)["charge"]["external_id"], "charge-2")
 
     def test_postgres_store_skeleton_exposes_schema_ddl(self) -> None:
         ddl = PostgresStore.ddl()

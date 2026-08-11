@@ -282,12 +282,53 @@ def cmd_debug(args: argparse.Namespace) -> None:
         print(f"{event['seq']:03d} {event['type']} step={event['step_id'] or '-'} state={state}")
 
 
+def _ledger_row(row: Any) -> dict[str, Any]:
+    keys = ["ledger_id", "tool_name", "status", "idempotency_key", "external_id", "response_ref", "error_type"]
+    if isinstance(row, dict):
+        return {key: row.get(key) for key in keys if key in row}
+    return {key: row[key] for key in row.keys() if key in keys}
+
+
 def cmd_ledger(args: argparse.Namespace) -> None:
     rt = runtime_from_root(args.root, args.policy, getattr(args, "sandbox_config", None))
-    rows = []
-    for row in rt.store.ledger(args.run_id):
-        rows.append({k: row[k] for k in row.keys() if k in {"tool_name", "status", "idempotency_key", "external_id", "response_ref", "error_type"}})
-    print(json.dumps(rows, indent=2))
+    print(json.dumps([_ledger_row(row) for row in rt.store.ledger(args.run_id)], indent=2))
+
+
+def _manual_ledger_response(args: argparse.Namespace) -> dict[str, Any]:
+    if getattr(args, "response_json", None):
+        try:
+            response = json.loads(args.response_json)
+        except json.JSONDecodeError as exc:
+            raise SystemExit(f"--response-json must be valid JSON: {exc}") from exc
+        if not isinstance(response, dict):
+            raise SystemExit("--response-json must be a JSON object")
+    else:
+        response = {}
+    if getattr(args, "external_id", None):
+        response["external_id"] = args.external_id
+    if not response:
+        response["manual_resolution"] = True
+    return response
+
+
+def cmd_ledger_resolve(args: argparse.Namespace) -> None:
+    rt = runtime_from_root(args.root, args.policy, getattr(args, "sandbox_config", None))
+    status = {"succeeded": "SUCCEEDED", "failed-no-effect": "FAILED_NO_EFFECT"}[args.status]
+    response_hash = response_ref = None
+    if status == "SUCCEEDED":
+        response_hash, response_ref = rt.blobs.put_json(_manual_ledger_response(args))
+    row = rt.store.resolve_ledger(
+        run_id=args.run_id,
+        idempotency_key=args.idempotency_key,
+        status=status,
+        resolved_by=args.operator,
+        reason=args.reason,
+        external_id=args.external_id,
+        response_hash=response_hash,
+        response_ref=response_ref,
+        error_type="ManualNoEffect" if status == "FAILED_NO_EFFECT" else None,
+    )
+    print(json.dumps(_ledger_row(row), indent=2))
 
 
 def cmd_replay(args: argparse.Namespace) -> None:
@@ -1098,6 +1139,15 @@ def build_parser() -> argparse.ArgumentParser:
     ledger = sub.add_parser("ledger")
     ledger.add_argument("run_id")
     ledger.set_defaults(func=cmd_ledger)
+    ledger_resolve = sub.add_parser("ledger-resolve")
+    ledger_resolve.add_argument("run_id")
+    ledger_resolve.add_argument("idempotency_key")
+    ledger_resolve.add_argument("--status", choices=["succeeded", "failed-no-effect"], required=True)
+    ledger_resolve.add_argument("--external-id")
+    ledger_resolve.add_argument("--response-json", help="JSON object to store as the manual successful tool response")
+    ledger_resolve.add_argument("--operator", default="operator")
+    ledger_resolve.add_argument("--reason", default="manual ledger resolution")
+    ledger_resolve.set_defaults(func=cmd_ledger_resolve)
     replay = sub.add_parser("replay")
     replay.add_argument("run_id")
     replay.set_defaults(func=cmd_replay)
