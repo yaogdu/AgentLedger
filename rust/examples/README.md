@@ -18,9 +18,10 @@ cd rust
 cargo run --example three_minute_demo
 cargo run --example mcp_governance
 cargo run --example omp_bridge
+cargo run --features sqlite-evidence --example sqlite_evidence -- /tmp/agentledger-evidence
 ```
 
-The 3-minute demo shows crash/retry without duplicate external writes. The MCP governance demo shows descriptor annotations flowing into approval, sandbox metadata, idempotency, and audit evidence. The OMP bridge demo maps normalized runtime records into AgentLedger evidence without depending on OMP internals.
+The 3-minute demo shows crash/retry without duplicate external writes. The MCP governance demo shows descriptor annotations flowing into approval, sandbox metadata, idempotency, and audit evidence. The OMP bridge demo maps normalized runtime records into AgentLedger evidence without depending on OMP internals. The SQLite evidence demo creates a durable queue, projects it, exports one diagnostic database, and validates a read-only replay.
 
 ## CLI Quickstart
 

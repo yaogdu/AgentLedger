@@ -36,6 +36,25 @@ SQLite 适合：
 - conformance fixture
 - 可靠性语义验证
 
+### Rust SQLite evidence sidecar
+
+Rust 1.5.5 提供可选 `sqlite-evidence` feature，供宿主应用在不引入独立服务的情况下旁路记录诊断 evidence：
+
+```toml
+agentledger-runtime = { version = "1.5.5", features = ["sqlite-evidence"] }
+```
+
+`SqliteEvidenceStore` 使用 durable ingest queue，并在同一事务中完成标准 `runs`、`steps`、`events` 表的投影和队列确认。run/step 归属冲突会在入队前拒绝；历史 malformed 或冲突坏行会在任何状态更新前完成校验，随后单条丢弃并计入 `ProjectionReceipt.dropped_invalid`，不会阻塞后续 evidence。保留策略把 `step_id` 作为 Turn 分组：只有终态 `turn.*` 事件可以关闭它，清理只删除 cutoff 之前已终态的完整 Turn；跨 cutoff、仅 attempt 终态和未终态 Turn 都会完整保留。它可以从一致的只读快照把单个 run 导出为一个 SQLite 文件，再以只读方式校验 replay；该过程不会调用工具。bundle 会记录 retention cutoff 和该 run 累计移除 Turn 数。payload 使用 inline canonical JSON，因此 Rust replay CLI 与现有 Python Inspector 都可以直接读取：
+
+```bash
+cargo run --quiet --features sqlite-evidence -- replay diagnostic.agentledger.db
+PYTHONPATH=src python3 -m agentledger inspector run RUN_ID \
+  --backend sqlite --db diagnostic.agentledger.db \
+  --blob-root . --include-payloads --out inspector.json
+```
+
+保留策略按最近若干个“有事件的自然日”计算，连续未使用不会使 evidence 过期。这个 writer 只属于 Rust 可选集成面，不改变四语言 portable runtime-core contract。
+
 ## BlobStore
 
 BlobStore 保存 payload 和 artifact 内容，event 中只保存 ref：

@@ -14,6 +14,8 @@ use agentledger::{
     LocalWorker, MCPContextAdapter, MCPToolAdapter, MemoryStore, MethodFrameworkAdapter, Runtime,
     RuntimeScheduler, SandboxExecutor, State, ToolLedgerEntry, ToolSpec, Value, WorkerService,
 };
+#[cfg(feature = "sqlite-evidence")]
+use agentledger::SqliteEvidenceStore;
 
 const FIXTURE_CHECKS: &[(&str, &[&str])] = &[
     (
@@ -258,10 +260,11 @@ fn run(args: Vec<String>) -> Result<(), Box<dyn Error>> {
     match args.as_slice() {
         [] => { print_help(); Ok(()) }
         [command] if command == "--help" || command == "help" => { print_help(); Ok(()) }
-        [command] if command == "version" => { println!("agentledger-rust 1.5.4"); Ok(()) }
-        [command] if command == "doctor" => { println!("{{\n  \"language\": \"rust\",\n  \"version\": \"1.5.4\",\n  \"status\": \"ok\",\n  \"runtime_core_parity\": true\n}}"); Ok(()) }
+        [command] if command == "version" => { println!("agentledger-rust {}", env!("CARGO_PKG_VERSION")); Ok(()) }
+        [command] if command == "doctor" => { println!("{{\n  \"language\": \"rust\",\n  \"version\": \"{}\",\n  \"status\": \"ok\",\n  \"runtime_core_parity\": true\n}}", env!("CARGO_PKG_VERSION")); Ok(()) }
         [command] if command == "quickstart" => run_quickstart(),
         [command] if command == "conformance" => run_conformance(),
+        [command, path] if command == "replay" => run_sqlite_replay(path),
         [command, path, run_id] if command == "ledger" => run_ledger(path, run_id, false),
         [command, path, run_id, flag] if command == "ledger" && flag == "--pending" => {
             run_ledger(path, run_id, true)
@@ -285,7 +288,82 @@ fn run(args: Vec<String>) -> Result<(), Box<dyn Error>> {
 }
 
 fn print_help() {
-    println!("AgentLedger Rust Runtime 1.5.4\n\nUsage:\n  agentledger-rust doctor\n  agentledger-rust version\n  agentledger-rust quickstart\n  agentledger-rust conformance\n  agentledger-rust debug <store_path> <run_id> --summary [--json]\n  agentledger-rust ledger <store_path> <run_id> [--pending]\n  agentledger-rust ledger-resolve <store_path> <run_id> <idempotency_key> --status succeeded|failed-no-effect [--external-id id] [--reason text]\n  agentledger-rust contract validate\n  agentledger-rust contract export\n\nProject: https://github.com/yaogdu/AgentLedger");
+    println!("AgentLedger Rust Runtime {}\n\nUsage:\n  agentledger-rust doctor\n  agentledger-rust version\n  agentledger-rust quickstart\n  agentledger-rust conformance\n  agentledger-rust replay <evidence_bundle.db>  # requires sqlite-evidence\n  agentledger-rust debug <store_path> <run_id> --summary [--json]\n  agentledger-rust ledger <store_path> <run_id> [--pending]\n  agentledger-rust ledger-resolve <store_path> <run_id> <idempotency_key> --status succeeded|failed-no-effect [--external-id id] [--reason text]\n  agentledger-rust contract validate\n  agentledger-rust contract export\n\nProject: https://github.com/yaogdu/AgentLedger", env!("CARGO_PKG_VERSION"));
+}
+
+#[cfg(feature = "sqlite-evidence")]
+fn run_sqlite_replay(path: &str) -> Result<(), Box<dyn Error>> {
+    let summary = SqliteEvidenceStore::replay_bundle(path)?;
+    let timeline = summary
+        .timeline
+        .iter()
+        .map(|event| {
+            Value::Object(state(&[
+                ("event_id", Value::String(event.event_id.clone())),
+                ("run_id", Value::String(event.run_id.clone())),
+                ("session_id", Value::String(event.session_id.clone())),
+                (
+                    "step_id",
+                    event
+                        .step_id
+                        .clone()
+                        .map(Value::String)
+                        .unwrap_or(Value::Null),
+                ),
+                ("seq", Value::Number(event.seq as f64)),
+                ("type", Value::String(event.event_type.clone())),
+                (
+                    "occurred_at_ms",
+                    Value::Number(event.occurred_at_ms as f64),
+                ),
+                ("payload_hash", Value::String(event.payload_hash.clone())),
+                ("payload", Value::Object(event.payload.clone())),
+            ]))
+        })
+        .collect();
+    let report = state(&[
+        (
+            "schema_version",
+            Value::String("agentledger.sqlite.replay.v1".to_string()),
+        ),
+        ("run_id", Value::String(summary.run_id)),
+        ("event_count", Value::Number(summary.event_count as f64)),
+        ("event_hash", Value::String(summary.event_hash)),
+        ("replay_safe", Value::Bool(summary.replay_safe)),
+        ("timeline", Value::Array(timeline)),
+        (
+            "reconstructed_state",
+            Value::Object(summary.reconstructed_state),
+        ),
+        (
+            "failure_attributions",
+            Value::Array(
+                summary
+                    .failure_attributions
+                    .into_iter()
+                    .map(Value::Object)
+                    .collect(),
+            ),
+        ),
+        (
+            "retention_cutoff_event_day",
+            summary
+                .retention_cutoff_event_day
+                .map(|value| Value::Number(value as f64))
+                .unwrap_or(Value::Null),
+        ),
+        (
+            "removed_turn_count",
+            Value::Number(summary.removed_turn_count as f64),
+        ),
+    ]);
+    println!("{}", format_cli_value(&Value::Object(report)));
+    Ok(())
+}
+
+#[cfg(not(feature = "sqlite-evidence"))]
+fn run_sqlite_replay(_path: &str) -> Result<(), Box<dyn Error>> {
+    Err("replay requires the sqlite-evidence Cargo feature".into())
 }
 
 fn has_flag(args: &[String], name: &str) -> bool {

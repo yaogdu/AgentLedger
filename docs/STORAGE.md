@@ -108,6 +108,25 @@ automatic migrations
 
 It is suitable for local development, examples, tests, and small single-node deployments.
 
+### Rust SQLite evidence sidecar
+
+Rust 1.5.5 adds an optional `sqlite-evidence` feature for host applications that need a fail-open diagnostic sidecar without a separate service:
+
+```toml
+agentledger-runtime = { version = "1.5.5", features = ["sqlite-evidence"] }
+```
+
+`SqliteEvidenceStore` owns a durable ingest queue and projects each acknowledged batch into the standard `runs`, `steps`, and `events` tables in one transaction. Conflicting run/step ownership is rejected before enqueue; pre-existing malformed or conflicting queue rows are validated before any state update, dropped individually, and counted in `ProjectionReceipt.dropped_invalid`, so they cannot block later evidence. Retention treats `step_id` as the Turn group: only terminal `turn.*` events close it, and cleanup removes only complete terminal Turns before the active-day cutoff. Cross-cutoff, attempt-terminal-only, and non-terminal Turns remain intact. It can export one run from a consistent read snapshot as a single SQLite file and validate that bundle through a read-only replay that never invokes tools. The bundle records its retention cutoff and per-run cumulative removed Turn count. Inline canonical JSON keeps it readable by the Rust replay CLI and existing Python Inspector:
+
+```bash
+cargo run --quiet --features sqlite-evidence -- replay diagnostic.agentledger.db
+PYTHONPATH=src python3 -m agentledger inspector run RUN_ID \
+  --backend sqlite --db diagnostic.agentledger.db \
+  --blob-root . --include-payloads --out inspector.json
+```
+
+Retention keeps the latest configured number of distinct event days. Days without events do not age evidence. This optional writer is Rust-specific; the portable runtime-core contract and the Python/Go/TypeScript package surfaces are unchanged.
+
 ## Postgres
 
 Postgres has an experimental psycopg-backed adapter path with DDL, migration status/apply CLI, schema isolation, JSONB parameter handling, native `FOR UPDATE SKIP LOCKED` worker claiming, connection-injection conformance tests, CLI conformance, opt-in real-service integration tests, and a CI Postgres service conformance job. A hardened production deployment still needs migration rollout guidance, backup/restore procedures, and operational tuning. See `docs/POSTGRES.md`.

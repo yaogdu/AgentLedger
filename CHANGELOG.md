@@ -6,6 +6,18 @@ This project follows semantic versioning for the stable runtime-core contract. O
 
 ## Unreleased
 
+## 1.5.5 - 2026-08-14
+
+### Added
+
+- Added the Rust-only optional `sqlite-evidence` feature for a durable evidence ingest queue, atomic projection into standard AgentLedger tables, one-file SQLite diagnostic bundles, read-only replay CLI/validation, and whole-Turn retention by active event day.
+- Added a cross-language release check proving the Python Inspector can read a Rust-produced SQLite evidence bundle without replaying tools or requiring a blob sidecar.
+- Added fail-open queue draining: conflicting run/step ownership is rejected at enqueue, while pre-existing malformed or conflicting rows are validated before projection, acknowledged individually, and reported through `ProjectionReceipt.dropped_invalid` without blocking later evidence.
+
+### Clarified
+
+- This patch adds an optional Rust integration surface. It does not change the stable four-language runtime-core contract or claim equivalent sidecar writers in Python, Go, or TypeScript.
+
 ## 1.5.4 - 2026-08-11
 
 ### Added

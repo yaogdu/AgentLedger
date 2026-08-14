@@ -6,6 +6,14 @@ use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
+#[cfg(feature = "sqlite-evidence")]
+mod sqlite_evidence;
+#[cfg(feature = "sqlite-evidence")]
+pub use sqlite_evidence::{
+    EvidenceBundleReceipt, EvidenceEventInput, EvidenceEventRecord, EvidenceReplaySummary,
+    ProjectionReceipt, SqliteEvidenceStore,
+};
+
 static ID_COUNTER: AtomicU64 = AtomicU64::new(1);
 
 pub type State = HashMap<String, Value>;

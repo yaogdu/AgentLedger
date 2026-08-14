@@ -13,6 +13,7 @@ import os
 import re
 import subprocess
 import sys
+import tempfile
 import time
 import urllib.parse
 from dataclasses import asdict, dataclass
@@ -248,6 +249,7 @@ def write_report(path: str | Path, *, passed: bool, started_at: float) -> None:
             "contracts/conformance/policy_approval_sandbox.v1.json",
             "contracts/conformance/cost_failure_attribution.v1.json",
             "contracts/conformance/media_stream_artifacts.v1.json",
+            "contracts/conformance/sqlite_evidence_sidecar.v1.json",
         ],
         "required_semantic_checks": REQUIRED_SEMANTIC_CHECKS,
         "semantic_manifest_payload": SEMANTIC_MANIFEST,
@@ -289,7 +291,61 @@ def main(argv: list[str] | None = None) -> int:
         rust_env = os.environ.copy()
         rust_env.setdefault("CARGO_TARGET_DIR", "/tmp/agentledger-cargo-target")
         run(["cargo", "test", "--lib", "--bins"], cwd=ROOT / "rust", env=rust_env, name="rust_tests")
+        run(
+            ["cargo", "test", "--features", "sqlite-evidence", "--test", "sqlite_evidence"],
+            cwd=ROOT / "rust",
+            env=rust_env,
+            name="rust_sqlite_evidence_tests",
+        )
         run_json(["cargo", "run", "--quiet", "--", "conformance"], cwd=ROOT / "rust", env=rust_env, name="rust_conformance_cli", language="rust")
+        with tempfile.TemporaryDirectory(prefix="agentledger-sqlite-evidence-") as temp:
+            root = Path(temp)
+            bundle = root / "interop.agentledger.db"
+            replay_report = root / "replay.json"
+            inspector_report = root / "inspector.json"
+            run(
+                ["cargo", "run", "--quiet", "--features", "sqlite-evidence", "--example", "sqlite_evidence", "--", str(root)],
+                cwd=ROOT / "rust",
+                env=rust_env,
+                name="rust_sqlite_evidence_bundle",
+            )
+            with replay_report.open("w", encoding="utf-8") as handle:
+                run(
+                    ["cargo", "run", "--quiet", "--features", "sqlite-evidence", "--", "replay", str(bundle)],
+                    cwd=ROOT / "rust",
+                    env=rust_env,
+                    name="rust_sqlite_evidence_replay_cli",
+                    stdout=handle,
+                )
+            replay = json.loads(replay_report.read_text(encoding="utf-8"))
+            if replay.get("run_id") != "interop-run" or len(replay.get("timeline", [])) != 2:
+                raise ValueError("Rust replay CLI did not preserve the SQLite evidence timeline")
+            run(
+                [
+                    sys.executable,
+                    "-m",
+                    "agentledger",
+                    "--root",
+                    str(root),
+                    "inspector",
+                    "run",
+                    "interop-run",
+                    "--backend",
+                    "sqlite",
+                    "--db",
+                    str(bundle),
+                    "--blob-root",
+                    str(root),
+                    "--include-payloads",
+                    "--out",
+                    str(inspector_report),
+                ],
+                env=python_env(),
+                name="python_inspector_reads_rust_sqlite_bundle",
+            )
+            inspector = json.loads(inspector_report.read_text(encoding="utf-8"))
+            if inspector.get("run", {}).get("run_id") != "interop-run" or len(inspector.get("timeline", [])) != 2:
+                raise ValueError("Python Inspector did not preserve the Rust SQLite evidence bundle")
         if not args.skip_docs:
             check_markdown_links()
             run(["git", "diff", "--check"], name="git_diff_check")

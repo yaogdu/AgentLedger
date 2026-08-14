@@ -1,0 +1,48 @@
+{
+  "schema_version": "agentledger.conformance.sqlite_evidence_sidecar.v1",
+  "scope": {
+    "implementation": "rust",
+    "feature": "sqlite-evidence",
+    "portable_runtime_core_parity": false
+  },
+  "scenarios": [
+    {
+      "id": "durable_queue_projects_atomically",
+      "expect": [
+        "queued evidence survives reopen",
+        "event_id is idempotent",
+        "projection order is stable",
+        "projection and queue acknowledgement share one transaction",
+        "invalid ownership is rejected before enqueue and historical poison rows do not block later evidence",
+        "standard events.step_id and steps preserve Turn structure"
+      ]
+    },
+    {
+      "id": "single_file_bundle_replays_read_only",
+      "expect": [
+        "one SQLite file contains the selected run",
+        "replay opens the bundle read-only",
+        "payload hashes are validated",
+        "replay never invokes tools",
+        "the Rust replay CLI returns timeline, reconstructed state, and failure attribution"
+      ]
+    },
+    {
+      "id": "python_inspector_reads_rust_bundle",
+      "expect": [
+        "standard AgentLedger runs and events tables are present",
+        "inline canonical JSON requires no blob sidecar",
+        "Python Inspector returns the Rust event timeline"
+      ]
+    },
+    {
+      "id": "retention_uses_active_event_days",
+      "expect": [
+        "only the latest configured distinct event days remain",
+        "days without events do not age evidence",
+        "cross-cutoff, attempt-terminal-only, and non-terminal Turns remain complete",
+        "bundle metadata reports the cutoff and per-run removed Turn count"
+      ]
+    }
+  ]
+}

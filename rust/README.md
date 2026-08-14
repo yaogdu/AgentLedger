@@ -1,6 +1,6 @@
 # AgentLedger Rust Runtime
 
-This directory contains the dependency-free Rust runtime-core package for AgentLedger 1.5.4.
+This directory contains the Rust runtime-core package for AgentLedger 1.5.5. The default feature set remains dependency-free; SQLite evidence storage is opt-in.
 
 It runs a native local runtime loop and participates in the shared Python/Go/TypeScript/Rust conformance gate.
 
@@ -23,6 +23,7 @@ Implemented:
 - MCP-style and dependency-free framework adapters
 - official optional adapter APIs for Postgres, S3/MinIO, OTLP transport, Docker sandbox manifests, and command-style Docker execution
 - CLI for `conformance`, `contract validate`, and `contract export`
+- optional `sqlite-evidence` sidecar with durable ingest, one-file diagnostic export, read-only replay validation, and active-event-day retention
 
 Not claimed yet:
 
@@ -44,6 +45,12 @@ Import the library crate as `agentledger`:
 
 ```rust
 use agentledger::{simple_run, AgentContext, Result, State, Value};
+```
+
+Enable the SQLite evidence sidecar only when the host application needs it:
+
+```bash
+cargo add agentledger-runtime --features sqlite-evidence
 ```
 
 From this repository, use Cargo directly while developing:
@@ -93,8 +100,10 @@ println!("{}", reference);
 ```bash
 cd rust
 cargo test --lib --bins
+cargo test --features sqlite-evidence --test sqlite_evidence
 cargo run --quiet -- conformance
 cargo run --quiet -- contract validate
+cargo run --quiet --features sqlite-evidence -- replay diagnostic.agentledger.db
 ```
 
 From the repository root:

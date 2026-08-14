@@ -68,8 +68,24 @@ jobs:
         working-directory: rust
         run: |
           cargo test
+          cargo test --features sqlite-evidence --test sqlite_evidence
           cargo run --quiet -- conformance
           cargo run --quiet -- contract validate
+
+  rust-sqlite-windows:
+    name: Rust SQLite evidence on Windows
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Test SQLite evidence
+        working-directory: rust
+        run: cargo test --features sqlite-evidence --test sqlite_evidence
 
 
   typescript:
