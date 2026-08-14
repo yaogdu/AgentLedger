@@ -29,6 +29,10 @@ include = [
 name = "agentledger"
 path = "src/lib.rs"
 
+[[example]]
+name = "sqlite_evidence"
+required-features = ["sqlite-evidence"]
+
 [features]
 default = []
 sqlite-evidence = ["dep:rusqlite", "dep:serde_json"]
