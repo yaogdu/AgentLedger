@@ -267,6 +267,7 @@ def _media_artifact(row: dict[str, Any]) -> dict[str, Any] | None:
         "content_ref": metadata.get("content_ref"),
         "metadata": metadata.get("metadata", {}),
         "lineage": metadata.get("lineage", {}),
+        "derived_outputs": metadata.get("derived_outputs", {}),
     }
 
 

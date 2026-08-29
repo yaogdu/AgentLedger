@@ -70,6 +70,49 @@ Important boundary:
 
 Temporal may retry an activity. AgentLedger decides whether the agent step should reuse a previous tool result, block a stale worker, wait for human verification, or resume from a checkpoint.
 
+## Remote Agent Tasks And Handoffs
+
+A2A-style systems can own agent discovery, transport, message delivery, task
+routing, and remote task state. AgentLedger can observe the task boundary and
+keep a durable receipt for the context, task, handoff, participating agents,
+artifact refs, and final status:
+
+```text
+A2A task / handoff
+  -> normalized task receipt
+  -> AgentLedger run/session/step evidence
+  -> replay and side-effect accountability
+```
+
+The Python reference observer accepts a small dependency-free envelope:
+
+```python
+from agentledger import A2AEvidenceObserver
+
+observer = A2AEvidenceObserver(runtime, app_name="agent-network")
+observer.observe({
+    "type": "handoff_completed",
+    "context_id": "ctx-1",
+    "task_id": "task-1",
+    "handoff_id": "handoff-1",
+    "from_agent": "planner",
+    "to_agent": "researcher",
+    "artifact_refs": ["artifact://brief-1"],
+})
+```
+
+The observer records a task receipt; it does not implement A2A transport,
+agent-card discovery, remote execution, or a second task database.
+
+Other external harnesses can use the same dependency-free normalized envelope
+through `DSHEvidenceObserver`; DSH-specific orchestration and sandbox policy
+remain outside AgentLedger.
+
+Framework-owned graph or runner events can use `FrameworkEvidenceObserver` with
+`source="langgraph"` or `source="openai-agents"`. Node/turn lifecycle,
+checkpoints, artifacts, and tool/model evidence remain correlated without
+importing either framework.
+
 ## Observable Harness
 
 Use this when teams need trace UI, debugging, eval, or prompt/model regression workflows.
@@ -133,6 +176,8 @@ AgentLedger owns the execution-path guarantees:
 - replay that reuses archived tool results instead of calling the tool again.
 
 External systems can still own tool hosting, MCP server lifecycle, credential vaults, tool marketplaces, or service-specific SDKs.
+
+For external MCP clients, `MCPEvidenceObserver` accepts normalized tool and resource events. It records tool proposals/results through the Tool Ledger and keeps resource or prompt reads as correlated receipts without owning MCP transport.
 
 ## Model Evidence Boundary
 

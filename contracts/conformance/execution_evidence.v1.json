@@ -1,0 +1,127 @@
+{
+  "schema_version": "agentledger.conformance.execution_evidence.v1",
+  "contract_version": "1.0",
+  "purpose": "Shared smoke scenarios for source-neutral execution evidence observers.",
+  "scenarios": [
+    {
+      "name": "source_and_correlation_are_preserved",
+      "requires": ["execution_evidence_bridge"],
+      "expected": {
+        "source": true,
+        "external_session_id": true,
+        "external_turn_id": true,
+        "execution_event_prefix": "execution"
+      }
+    },
+    {
+      "name": "model_evidence_uses_existing_model_boundary",
+      "requires": ["execution_evidence_bridge"],
+      "expected": {
+        "model_call_requested": true,
+        "model_call_completed": true,
+        "model_evidence_schema_version": "agentledger.model.evidence.v1"
+      }
+    },
+    {
+      "name": "tool_receipt_preserves_idempotency_and_unknown_state",
+      "requires": ["execution_evidence_bridge"],
+      "expected": {
+        "tool_ledger": true,
+        "idempotency_key": true,
+        "unknown_status": "PENDING_VERIFICATION",
+        "no_automatic_retry": true
+      }
+    },
+    {
+      "name": "state_change_keeps_snapshot_and_diff_refs",
+      "requires": ["execution_evidence_bridge"],
+      "expected": {
+        "before_snapshot": true,
+        "after_snapshot": true,
+        "diff": true,
+        "execution_state_change_recorded": true
+      }
+    },
+    {
+      "name": "temporal_observer_reuses_tool_receipt_across_activity_retry",
+      "requires": ["temporal_evidence_observer"],
+      "expected": {
+        "workflow_activity_correlation": true,
+        "activity_attempts": 2,
+        "tool_ledger_entries": 1,
+        "tool_executions": 1,
+        "replayed_from_ledger": true
+      }
+    },
+    {
+      "name": "a2a_observer_preserves_task_and_handoff_receipts",
+      "requires": ["a2a_evidence_observer"],
+      "expected": {
+        "context_id": true,
+        "task_id": true,
+        "handoff_id": true,
+        "artifact_refs": true,
+        "execution_task_receipt_recorded": true
+      }
+    },
+    {
+      "name": "dsh_observer_preserves_normalized_execution_and_receipts",
+      "requires": ["dsh_evidence_observer"],
+      "expected": {
+        "execution_id": true,
+        "sandbox_id": true,
+        "receipt_id": true,
+        "artifact_refs": true,
+        "execution_task_receipt_recorded": true
+      }
+    },
+    {
+      "name": "mcp_observer_preserves_tool_and_resource_receipts",
+      "requires": ["mcp_evidence_observer"],
+      "expected": {
+        "server_name": true,
+        "tool_ledger": true,
+        "resource_uri": true,
+        "content_ref": true,
+        "execution_task_receipt_recorded": true
+      }
+    },
+    {
+      "name": "external_media_artifact_refs_enter_evidence_index",
+      "requires": ["execution_evidence_bridge"],
+      "expected": {
+        "media_artifact_count": 1,
+        "content_ref": true,
+        "lineage": true,
+        "derived_outputs": true,
+        "no_codec_processing": true
+      }
+    },
+    {
+      "name": "dsh_observer_records_media_artifact_refs",
+      "requires": ["dsh_evidence_observer"],
+      "expected": {
+        "media_artifact_count": 1,
+        "observer_schema_version": true,
+        "lineage": true,
+        "derived_outputs": true
+      }
+    },
+    {
+      "name": "framework_observer_preserves_checkpoint_and_node_evidence",
+      "requires": ["framework_evidence_observer"],
+      "expected": {
+        "source": true,
+        "thread_id": true,
+        "node_id": true,
+        "checkpoint_id": true,
+        "media_artifact_count": 1,
+        "execution_task_receipt_recorded": true
+      }
+    }
+  ],
+  "non_goals": [
+    "The fixture does not import DSH, Temporal, LangGraph, OpenAI Agents SDK, MCP, or A2A packages.",
+    "The bridge observes normalized records; it does not implement or replace an external harness or protocol server."
+  ]
+}

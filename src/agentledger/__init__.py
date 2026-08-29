@@ -3,22 +3,36 @@
 __version__ = "1.5.3"
 
 from .adapters import FrameworkAdapter, PythonFunctionAdapter, python_agent
+from .adapters_a2a import A2A_OBSERVER_SCHEMA_VERSION, A2AEvidenceObserver
+from .adapters_dsh import DSH_OBSERVER_SCHEMA_VERSION, DSHEvidenceObserver
 from .adapter_certification import AdapterCertificationBundle, build_adapter_certification_bundle, supported_adapter_certification_profiles
-from .adapters_frameworks import AutoGenAdapter, CrewAIAdapter, LangChainRunnableAdapter, LlamaIndexAdapter, MethodFrameworkAdapter, OpenAIAgentsSDKAdapter, SemanticKernelAdapter
+from .adapters_frameworks import AutoGenAdapter, CrewAIAdapter, FRAMEWORK_OBSERVER_SCHEMA_VERSION, FrameworkEvidenceObserver, LangChainRunnableAdapter, LlamaIndexAdapter, MethodFrameworkAdapter, OpenAIAgentsSDKAdapter, SemanticKernelAdapter
 from .approval import ApprovalDecision, ApprovalRequired
 from .adapters_langgraph import LangGraphCheckpointerAdapter, LangGraphNodeAdapter
 from .adapters_omp import (
+    EXECUTION_EVIDENCE_SCHEMA_VERSION,
     OMP_ADAPTER_SCHEMA_VERSION,
+    ExecutionArtifact,
+    ExecutionEvidenceBridge,
+    ExecutionFailure,
+    ExecutionModelCall,
+    ExecutionSession,
+    ExecutionStateChange,
+    ExecutionToolExecution,
+    ExecutionToolProposal,
+    ExecutionTurn,
     OmpFailure,
     OmpLedgerBridge,
     OmpModelCall,
     OmpSession,
     OmpStateChange,
+    OmpArtifact,
     OmpToolExecution,
     OmpToolProposal,
     OmpTurn,
 )
-from .adapters_mcp import InMemoryMCPContextServer, InMemoryMCPToolServer, MCPContextAdapter, MCPResourceDescriptor, MCPToolAdapter
+from .adapters_mcp import MCP_OBSERVER_SCHEMA_VERSION, InMemoryMCPContextServer, InMemoryMCPToolServer, MCPContextAdapter, MCPEvidenceObserver, MCPResourceDescriptor, MCPToolAdapter
+from .adapters_temporal import TEMPORAL_OBSERVER_SCHEMA_VERSION, TemporalEvidenceObserver
 from .backup import BackupCheck, BackupReadinessChecker, BackupReadinessReport
 from .blobstore import LocalBlobStore
 from .blobstore_s3 import S3BlobStore, S3BlobStoreConfig, S3DependencyMissing
@@ -61,6 +75,12 @@ __all__ = [
     "AdversarialReviewReport",
     "AdversarialReviewRunner",
     "AdapterCertificationBundle",
+    "FRAMEWORK_OBSERVER_SCHEMA_VERSION",
+    "FrameworkEvidenceObserver",
+    "A2A_OBSERVER_SCHEMA_VERSION",
+    "A2AEvidenceObserver",
+    "DSH_OBSERVER_SCHEMA_VERSION",
+    "DSHEvidenceObserver",
     "ArtifactLineage",
     "BackupCheck",
     "BackupReadinessChecker",
@@ -170,9 +190,13 @@ __all__ = [
     "media_tool_specs",
     "MCPToolAdapter",
     "MCPContextAdapter",
+    "MCP_OBSERVER_SCHEMA_VERSION",
+    "MCPEvidenceObserver",
     "MCPResourceDescriptor",
     "InMemoryMCPToolServer",
     "InMemoryMCPContextServer",
+    "TEMPORAL_OBSERVER_SCHEMA_VERSION",
+    "TemporalEvidenceObserver",
     "MethodFrameworkAdapter",
     "MediaRuntimeConformanceRunner",
     "Migration",
@@ -187,12 +211,23 @@ __all__ = [
     "PolicyRequest",
     "DecisionComposer",
     "OpenAIAgentsSDKAdapter",
+    "EXECUTION_EVIDENCE_SCHEMA_VERSION",
+    "ExecutionArtifact",
+    "ExecutionEvidenceBridge",
+    "ExecutionFailure",
+    "ExecutionModelCall",
+    "ExecutionSession",
+    "ExecutionStateChange",
+    "ExecutionToolExecution",
+    "ExecutionToolProposal",
+    "ExecutionTurn",
     "OMP_ADAPTER_SCHEMA_VERSION",
     "OmpFailure",
     "OmpLedgerBridge",
     "OmpModelCall",
     "OmpSession",
     "OmpStateChange",
+    "OmpArtifact",
     "OmpToolExecution",
     "OmpToolProposal",
     "OmpTurn",

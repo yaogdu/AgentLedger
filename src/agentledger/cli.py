@@ -462,13 +462,13 @@ def cmd_inspector_runs(args: argparse.Namespace) -> None:
     if args.backend == "sqlite":
         db_path = args.db or str(Path(args.root) / "state.db")
         resolved_blob_root = blob_root if blob_root is not None else str(Path(args.root) / "blobs")
-        index = source.runs_from_sqlite(db_path=db_path, blob_root=resolved_blob_root, limit=args.limit, status=args.status, run_link_template=args.run_link_template)
+        index = source.runs_from_sqlite(db_path=db_path, blob_root=resolved_blob_root, limit=args.limit, status=args.status, query=getattr(args, "query", None), run_link_template=args.run_link_template)
     elif args.backend == "postgres":
         config = PostgresStoreConfig.from_env(dsn=args.dsn, schema=args.schema)
-        index = source.runs_from_postgres(dsn=config.dsn, schema=config.schema, blob_root=blob_root, limit=args.limit, status=args.status, run_link_template=args.run_link_template)
+        index = source.runs_from_postgres(dsn=config.dsn, schema=config.schema, blob_root=blob_root, limit=args.limit, status=args.status, query=getattr(args, "query", None), run_link_template=args.run_link_template)
     elif args.backend == "mysql":
         config = MySQLStoreConfig.from_env(dsn=args.dsn, database=args.database)
-        index = source.runs_from_mysql(dsn=config.dsn, database=config.database, blob_root=blob_root, limit=args.limit, status=args.status, run_link_template=args.run_link_template)
+        index = source.runs_from_mysql(dsn=config.dsn, database=config.database, blob_root=blob_root, limit=args.limit, status=args.status, query=getattr(args, "query", None), run_link_template=args.run_link_template)
     else:
         raise ValueError(f"unsupported inspector backend: {args.backend}")
     _write_inspector_run_index(index, args)
@@ -1230,6 +1230,7 @@ def build_parser() -> argparse.ArgumentParser:
     inspector_runs.add_argument("--database", help="MySQL database; falls back to AGENTLEDGER_MYSQL_DATABASE")
     inspector_runs.add_argument("--limit", type=int, default=100, help="maximum runs to list; capped by the store at 1000")
     inspector_runs.add_argument("--status", help="optional run status filter")
+    inspector_runs.add_argument("--query", help="optional case-insensitive text search across run, event, tool, and error metadata")
     inspector_runs.add_argument("--run-link-template", help="optional single-run Inspector link template, for example /runs/{run_id}/inspector.html")
     inspector_runs.add_argument("--out", help="write the Inspector run index JSON read model")
     inspector_runs.add_argument("--html", help="write a static HTML Inspector run index")

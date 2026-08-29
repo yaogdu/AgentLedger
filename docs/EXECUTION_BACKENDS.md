@@ -108,6 +108,43 @@ Temporal
 
 Temporal can run the activity. AgentLedger should still mediate the tool and model boundary.
 
+The Python reference package also exposes `TemporalEvidenceObserver` for
+observer-first integrations. It accepts normalized dictionaries from a Temporal
+workflow/activity callback and forwards them to the source-neutral execution
+evidence bridge:
+
+```python
+from agentledger import TemporalEvidenceObserver
+
+observer = TemporalEvidenceObserver(runtime, app_name="my-workflows")
+observer.observe({
+    "type": "activity_started",
+    "workflow_id": "wf-1",
+    "workflow_run_id": "run-1",
+    "activity_id": "activity-1",
+    "attempt": 1,
+})
+observer.observe({
+    "type": "tool_execution",
+    "workflow_id": "wf-1",
+    "workflow_run_id": "run-1",
+    "activity_id": "activity-1",
+    "tool_name": "case.create",
+    "idempotency_key": "case:wf-1",
+    "ledger_status": "SUCCEEDED",
+    "result": {"external_id": "CASE-1"},
+})
+```
+
+The observer does not parse private SDK history or run a Temporal server. The
+SDK-specific callback remains responsible for reducing provider fields to this
+small event envelope.
+
+External workflow or media workers can also call
+`ExecutionEvidenceBridge.record_artifact(...)` with a media kind, URI/content
+ref, lineage, and derived-output refs. AgentLedger stores the manifest in its
+artifact index; it does not download or process the media bytes.
+
 ## Overlap Is Expected
 
 There is real overlap:

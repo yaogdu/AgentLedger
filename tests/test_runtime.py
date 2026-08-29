@@ -16,11 +16,14 @@ from pathlib import Path
 from typing import Any
 
 from agentledger.adapters import PythonFunctionAdapter, python_agent
+from agentledger.adapters_a2a import A2A_OBSERVER_SCHEMA_VERSION, A2AEvidenceObserver
+from agentledger.adapters_dsh import DSH_OBSERVER_SCHEMA_VERSION, DSHEvidenceObserver
 from agentledger.adapter_certification import build_adapter_certification_bundle
-from agentledger.adapters_frameworks import AutoGenAdapter, CrewAIAdapter, LangChainRunnableAdapter, LlamaIndexAdapter, OpenAIAgentsSDKAdapter, SemanticKernelAdapter
+from agentledger.adapters_frameworks import AutoGenAdapter, CrewAIAdapter, FRAMEWORK_OBSERVER_SCHEMA_VERSION, FrameworkEvidenceObserver, LangChainRunnableAdapter, LlamaIndexAdapter, OpenAIAgentsSDKAdapter, SemanticKernelAdapter
 from agentledger.adapters_langgraph import LangGraphCheckpointerAdapter, LangGraphNodeAdapter
-from agentledger.adapters_mcp import InMemoryMCPContextServer, InMemoryMCPToolServer, MCPContextAdapter, MCPToolAdapter
-from agentledger.adapters_omp import OmpFailure, OmpLedgerBridge, OmpModelCall, OmpSession, OmpStateChange, OmpToolExecution, OmpToolProposal, OmpTurn
+from agentledger.adapters_mcp import MCP_OBSERVER_SCHEMA_VERSION, InMemoryMCPContextServer, InMemoryMCPToolServer, MCPContextAdapter, MCPEvidenceObserver, MCPToolAdapter
+from agentledger.adapters_omp import EXECUTION_EVIDENCE_SCHEMA_VERSION, ExecutionArtifact, ExecutionEvidenceBridge, ExecutionModelCall, ExecutionSession, ExecutionStateChange, ExecutionToolExecution, ExecutionTurn, OmpFailure, OmpLedgerBridge, OmpModelCall, OmpSession, OmpStateChange, OmpToolExecution, OmpToolProposal, OmpTurn
+from agentledger.adapters_temporal import TEMPORAL_OBSERVER_SCHEMA_VERSION, TemporalEvidenceObserver
 from agentledger.backup import BackupReadinessChecker
 from agentledger.blobstore_s3 import S3BlobStore, S3BlobStoreConfig
 from agentledger.conformance import BlobStoreConformanceRunner, FrameworkAdapterConformanceRunner, MediaRuntimeConformanceRunner, StateStoreConformanceRunner, WorkerConformanceRunner
@@ -156,6 +159,7 @@ class RuntimeTests(unittest.TestCase):
             ["inspector", "run", "run-1", "--root", ".agentledger-demo", "--html", "./inspector.html"],
             ["inspector", "run", "run-1", "--backend", "postgres", "--dsn", "postgresql://user:pass@localhost/db", "--schema", "agentledger", "--out", "./inspector.json"],
             ["inspector", "run", "run-1", "--backend", "mysql", "--dsn", "mysql://user:pass@localhost/db", "--database", "agentledger", "--out", "./inspector.json"],
+            ["inspector", "runs", "--status", "failed", "--query", "payment", "--out", "./runs.json"],
             ["inspector", "evidence", "./evidence/run-1", "--out", "./inspector.json"],
             ["evidence-check", "run-1"],
             ["review", "checklist", "run-1", "--fail-on-risk"],
@@ -441,6 +445,115 @@ class RuntimeTests(unittest.TestCase):
             self.assertEqual(evidence_report.to_dict()["run"]["run_id"], run_id)
             self.assertEqual(evidence_report.to_dict()["evidence"]["bundle_hash"], data["evidence"]["bundle_hash"])
 
+    def test_inspector_exposes_execution_evidence_read_model(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            rt = Runtime.local(Path(tmp) / ".agentledger")
+            observer = FrameworkEvidenceObserver(rt, app_name="inspector-observer", source="langgraph")
+            run_id = observer.observe(
+                {
+                    "type": "graph_started",
+                    "thread_id": "thread-1",
+                    "graph_id": "graph-1",
+                    "initial_state": {"topic": "inspector"},
+                }
+            )
+            observer.observe(
+                {
+                    "type": "node_started",
+                    "thread_id": "thread-1",
+                    "node_id": "node-1",
+                    "node_name": "research",
+                }
+            )
+            observer.observe(
+                {
+                    "type": "checkpoint_saved",
+                    "thread_id": "thread-1",
+                    "node_id": "node-1",
+                    "checkpoint_id": "checkpoint-1",
+                    "status": "committed",
+                }
+            )
+            observer.observe(
+                {
+                    "type": "media_artifact_recorded",
+                    "thread_id": "thread-1",
+                    "node_id": "node-1",
+                    "name": "research-result",
+                    "kind": "transcript",
+                    "content_ref": "blob://research-result",
+                    "lineage": {"source_blob_refs": ["s3://input.mp4"]},
+                    "derived_outputs": {"summary_ref": "blob://summary"},
+                }
+            )
+            observer.observe(
+                {
+                    "type": "node_completed",
+                    "thread_id": "thread-1",
+                    "node_id": "node-1",
+                    "state_patch": {"answer": "ready"},
+                }
+            )
+
+            report = InspectorDataSource().from_runtime_store(store=rt.store, blobs=rt.blobs, run_id=run_id)
+            data = report.to_dict()
+            execution = data["execution_evidence"]
+            self.assertEqual(data["summary"]["execution_event_count"], 5)
+            self.assertEqual(data["summary"]["execution_receipt_count"], 1)
+            self.assertEqual(data["summary"]["execution_source_counts"], {"langgraph": 5})
+            self.assertEqual(data["summary"]["execution_artifact_count"], 1)
+            self.assertEqual(execution["receipt_type_counts"], {"checkpoint_saved": 1})
+            self.assertEqual(execution["artifacts"][0]["content_ref"], "blob://research-result")
+            self.assertEqual(execution["artifacts"][0]["lineage"]["source_blob_refs"], ["s3://input.mp4"])
+            self.assertEqual(execution["artifacts"][0]["derived_outputs"]["summary_ref"], "blob://summary")
+            self.assertEqual(execution["artifact_source_counts"], {"langgraph": 1})
+            html = report.to_html()
+            self.assertIn('href="#execution-evidence"', html)
+            self.assertIn('<section class="section" id="execution-evidence">', html)
+            self.assertIn("checkpoint_saved", html)
+
+    def test_execution_observer_can_bind_to_existing_runtime_run(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            rt = Runtime.local(Path(tmp) / ".agentledger")
+            run_id, _ = rt.create_run(initial_state={"owned_by": "application"})
+            observer = FrameworkEvidenceObserver(
+                rt,
+                app_name="bound-observer",
+                source="langgraph",
+                run_id=run_id,
+            )
+
+            observed_run_id = observer.observe(
+                {
+                    "type": "graph_started",
+                    "thread_id": "thread-bound",
+                    "graph_id": "graph-bound",
+                }
+            )
+            observer.observe(
+                {
+                    "type": "node_started",
+                    "thread_id": "thread-bound",
+                    "node_id": "node-bound",
+                }
+            )
+            observer.observe(
+                {
+                    "type": "node_completed",
+                    "thread_id": "thread-bound",
+                    "node_id": "node-bound",
+                    "state_patch": {"observed": True},
+                }
+            )
+
+            self.assertEqual(observed_run_id, run_id)
+            self.assertEqual(len(rt.store.runs(limit=10)), 1)
+            self.assertEqual(rt.store.final_state(run_id)["observed"], True)
+            self.assertEqual(
+                sum(dict(event)["type"] == "execution_session_started" for event in rt.store.events(run_id)),
+                1,
+            )
+
     def test_inspector_cli_outputs_json_and_static_html(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp) / ".agentledger"
@@ -506,6 +619,24 @@ class RuntimeTests(unittest.TestCase):
             self.assertEqual(rows[pending_run_id]["agent_run_id"], "agent-run-index-2")
             self.assertEqual(rows[pending_run_id]["status"], "pending")
             self.assertIn({"kind": "inspector", "value": "open", "href": f"/runs/{pending_run_id}/inspector.html"}, rows[pending_run_id]["related_links"])
+
+            filtered = source.runs_from_sqlite(
+                db_path=root / "state.db",
+                blob_root=root / "blobs",
+                limit=10,
+                query="AGENT-RUN-INDEX-2",
+            ).to_dict()
+            self.assertEqual(filtered["summary"]["run_count"], 1)
+            self.assertEqual(filtered["summary"]["query_filter"], "AGENT-RUN-INDEX-2")
+            self.assertEqual(filtered["runs"][0]["run_id"], pending_run_id)
+            event_filtered = source.runs_from_sqlite(
+                db_path=root / "state.db",
+                blob_root=root / "blobs",
+                limit=10,
+                query="github.create_issue",
+            ).to_dict()
+            self.assertEqual(event_filtered["summary"]["run_count"], 1)
+            self.assertEqual(event_filtered["runs"][0]["run_id"], run_id)
 
             html = index.to_html()
             self.assertIn("AgentLedger Inspector Runs", html)
@@ -1211,6 +1342,482 @@ class RuntimeTests(unittest.TestCase):
             steps = [dict(row) for row in rt.store.steps(run_id)]
             self.assertEqual(len(steps), 1)
             self.assertEqual(steps[0]["status"], "running")
+
+    def test_execution_evidence_bridge_is_source_neutral_and_preserves_receipts(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            rt = Runtime.local(Path(tmp) / ".agentledger")
+            bridge = ExecutionEvidenceBridge(rt, app_name="temporal-demo", source="temporal")
+            run_id = bridge.record_session_started(ExecutionSession(session_id="session-1", initial_state={"topic": "contract"}))
+            bridge.record_turn_started(ExecutionTurn(session_id="session-1", turn_id="turn-1", agent_role="WorkflowAgent"))
+            refs = bridge.record_model_call(
+                ExecutionModelCall(
+                    session_id="session-1",
+                    turn_id="turn-1",
+                    provider="openai",
+                    model="gpt-4.1",
+                    request={"input": "find clause"},
+                    response={"content": "found"},
+                    usage={"total_tokens": 4},
+                )
+            )
+            receipt = bridge.record_tool_execution(
+                ExecutionToolExecution(
+                    session_id="session-1",
+                    turn_id="turn-1",
+                    tool_name="contract.lookup",
+                    arguments={"clause": "payment"},
+                    result={"external_id": "activity-1", "matches": ["Section 9"]},
+                    idempotency_key="temporal:activity-1",
+                    ledger_status="UNKNOWN",
+                )
+            )
+            bridge.record_state_change(
+                ExecutionStateChange(
+                    session_id="session-1",
+                    turn_id="turn-1",
+                    reason="persist observed state",
+                    before_snapshot={"version": 0},
+                    after_snapshot={"version": 1},
+                    diff={"version": [0, 1]},
+                    patch={"version": 1},
+                )
+            )
+            bridge.record_turn_completed(ExecutionTurn(session_id="session-1", turn_id="turn-1", state_patch={"done": True}))
+
+            self.assertEqual(receipt["ledger_status"], "PENDING_VERIFICATION")
+            self.assertTrue(refs["request_ref"].startswith("blob://"))
+            events = [dict(row) for row in rt.store.events(run_id)]
+            execution_event = next(event for event in events if event["type"] == "execution_session_started")
+            session_payload = json.loads(execution_event["payload_ref"])
+            self.assertEqual(session_payload["source"], "temporal")
+            self.assertEqual(session_payload["schema_version"], EXECUTION_EVIDENCE_SCHEMA_VERSION)
+            self.assertEqual(rt.store.ledger(run_id)[0]["status"], "PENDING_VERIFICATION")
+            self.assertEqual(rt.store.final_state(run_id)["done"], True)
+            self.assertIn("execution_state_change_recorded", {event["type"] for event in events})
+            self.assertEqual(len(rt.store.artifacts(run_id)), 3)
+            execution = InspectorDataSource().from_runtime_store(store=rt.store, blobs=rt.blobs, run_id=run_id).to_dict()["execution_evidence"]
+            self.assertEqual({row["source"] for row in execution["events"]}, {"temporal"})
+            self.assertTrue(any(row["type"] == "model_call_completed" for row in execution["events"]))
+            self.assertTrue(any(row["type"] == "tool_call_failed" for row in execution["events"]))
+            self.assertEqual(execution["artifact_source_counts"], {"temporal": 3})
+            tool_event = next(event for event in events if event["type"] == "tool_call_failed")
+            tool_payload = json.loads(tool_event["payload_ref"])
+            self.assertEqual(tool_payload["source"], "temporal")
+            self.assertEqual(tool_payload["schema_version"], EXECUTION_EVIDENCE_SCHEMA_VERSION)
+            self.assertTrue(tool_payload["response_ref"].startswith("blob://"))
+
+    def test_execution_evidence_bridge_preserves_external_media_artifact_refs(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            rt = Runtime.local(Path(tmp) / ".agentledger")
+            bridge = ExecutionEvidenceBridge(rt, app_name="media-observer", source="external-harness")
+            run_id = bridge.record_session_started(ExecutionSession(session_id="media-session-1"))
+            artifact_id = bridge.record_artifact(
+                ExecutionArtifact(
+                    session_id="media-session-1",
+                    name="transcript-1",
+                    kind="transcript",
+                    uri="s3://media/transcript-1.json",
+                    content_ref="blob://transcript-1",
+                    metadata={"mime_type": "application/json", "transcript_language": "zh"},
+                    lineage={"source_blob_refs": ["s3://media/input.mp4"]},
+                    derived_outputs={"embedding_ref": "blob://embedding-1"},
+                )
+            )
+
+            evidence = EvidenceExporter(store=rt.store, blobs=rt.blobs).export(run_id).to_dict()
+            self.assertEqual(evidence["summary"]["media_artifact_count"], 1)
+            self.assertEqual(evidence["media_artifacts"][0]["artifact_id"], artifact_id)
+            self.assertEqual(evidence["media_artifacts"][0]["content_ref"], "blob://transcript-1")
+            self.assertEqual(evidence["media_artifacts"][0]["lineage"]["source_blob_refs"], ["s3://media/input.mp4"])
+            self.assertEqual(evidence["media_artifacts"][0]["metadata"]["transcript_language"], "zh")
+            self.assertEqual(evidence["media_artifacts"][0]["derived_outputs"]["embedding_ref"], "blob://embedding-1")
+            self.assertIn("agentledger_media", json.loads(rt.store.artifacts(run_id)[0]["metadata_json"]))
+
+    def test_temporal_observer_reuses_tool_receipt_across_activity_retry(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            rt = Runtime.local(Path(tmp) / ".agentledger")
+            observer = TemporalEvidenceObserver(rt, app_name="temporal-observer")
+            workflow = {
+                "workflow_id": "wf-1",
+                "workflow_run_id": "wf-run-1",
+            }
+            run_id = observer.observe(
+                {
+                    "type": "workflow_started",
+                    **workflow,
+                    "initial_state": {"title": "Review request"},
+                }
+            )
+            activity = {**workflow, "activity_id": "activity-1"}
+            observer.observe({"type": "activity_started", **activity, "attempt": 1})
+            observer.observe(
+                {
+                    "type": "model_call",
+                    **activity,
+                    "provider": "openai",
+                    "model": "gpt-4.1",
+                    "request": {"input": "review"},
+                    "response": {"content": "create case"},
+                    "usage": {"total_tokens": 5},
+                }
+            )
+            first_receipt = observer.observe(
+                {
+                    "type": "tool_execution",
+                    **activity,
+                    "tool_name": "case.create",
+                    "arguments": {"title": "Review request"},
+                    "result": {"external_id": "CASE-1"},
+                    "idempotency_key": "case:wf-1",
+                    "ledger_status": "SUCCEEDED",
+                }
+            )
+            observer.observe(
+                {
+                    "type": "activity_failed",
+                    **activity,
+                    "attempt": 1,
+                    "error_type": "WorkerCrash",
+                    "message": "worker exited after side effect",
+                    "retryable": True,
+                }
+            )
+            observer.observe({"type": "activity_started", **activity, "attempt": 2})
+            second_receipt = observer.observe(
+                {
+                    "type": "tool_execution",
+                    **activity,
+                    "tool_name": "case.create",
+                    "arguments": {"title": "Review request"},
+                    "result": {"external_id": "CASE-1"},
+                    "idempotency_key": "case:wf-1",
+                    "ledger_status": "SUCCEEDED",
+                }
+            )
+            observer.observe(
+                {
+                    "type": "activity_completed",
+                    **activity,
+                    "attempt": 2,
+                    "state_patch": {"completed": True},
+                }
+            )
+            observer.observe(
+                {
+                    "type": "workflow_completed",
+                    **workflow,
+                    "status": "completed",
+                }
+            )
+
+            self.assertEqual(first_receipt["ledger_status"], "SUCCEEDED")
+            self.assertTrue(second_receipt["replayed_from_ledger"])
+            self.assertEqual(rt.store.ledger(run_id)[0]["idempotency_key"], "case:wf-1")
+            self.assertEqual(rt.store.steps(run_id)[0]["attempt"], 2)
+            self.assertEqual(rt.store.final_state(run_id)["completed"], True)
+            events = [dict(row) for row in rt.store.events(run_id)]
+            self.assertEqual(
+                sum(event["type"] == "tool_call_completed" for event in events),
+                2,
+            )
+            temporal_event = next(event for event in events if event["type"] == "execution_turn_started")
+            payload = json.loads(temporal_event["payload_ref"])
+            self.assertEqual(payload["source"], "temporal")
+            self.assertEqual(payload["metadata"]["external_workflow_id"], "wf-1")
+            self.assertEqual(payload["metadata"]["external_activity_attempt"], 1)
+            self.assertEqual(payload["metadata"]["observer_schema_version"], TEMPORAL_OBSERVER_SCHEMA_VERSION)
+            workflow_receipt = next(
+                json.loads(event["payload_ref"])
+                for event in events
+                if event["type"] == "execution_task_receipt_recorded"
+                and json.loads(event["payload_ref"])["receipt_type"] == "workflow_completed"
+            )
+            self.assertEqual(workflow_receipt["workflow_run_id"], "wf-run-1")
+
+    def test_a2a_observer_preserves_task_handoff_and_artifact_receipts(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            rt = Runtime.local(Path(tmp) / ".agentledger")
+            observer = A2AEvidenceObserver(rt, app_name="a2a-observer")
+            task = {"context_id": "ctx-1", "task_id": "task-1"}
+            run_id = observer.observe(
+                {
+                    "type": "task_submitted",
+                    **task,
+                    "from_agent": "planner",
+                    "to_agent": "researcher",
+                    "metadata": {"request_kind": "research"},
+                }
+            )
+            observer.observe(
+                {
+                    "type": "handoff_requested",
+                    **task,
+                    "handoff_id": "handoff-1",
+                    "from_agent": "planner",
+                    "to_agent": "researcher",
+                    "message_id": "msg-1",
+                    "artifact_refs": ["artifact://brief-1"],
+                }
+            )
+            observer.observe({"type": "task_started", **task, "agent_role": "ResearchAgent"})
+            observer.observe(
+                {
+                    "type": "task_updated",
+                    **task,
+                    "status": "working",
+                    "artifact_refs": ["artifact://brief-1"],
+                }
+            )
+            observer.observe(
+                {
+                    "type": "task_completed",
+                    **task,
+                    "status": "completed",
+                    "state_patch": {"answer": "Section 9"},
+                    "artifact_refs": ["artifact://answer-1"],
+                }
+            )
+
+            self.assertEqual(rt.store.final_state(run_id)["answer"], "Section 9")
+            receipt_events = [dict(row) for row in rt.store.events(run_id) if row["type"] == "execution_task_receipt_recorded"]
+            self.assertEqual(len(receipt_events), 4)
+            handoff = next(json.loads(row["payload_ref"]) for row in receipt_events if json.loads(row["payload_ref"])["receipt_type"] == "handoff_requested")
+            self.assertEqual(handoff["source"], "a2a")
+            self.assertEqual(handoff["context_id"], "ctx-1")
+            self.assertEqual(handoff["task_id"], "task-1")
+            self.assertEqual(handoff["handoff_id"], "handoff-1")
+            self.assertEqual(handoff["artifact_refs"], ["artifact://brief-1"])
+            self.assertEqual(handoff["metadata"]["observer_schema_version"], A2A_OBSERVER_SCHEMA_VERSION)
+            completed = next(json.loads(row["payload_ref"]) for row in receipt_events if json.loads(row["payload_ref"])["receipt_type"] == "task_completed")
+            self.assertEqual(completed["artifact_refs"], ["artifact://answer-1"])
+
+    def test_dsh_observer_preserves_normalized_execution_and_receipts(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            rt = Runtime.local(Path(tmp) / ".agentledger")
+            observer = DSHEvidenceObserver(rt, app_name="dsh-observer")
+            run_id = observer.observe(
+                {
+                    "type": "run_started",
+                    "session_id": "dsh-session-1",
+                    "execution_id": "dsh-exec-1",
+                    "initial_state": {"topic": "receipt"},
+                }
+            )
+            observer.observe(
+                {
+                    "type": "step_started",
+                    "session_id": "dsh-session-1",
+                    "execution_id": "dsh-exec-1",
+                    "step_id": "dsh-step-1",
+                    "attempt": 1,
+                    "sandbox_id": "sandbox-1",
+                }
+            )
+            observer.observe(
+                {
+                    "type": "side_effect_receipt",
+                    "session_id": "dsh-session-1",
+                    "execution_id": "dsh-exec-1",
+                    "step_id": "dsh-step-1",
+                    "receipt_id": "receipt-1",
+                    "external_id": "job-1",
+                    "status": "SUCCEEDED",
+                    "artifact_refs": ["artifact://result-1"],
+                }
+            )
+            artifact_id = observer.observe(
+                {
+                    "type": "media_artifact_recorded",
+                    "session_id": "dsh-session-1",
+                    "execution_id": "dsh-exec-1",
+                    "step_id": "dsh-step-1",
+                    "name": "transcript-1",
+                    "kind": "transcript",
+                    "content_ref": "blob://transcript-1",
+                    "metadata": {"transcript_language": "zh"},
+                    "lineage": {"source_blob_refs": ["s3://input.mp4"]},
+                    "derived_outputs": {"embedding_ref": "blob://embedding-1"},
+                }
+            )
+            observer.observe(
+                {
+                    "type": "step_completed",
+                    "session_id": "dsh-session-1",
+                    "execution_id": "dsh-exec-1",
+                    "step_id": "dsh-step-1",
+                    "state_patch": {"done": True},
+                }
+            )
+
+            self.assertEqual(rt.store.final_state(run_id)["done"], True)
+            events = [dict(row) for row in rt.store.events(run_id)]
+            started = next(event for event in events if event["type"] == "execution_turn_started")
+            started_payload = json.loads(started["payload_ref"])
+            self.assertEqual(started_payload["source"], "dsh")
+            self.assertEqual(started_payload["metadata"]["external_execution_id"], "dsh-exec-1")
+            self.assertEqual(started_payload["metadata"]["external_sandbox_id"], "sandbox-1")
+            self.assertEqual(started_payload["metadata"]["observer_schema_version"], DSH_OBSERVER_SCHEMA_VERSION)
+            receipt = next(event for event in events if event["type"] == "execution_task_receipt_recorded")
+            receipt_payload = json.loads(receipt["payload_ref"])
+            self.assertEqual(receipt_payload["receipt_id"], "receipt-1")
+            self.assertEqual(receipt_payload["artifact_refs"], ["artifact://result-1"])
+            evidence = EvidenceExporter(store=rt.store, blobs=rt.blobs).export(run_id).to_dict()
+            self.assertEqual(evidence["summary"]["media_artifact_count"], 1)
+            self.assertEqual(evidence["media_artifacts"][0]["artifact_id"], artifact_id)
+            self.assertEqual(evidence["media_artifacts"][0]["lineage"]["source_blob_refs"], ["s3://input.mp4"])
+            self.assertEqual(evidence["media_artifacts"][0]["metadata"]["transcript_language"], "zh")
+
+    def test_mcp_observer_preserves_tool_and_resource_receipts(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            rt = Runtime.local(Path(tmp) / ".agentledger")
+            observer = MCPEvidenceObserver(rt, app_name="mcp-observer")
+            run_id = observer.observe(
+                {
+                    "type": "session_started",
+                    "session_id": "mcp-session-1",
+                    "server_name": "docs-server",
+                    "initial_state": {"topic": "MCP"},
+                }
+            )
+            observer.observe(
+                {
+                    "type": "request_started",
+                    "session_id": "mcp-session-1",
+                    "request_id": "request-1",
+                    "server_name": "docs-server",
+                    "agent_role": "ResearchAgent",
+                }
+            )
+            observer.observe(
+                {
+                    "type": "tool_call_proposed",
+                    "session_id": "mcp-session-1",
+                    "request_id": "request-1",
+                    "tool_name": "docs.search",
+                    "arguments": {"query": "receipt"},
+                    "server_name": "docs-server",
+                }
+            )
+            receipt = observer.observe(
+                {
+                    "type": "tool_call_completed",
+                    "session_id": "mcp-session-1",
+                    "request_id": "request-1",
+                    "tool_name": "docs.search",
+                    "arguments": {"query": "receipt"},
+                    "result": {"matches": ["resource://brief"]},
+                    "idempotency_key": "mcp:docs.search:request-1",
+                    "ledger_status": "SUCCEEDED",
+                    "server_name": "docs-server",
+                }
+            )
+            observer.observe(
+                {
+                    "type": "resource_read_completed",
+                    "session_id": "mcp-session-1",
+                    "request_id": "request-1",
+                    "resource_uri": "resource://brief",
+                    "mime_type": "text/markdown",
+                    "content_ref": "blob://brief-1",
+                    "status": "SUCCEEDED",
+                    "server_name": "docs-server",
+                }
+            )
+            observer.observe(
+                {
+                    "type": "request_completed",
+                    "session_id": "mcp-session-1",
+                    "request_id": "request-1",
+                    "state_patch": {"answer": "receipt"},
+                }
+            )
+
+            self.assertEqual(receipt["ledger_status"], "SUCCEEDED")
+            self.assertEqual(rt.store.final_state(run_id)["answer"], "receipt")
+            self.assertEqual(len(rt.store.ledger(run_id)), 1)
+            events = [dict(row) for row in rt.store.events(run_id)]
+            started = next(event for event in events if event["type"] == "execution_turn_started")
+            started_payload = json.loads(started["payload_ref"])
+            self.assertEqual(started_payload["source"], "mcp")
+            self.assertEqual(started_payload["metadata"]["external_server_name"], "docs-server")
+            self.assertEqual(started_payload["metadata"]["observer_schema_version"], MCP_OBSERVER_SCHEMA_VERSION)
+            resource = next(
+                json.loads(event["payload_ref"])
+                for event in events
+                if event["type"] == "execution_task_receipt_recorded"
+            )
+            self.assertEqual(resource["receipt_type"], "resource_read_completed")
+            self.assertEqual(resource["resource_uri"], "resource://brief")
+            self.assertEqual(resource["content_ref"], "blob://brief-1")
+
+    def test_framework_observer_preserves_node_checkpoint_and_artifact_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            rt = Runtime.local(Path(tmp) / ".agentledger")
+            observer = FrameworkEvidenceObserver(rt, app_name="framework-observer", source="langgraph")
+            run_id = observer.observe(
+                {
+                    "type": "graph_started",
+                    "thread_id": "thread-1",
+                    "graph_id": "graph-1",
+                    "initial_state": {"topic": "framework"},
+                }
+            )
+            observer.observe(
+                {
+                    "type": "node_started",
+                    "thread_id": "thread-1",
+                    "node_id": "node-1",
+                    "node_name": "research",
+                    "graph_id": "graph-1",
+                }
+            )
+            observer.observe(
+                {
+                    "type": "checkpoint_saved",
+                    "thread_id": "thread-1",
+                    "node_id": "node-1",
+                    "checkpoint_id": "checkpoint-1",
+                    "checkpoint_ns": "research",
+                    "status": "committed",
+                }
+            )
+            artifact_id = observer.observe(
+                {
+                    "type": "media_artifact_recorded",
+                    "thread_id": "thread-1",
+                    "node_id": "node-1",
+                    "name": "research-transcript",
+                    "kind": "transcript",
+                    "content_ref": "blob://transcript-1",
+                    "metadata": {"transcript_language": "en"},
+                    "lineage": {"source_blob_refs": ["s3://input.mp4"]},
+                    "derived_outputs": {"summary_ref": "blob://summary-1"},
+                }
+            )
+            observer.observe(
+                {
+                    "type": "node_completed",
+                    "thread_id": "thread-1",
+                    "node_id": "node-1",
+                    "state_patch": {"answer": "done"},
+                }
+            )
+
+            self.assertEqual(rt.store.final_state(run_id)["answer"], "done")
+            self.assertEqual(rt.store.steps(run_id)[0]["status"], "completed")
+            evidence = EvidenceExporter(store=rt.store, blobs=rt.blobs).export(run_id).to_dict()
+            self.assertEqual(evidence["media_artifacts"][0]["artifact_id"], artifact_id)
+            self.assertEqual(evidence["media_artifacts"][0]["metadata"]["transcript_language"], "en")
+            events = [dict(row) for row in rt.store.events(run_id)]
+            checkpoint = next(
+                json.loads(event["payload_ref"])
+                for event in events
+                if event["type"] == "execution_task_receipt_recorded"
+            )
+            self.assertEqual(checkpoint["receipt_type"], "checkpoint_saved")
+            self.assertEqual(checkpoint["checkpoint_id"], "checkpoint-1")
+            self.assertEqual(checkpoint["metadata"]["external_thread_id"], "thread-1")
+            self.assertEqual(checkpoint["metadata"]["observer_schema_version"], FRAMEWORK_OBSERVER_SCHEMA_VERSION)
 
     def test_python_function_adapter_and_decorator(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -3193,6 +3800,7 @@ roles:
         self.assertIn("contracts/conformance/tool_schema_validation.v1.json", contract["conformance"]["runtime_core_fixture_paths"])
         self.assertIn("contracts/conformance/worker_service.v1.json", contract["conformance"]["runtime_core_fixture_paths"])
         self.assertIn("contracts/conformance/media_stream_artifacts.v1.json", contract["conformance"]["runtime_core_fixture_paths"])
+        self.assertIn("contracts/conformance/execution_evidence.v1.json", contract["conformance"]["runtime_core_fixture_paths"])
         self.assertIn("contracts/conformance/evidence_consumers.v1.json", contract["conformance"]["runtime_core_fixture_paths"])
         self.assertIn("contracts/conformance/static_debug_html.v1.json", contract["conformance"]["runtime_core_fixture_paths"])
         self.assertIn("contracts/conformance/ops_readiness.v1.json", contract["conformance"]["runtime_core_fixture_paths"])
@@ -3250,6 +3858,7 @@ roles:
             "contracts/conformance/storage_schema.v1.json",
             "contracts/conformance/mcp_adapters.v1.json",
             "contracts/conformance/framework_adapters.v1.json",
+            "contracts/conformance/execution_evidence.v1.json",
             "contracts/conformance/otlp_trace_export.v1.json",
             "contracts/conformance/simple_api.v1.json",
             "go/cmd/agentledger-go/main.go",

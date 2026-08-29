@@ -70,6 +70,48 @@ Temporal workflow
 
 Temporal 可以 retry 一个 workflow activity。AgentLedger 决定 agent step retry 时应该复用已有 tool result、阻止 stale worker、等待人工 verification，还是从 checkpoint 恢复。
 
+## Remote Agent Task 和 Handoff
+
+A2A-style 系统可以负责 agent discovery、transport、消息投递、task routing
+和 remote task state。AgentLedger 观察 task boundary，并为 context、task、
+handoff、参与双方 agent、artifact ref 和最终状态保留 durable receipt：
+
+```text
+A2A task / handoff
+  -> normalized task receipt
+  -> AgentLedger run/session/step evidence
+  -> replay 和 side-effect accountability
+```
+
+Python reference observer 接收一个小型、dependency-free envelope：
+
+```python
+from agentledger import A2AEvidenceObserver
+
+observer = A2AEvidenceObserver(runtime, app_name="agent-network")
+observer.observe({
+    "type": "handoff_completed",
+    "context_id": "ctx-1",
+    "task_id": "task-1",
+    "handoff_id": "handoff-1",
+    "from_agent": "planner",
+    "to_agent": "researcher",
+    "artifact_refs": ["artifact://brief-1"],
+})
+```
+
+Observer 只记录 task receipt，不实现 A2A transport、agent-card discovery、
+remote execution，也不增加第二套 task database。
+
+其他外部 harness 也可以通过 `DSHEvidenceObserver` 接入同一个
+dependency-free normalized envelope；DSH 自身的 orchestration 和 sandbox
+policy 仍由外部系统负责。
+
+框架自己的 graph 或 runner event 可以通过
+`FrameworkEvidenceObserver` 接入，并用 `source="langgraph"` 或
+`source="openai-agents"` 区分来源。它保留 node/turn lifecycle、checkpoint、
+artifact 和 tool/model evidence 的 correlation，但不 import 任一框架。
+
 ## Observable Harness
 
 适合团队需要 trace UI、debug、eval 或 prompt/model regression workflow 的场景。
@@ -133,6 +175,8 @@ AgentLedger 负责执行路径上的保证：
 - replay 时复用 archived tool result，而不是再次调用工具。
 
 外部系统仍然可以负责 tool hosting、MCP server lifecycle、credential vault、tool marketplace 或 service-specific SDK。
+
+对于外部 MCP client，`MCPEvidenceObserver` 接收 normalized tool/resource event：tool proposal/result 进入 Tool Ledger，resource 或 prompt read 保留为带 correlation 的 receipt，但不接管 MCP transport。
 
 ## Model Evidence Boundary
 

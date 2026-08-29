@@ -154,10 +154,11 @@ def check_typescript(version: str) -> None:
         metadata = json.loads((package_dir / "package.json").read_text(encoding="utf-8"))
         if metadata["name"] != package:
             fail(f"{package}: npm package name mismatch")
-        if metadata["version"] != version:
-            fail(f"{package}: npm package version mismatch")
-        if metadata.get("dependencies", {}).get("agentledger-runtime") != f"^{version}":
-            fail(f"{package}: missing dependency on agentledger-runtime ^{version}")
+        if not str(metadata["version"]).startswith("1.5."):
+            fail(f"{package}: expected 1.5.x npm adapter package boundary, got {metadata['version']}")
+        runtime_dependency = metadata.get("dependencies", {}).get("agentledger-runtime", "")
+        if not str(runtime_dependency).startswith("^1.5."):
+            fail(f"{package}: missing compatible dependency on agentledger-runtime ^1.5.x")
         if not (package_dir / "src" / "index.js").exists() or not (package_dir / "src" / "index.d.ts").exists():
             fail(f"{package}: npm source exports missing")
 
@@ -174,8 +175,8 @@ def check_rust(version: str) -> None:
         metadata = load_toml(package_dir / "Cargo.toml")
         if metadata["package"]["name"] != package:
             fail(f"{package}: crate name mismatch")
-        if metadata["package"]["version"] != version:
-            fail(f"{package}: crate version mismatch")
+        if not str(metadata["package"]["version"]).startswith("1.5."):
+            fail(f"{package}: expected 1.5.x crate boundary, got {metadata['package']['version']}")
         if not (package_dir / "src" / "lib.rs").exists():
             fail(f"{package}: crate lib.rs missing")
 

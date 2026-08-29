@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from agentledger import AgentContext, EvidenceExporter, Runtime, SimulatedCrash, ToolSpec
+from agentledger import AgentContext, EvidenceExporter, Runtime, SimulatedCrash, TemporalEvidenceObserver, ToolSpec
 from agentledger.failure import FailureAttributionReporter
 from agentledger.inspector import InspectorDataSource
 from agentledger.replay import ReplayEngine
@@ -110,6 +110,30 @@ async def run_demo(root: Path | None = None) -> dict[str, Any]:
         )
     )
 
+    run_id, _ = rt.create_run(
+        initial_state={
+            "agent_run_id": "temporal-bridge-retry-safety",
+            "title": "Review high-risk customer request",
+            "crashed_once": False,
+            "workflow": TemporalStyleActivityContext(
+                workflow_id=workflow.workflow_id,
+                workflow_run_id=workflow.workflow_run_id,
+                activity_id=workflow.activity_id,
+                attempt=1,
+            ).metadata(),
+        },
+        retry_policy={"max_attempts": 3},
+    )
+    temporal_observer = TemporalEvidenceObserver(rt, app_name="temporal-bridge", run_id=run_id)
+    temporal_observer.observe(
+        {
+            "type": "workflow_started",
+            "workflow_id": workflow.workflow_id,
+            "workflow_run_id": workflow.workflow_run_id,
+            "runtime_run_id": run_id,
+        }
+    )
+
     async def agent(ctx: AgentContext, state: dict[str, Any]) -> None:
         workflow_metadata = state["workflow"]
         archived = _latest_tool_proposal(ctx, "case.create") if state.get("crashed_once") else None
@@ -152,18 +176,17 @@ async def run_demo(root: Path | None = None) -> dict[str, Any]:
         ctx.write_state_patch("workflow_completed", True)
 
     async def activity(activity_ctx: TemporalStyleActivityContext) -> dict[str, Any]:
-        nonlocal run_id
-        if run_id is None:
-            run_id, _ = rt.create_run(
-                initial_state={
-                    "agent_run_id": "temporal-bridge-retry-safety",
-                    "title": "Review high-risk customer request",
-                    "crashed_once": False,
-                    "workflow": activity_ctx.metadata(),
-                },
-                retry_policy={"max_attempts": 3},
-            )
-        else:
+        temporal_observer.observe(
+            {
+                "type": "activity_scheduled",
+                "workflow_id": activity_ctx.workflow_id,
+                "workflow_run_id": activity_ctx.workflow_run_id,
+                "activity_id": activity_ctx.activity_id,
+                "attempt": activity_ctx.attempt,
+                "runtime_run_id": run_id,
+            }
+        )
+        if activity_ctx.attempt > 1:
             rt.store.apply_system_state_patch(
                 run_id=run_id,
                 patch={"crashed_once": True, "workflow": activity_ctx.metadata()},
@@ -179,7 +202,15 @@ async def run_demo(root: Path | None = None) -> dict[str, Any]:
 
     try:
         activity_result = await workflow.run_activity_with_retry(activity, max_attempts=2)
-        assert run_id is not None
+        temporal_observer.observe(
+            {
+                "type": "workflow_completed",
+                "workflow_id": workflow.workflow_id,
+                "workflow_run_id": workflow.workflow_run_id,
+                "status": "completed" if activity_result["activity_ok"] else "failed",
+                "runtime_run_id": run_id,
+            }
+        )
         evidence_dir = EvidenceExporter(store=rt.store, blobs=rt.blobs).export(run_id).write_dir(root / "evidence")
         inspector_html = InspectorDataSource().from_runtime_store(
             store=rt.store,
@@ -205,6 +236,7 @@ async def run_demo(root: Path | None = None) -> dict[str, Any]:
             "retry_used_archived_tool_proposal": bool(rt.store.final_state(run_id)["case"]["resumed_from_evidence"]),
             "model_call_count": inspector["summary"]["model_call_count"],
             "tool_call_proposal_count": inspector["summary"]["tool_call_proposal_count"],
+            "execution_evidence_count": inspector["summary"]["execution_event_count"],
             "tool_ledger": _compact_ledger(rt, run_id),
             "replay": {
                 "safe": replay.replay_safe,

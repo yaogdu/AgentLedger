@@ -6,6 +6,16 @@ This project follows semantic versioning for the stable runtime-core contract. O
 
 ## Unreleased
 
+### Added
+
+- Added Cross-Harness Execution Evidence v1 with a source-neutral execution bridge and dependency-free Temporal, DSH, framework, MCP, and A2A observers.
+- Added external execution correlation, receipt, retry/idempotency, artifact lineage, media-derived reference, and Inspector execution-evidence read-model coverage.
+- Added case-insensitive `agentledger inspector runs --query` filtering across run, event, tool, approval, and error metadata.
+
+### Clarified
+
+- External harnesses retain orchestration and transport ownership; AgentLedger records portable evidence, Tool Ledger state, replay inputs, and read-only inspection data.
+
 ## 1.5.5 - 2026-08-14
 
 ### Added

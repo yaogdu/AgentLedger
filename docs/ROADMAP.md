@@ -14,6 +14,7 @@ Most capabilities should be evaluated in three layers: core contract, built-in m
 |---|---|---|---|
 | Planning / Workflow | adapter contract, runtime-managed checkpoints, evidence hooks, tool boundary integration | LangGraph, CrewAI, AutoGen, LangChain, Temporal, Prefect, Airflow, custom workflow adapters | building a competing planner, graph engine, or workflow engine |
 | Runtime Adapters | stable event/evidence contracts, run/step/model/tool/failure/state mapping, replay and redaction invariants | Oh My Pi / OMP, framework runtimes, custom runtime bridges | learning application-specific product semantics, private paths, memory meanings, account/quota logic, or workspace rules |
+| Cross-Harness Execution Evidence | portable run/turn/step/tool/model/approval/artifact/failure records, correlation, receipts, idempotency, and unknown-state/replay invariants | DSH, Temporal, LangGraph, OpenAI Agents SDK, MCP, A2A, ModLens/ASR evidence observers | rebuilding a full harness, protocol server, media model, or observability platform |
 | Eval / Evidence Consumers | evidence export, replay, deterministic rerun hooks, minimal side-effect-free regression checks, conformance fixtures, eval-adapter output formats | Langfuse, Phoenix, promptfoo, DeepEval, Ragas, OpenAI Evals, LangSmith/Braintrust-style consumers, CI report sinks | standalone Eval Platform, full offline evaluator that runs N agents x M cases, metrics service, test-case management, scorer management UI, or long-running eval web app |
 | Tracing / Observability | structured events, trace JSONL, OTLP/JSON export, evidence links | OpenTelemetry SDK packages, collector recipes, external trace stores | full observability suite |
 | Guardrails | ToolSpec schema validation, policy checks, approvals, pre/postcondition hooks, adversarial review gates | richer policy engines, org-specific rule packs, external review workflows | business-specific governance backend |
@@ -127,14 +128,15 @@ tool marketplace or app store
 ### Current Implementation Order After 1.5.0
 
 1. Land the Oh My Pi / OMP runtime adapter boundary as a generic runtime adapter: translate OMP session, turn, model-call, tool-proposal, tool-execution, failure, artifact, and versioned state-change records into existing AgentLedger evidence without adding application-specific semantics.
-2. Extend framework adoption beyond the first batch: LangGraph package-compatibility smoke, dependency-backed smoke where upstream packages are stable, LangChain/CrewAI/AutoGen facades, and richer runtime-boundary examples.
-3. Turn the Temporal bridge into a clearer optional adapter boundary: keep workflow/activity ownership explicit, add stronger correlation examples, and preserve single-write retry semantics.
-4. Improve Inspector as a language-neutral companion: better run-index filtering/search and a standalone viewer path for Go/TypeScript/Rust users who do not want Python in the application runtime.
-5. Harden observability and eval exports beyond local JSON mapping: OTLP deployment recipes first, then Langfuse/Phoenix/promptfoo/DeepEval/Ragas/OpenAI-Evals/LangSmith-style evidence adapters without replacing those tools.
-6. Continue production-pilot adapter hardening for Postgres, MySQL, S3/MinIO, workers, OTLP transport, and sandbox packages with real-service conformance, permission boundaries, backup/restore drills, and failure semantics.
-7. Start the Runtime Memory Lifecycle baseline only after the model/tool/failure evidence path remains stable: memory refs, snapshots, reads/writes, diffs, lineage, replay semantics, and redaction hooks.
-8. Add sub-agent/multi-agent runtime semantics as a focused reliability layer: parent-child run links, spawn/join events, cancellation propagation, replay-safe joins, and cost/failure attribution.
-9. Extend media/stream support through optional processing adapters, keeping runtime-core limited to refs, metadata, lineage, checkpoints, and replay validation.
+2. Build Cross-Harness Execution Evidence v1: normalize DSH, Temporal, LangGraph, OpenAI Agents SDK, MCP, and A2A execution facts into portable AgentLedger records, with correlation, receipts, idempotency, unknown-state/retry, remote task/handoff, and media-derived evidence refs. Ship observer-first adapters, one crash/replay demo, and conformance fixtures; do not build full protocol servers or media models.
+3. Extend framework adoption beyond the first batch: LangGraph package-compatibility smoke, dependency-backed smoke where upstream packages are stable, LangChain/CrewAI/AutoGen facades, and richer runtime-boundary examples.
+4. Turn the Temporal bridge into a clearer optional adapter boundary: keep workflow/activity ownership explicit, add stronger correlation examples, and preserve single-write retry semantics.
+5. Improve Inspector as a language-neutral companion: better run-index filtering/search and a standalone viewer path for Go/TypeScript/Rust users who do not want Python in the application runtime.
+6. Harden observability and eval exports beyond local JSON mapping: OTLP deployment recipes first, then Langfuse/Phoenix/promptfoo/DeepEval/Ragas/OpenAI-Evals/LangSmith-style evidence adapters without replacing those tools.
+7. Continue production-pilot adapter hardening for Postgres, MySQL, S3/MinIO, workers, OTLP transport, and sandbox packages with real-service conformance, permission boundaries, backup/restore drills, and failure semantics.
+8. Start the Runtime Memory Lifecycle baseline only after the model/tool/failure evidence path remains stable: memory refs, snapshots, reads/writes, diffs, lineage, replay semantics, and redaction hooks.
+9. Add sub-agent/multi-agent runtime semantics as a focused reliability layer: parent-child run links, spawn/join events, cancellation propagation, replay-safe joins, and cost/failure attribution.
+10. Extend media/stream support through optional processing adapters, keeping runtime-core limited to refs, metadata, lineage, checkpoints, and replay validation.
 
 ## Open Source Adoption And Maintainer Workflow
 
@@ -175,6 +177,7 @@ Companion product directions:
 | Direction | Why it matters | Packaging boundary |
 |---|---|---|
 | AgentLedger Inspector | makes runs visible through timeline, Tool Ledger, approvals, replay diff, artifacts, cost, and failure attribution | separate read-only local/internal tool, not runtime-core UI |
+| Cross-Harness Execution Evidence | gives DSH, Temporal, framework runtimes, MCP, and A2A a shared execution record with receipts, replay, and side-effect accountability | observer-first adapters, evidence contract, and conformance fixtures; no full harness or protocol server |
 | Tool Governance / MCP Gateway | enforces schema, permission, approval, sandbox, audit, and idempotency before tool side effects | optional gateway package or reference service |
 | Eval adapters / Replay regression | lets teams test prompt, model, tool-schema, or agent-logic changes against historical evidence without repeating side effects | evidence exporters and CLI/CI companions over evidence bundles; no standalone eval platform |
 | Production Harness Blueprint | shows how AgentLedger composes with LangGraph/OpenAI Agents SDK, Temporal, Langfuse/OTel, MCP, Postgres/S3, and Docker sandbox | examples, templates, and deployment recipes |
@@ -332,10 +335,11 @@ Verified release gates:
 Candidate follow-up release trains:
 
 ```text
-1.6.0  standalone Inspector and evidence consumer UX: non-Python viewer path, model-call panel, filtering/search
-1.7.0  Runtime Memory Lifecycle: memory refs, snapshots, reads/writes, diffs, lineage, replay semantics
-1.8.0  sub-agent/multi-agent runtime semantics: parent-child runs, spawn/join, cancellation/failure/cost attribution
-1.9.0  media adapter release: frame/audio/video refs, transcription/embedding adapters, stream transports
+1.6.0  Cross-Harness Execution Evidence v1: DSH/Temporal/MCP/A2A observer adapters, correlation/receipt/replay conformance
+1.7.0  standalone Inspector and evidence consumer UX: non-Python viewer path, model-call panel, filtering/search
+1.8.0  Runtime Memory Lifecycle: memory refs, snapshots, reads/writes, diffs, lineage, replay semantics
+1.9.0  sub-agent/multi-agent runtime semantics: parent-child runs, spawn/join, cancellation/failure/cost attribution
+1.10.0 media adapter release: frame/audio/video refs, transcription/embedding adapters, stream transports
 1.x    production-pilot adapter hardening can ship in patch/minor releases when real-service evidence is available
 ```
 
@@ -921,6 +925,40 @@ Exit criteria:
 - the adapter design explains how versioned document/state evidence works without turning AgentLedger into a memory product
 - the bridge is available across Python, Go, TypeScript, and Rust with tests and examples
 - the roadmap makes clear that this is a patch-level bridge implementation, not a runtime-core semantic change
+
+## 1.6.0 - Cross-Harness Execution Evidence v1
+
+Status: implemented as a Python observer-first release. Runtime-core keeps the
+portable event, Tool Ledger, artifact, failure, replay, and contract boundaries;
+external harnesses remain responsible for orchestration and transport.
+
+Implemented:
+
+- source-neutral `ExecutionEvidenceBridge` for session, turn, model, tool,
+  failure, state-change, receipt, and external artifact evidence
+- dependency-free observers for Temporal, DSH, LangGraph/OpenAI Agents
+  SDK-style framework events, MCP, and A2A task/handoff events
+- correlation metadata for external workflow, activity, thread, task, request,
+  checkpoint, handoff, and artifact identifiers
+- retry/idempotency handling that preserves `PENDING_VERIFICATION` when an
+  external side effect is not yet known to be safe
+- media-derived artifact refs with URI/content ref, lineage, and derived-output
+  metadata, without codec or transport ownership
+- Inspector JSON/HTML execution evidence read model with source, receipt,
+  checkpoint, and artifact summaries
+- shared `execution_evidence.v1.json` conformance scenarios and focused
+  reference-runtime coverage
+
+Explicit non-goals:
+
+- no Temporal, DSH, framework, MCP, or A2A SDK dependency in runtime-core
+- no protocol server, scheduler, media processor, or observability backend
+- no new Go/TypeScript/Rust observer layer before a language-specific demand
+  and stable package boundary exists
+
+Remaining work belongs to later adapter or adoption releases: dependency-backed
+SDK smoke, standalone non-Python Inspector distribution, and real-service
+hardening.
 
 ## Post-v1 - Sub-agent And Multi-agent Runtime Semantics
 

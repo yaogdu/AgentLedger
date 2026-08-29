@@ -89,6 +89,7 @@ agentledger inspector run <run_id> --root .agentledger --html ./inspector.html
 agentledger inspector run <run_id> --backend sqlite --db .agentledger/state.db --blob-root .agentledger/blobs --out ./inspector.json
 agentledger inspector runs --root .agentledger --html ./runs.html
 agentledger inspector runs --root .agentledger --out ./runs.json
+agentledger inspector runs --root .agentledger --status failed --query payment --out ./failed-payment-runs.json
 ```
 
 Postgres 和 MySQL 通过已有 StateStore adapter boundary 读取。Inspector 在这些路径上使用 read-only store wrapper，不会运行 migration，也不会创建表：
@@ -105,6 +106,8 @@ Postgres/MySQL 建议使用只读数据库账号。AgentLedger 不为 Inspector 
 `--blob-root` 当前指向本地 blob 目录，用于读取 runtime metadata 中引用的 payload blob。如果 payload blob 在 S3/MinIO 或其它托管对象存储中，优先先导出 evidence bundle，或者通过 extension API 提供自定义 `EvidenceBlobStoreProtocol` 实现。
 
 对 `agentledger inspector runs` 来说，`--blob-root` 是可选项。提供后，Inspector 会尽量从 event payload 中提取业务侧 `agent_run_id`；不提供时，run index 仍可用，只是 `agent_run_id` 可能显示为 `-`。
+
+`--status` 按 run status 过滤。`--query` 会在 run、event、tool、approval 和 error metadata 中做不区分大小写的子串搜索，再对匹配结果应用 `--limit`。搜索只读，并沿用 store 现有的最多 1000 个 run 边界。
 
 ## 输出
 

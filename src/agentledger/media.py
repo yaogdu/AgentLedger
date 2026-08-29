@@ -179,6 +179,7 @@ class MediaArtifact:
                     "content_ref": self.content_ref,
                     "metadata": content.get("metadata", {}),
                     "lineage": content.get("lineage", {}),
+                    "derived_outputs": content.get("derived_outputs", {}),
                 }
             )
         }

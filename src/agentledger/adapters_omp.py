@@ -5,9 +5,11 @@ from typing import Any
 
 from .context import AgentContext
 from .ids import new_id
+from .media import MEDIA_KINDS, MediaArtifact
 from .runtime import Runtime
 
 
+EXECUTION_EVIDENCE_SCHEMA_VERSION = "agentledger.execution.evidence.v1"
 OMP_ADAPTER_SCHEMA_VERSION = "agentledger.omp.adapter.v1"
 
 _SUCCESS_LEDGER_STATUSES = {"SUCCEEDED", "COMPENSATED"}
@@ -110,6 +112,20 @@ class OmpStateChange:
     metadata: dict[str, Any] = field(default_factory=dict)
 
 
+@dataclass(frozen=True)
+class OmpArtifact:
+    session_id: str
+    name: str
+    kind: str = "artifact"
+    turn_id: str | None = None
+    uri: str | None = None
+    content_ref: str | None = None
+    external_id: str | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
+    lineage: dict[str, Any] = field(default_factory=dict)
+    derived_outputs: dict[str, Any] = field(default_factory=dict)
+
+
 @dataclass
 class _BridgeSession:
     run_id: str
@@ -128,20 +144,37 @@ class _ActiveTurn:
     agent_role: str
 
 
-class OmpLedgerBridge:
-    """Translate normalized OMP runtime records into AgentLedger evidence."""
+# Source-neutral record names. OMP names remain the concrete classes for
+# backwards compatibility; the bridge decides how the source is labelled.
+ExecutionSession = OmpSession
+ExecutionTurn = OmpTurn
+ExecutionModelCall = OmpModelCall
+ExecutionToolProposal = OmpToolProposal
+ExecutionToolExecution = OmpToolExecution
+ExecutionFailure = OmpFailure
+ExecutionStateChange = OmpStateChange
+ExecutionArtifact = OmpArtifact
 
-    name = "omp-ledger-bridge"
 
-    def __init__(self, runtime: Runtime, *, app_name: str, worker_id: str | None = None, lease_seconds: int = 60):
+class ExecutionEvidenceBridge:
+    """Translate normalized external runtime records into AgentLedger evidence."""
+
+    name = "execution-evidence-bridge"
+    source = "external"
+    schema_version = EXECUTION_EVIDENCE_SCHEMA_VERSION
+    event_prefix = "execution"
+    checkpoint_prefix = "execution"
+
+    def __init__(self, runtime: Runtime, *, app_name: str, source: str = "external", worker_id: str | None = None, lease_seconds: int = 60):
         self.runtime = runtime
         self.app_name = app_name
-        self.worker_id = worker_id or f"omp:{app_name}"
+        self.source = source
+        self.worker_id = worker_id or f"{source}:{app_name}"
         self.lease_seconds = lease_seconds
         self._sessions: dict[str, _BridgeSession] = {}
         self._active_turns: dict[str, _ActiveTurn] = {}
 
-    def record_session_started(self, session: OmpSession) -> str:
+    def record_session_started(self, session: ExecutionSession) -> str:
         if session.session_id in self._sessions:
             return self._sessions[session.session_id].run_id
         bridge_session = self._ensure_session(session)
@@ -150,11 +183,12 @@ class OmpLedgerBridge:
             run_id=bridge_session.run_id,
             session_id=bridge_session.session_id,
             step_id=None,
-            event_type="omp_session_started",
+            event_type=self._event_type("session_started"),
             payload=_compact(
                 {
-                    "schema_version": OMP_ADAPTER_SCHEMA_VERSION,
+                    "schema_version": self.schema_version,
                     "adapter": self.name,
+                    "source": self.source,
                     "app_name": self.app_name,
                     "external_session_id": session.session_id,
                     "metadata": dict(session.metadata),
@@ -164,12 +198,12 @@ class OmpLedgerBridge:
         )
         return bridge_session.run_id
 
-    def record_turn_started(self, turn: OmpTurn) -> str:
+    def record_turn_started(self, turn: ExecutionTurn) -> str:
         key = self._turn_key(turn.session_id, turn.turn_id)
         active = self._active_turns.get(key)
         if active is not None:
             return active.step_id
-        session = self._ensure_session(OmpSession(session_id=turn.session_id))
+        session = self._ensure_session(ExecutionSession(session_id=turn.session_id))
         step_id = session.initial_step_id
         if step_id is None:
             step_id = self._next_runnable_step_id(session.run_id)
@@ -179,7 +213,7 @@ class OmpLedgerBridge:
             session.initial_step_id = None
         claim = self.runtime.store.claim_step(worker_id=self.worker_id, run_id=session.run_id, lease_seconds=self.lease_seconds)
         if claim is None:
-            raise RuntimeError(f"no runnable step available for OMP turn {turn.turn_id}")
+            raise RuntimeError(f"no runnable step available for {self.source} turn {turn.turn_id}")
         active = _ActiveTurn(
             run_id=claim.run_id,
             session_id=claim.session_id,
@@ -194,11 +228,12 @@ class OmpLedgerBridge:
             run_id=active.run_id,
             session_id=active.session_id,
             step_id=active.step_id,
-            event_type="omp_turn_started",
+            event_type=self._event_type("turn_started"),
             payload=_compact(
                 {
-                    "schema_version": OMP_ADAPTER_SCHEMA_VERSION,
+                    "schema_version": self.schema_version,
                     "adapter": self.name,
+                    "source": self.source,
                     "app_name": self.app_name,
                     "external_session_id": turn.session_id,
                     "external_turn_id": turn.turn_id,
@@ -210,7 +245,7 @@ class OmpLedgerBridge:
         )
         return active.step_id
 
-    def record_turn_completed(self, turn: OmpTurn) -> int:
+    def record_turn_completed(self, turn: ExecutionTurn) -> int:
         active = self._require_turn(turn.session_id, turn.turn_id)
         new_version = self.runtime.store.commit_state_patch(
             run_id=active.run_id,
@@ -218,17 +253,18 @@ class OmpLedgerBridge:
             lease_token=active.lease_token,
             base_version=active.state_version,
             patch=dict(turn.state_patch),
-            checkpoint_id=f"omp:{turn.turn_id}:{active.attempt}",
+            checkpoint_id=f"{self.checkpoint_prefix}:{turn.turn_id}:{active.attempt}",
         )
         self.runtime.store.append_event(
             run_id=active.run_id,
             session_id=active.session_id,
             step_id=active.step_id,
-            event_type="omp_turn_completed",
+            event_type=self._event_type("turn_completed"),
             payload=_compact(
                 {
-                    "schema_version": OMP_ADAPTER_SCHEMA_VERSION,
+                    "schema_version": self.schema_version,
                     "adapter": self.name,
+                    "source": self.source,
                     "app_name": self.app_name,
                     "external_session_id": turn.session_id,
                     "external_turn_id": turn.turn_id,
@@ -241,7 +277,7 @@ class OmpLedgerBridge:
         self._active_turns.pop(self._turn_key(turn.session_id, turn.turn_id), None)
         return new_version
 
-    def record_model_call(self, record: OmpModelCall) -> dict[str, str | None]:
+    def record_model_call(self, record: ExecutionModelCall) -> dict[str, str | None]:
         return self._context_for(record.session_id, record.turn_id).record_model_call(
             provider=record.provider,
             model=record.model,
@@ -249,10 +285,10 @@ class OmpLedgerBridge:
             response=dict(record.response),
             usage=dict(record.usage),
             total_usd=float(record.total_usd),
-            metadata=dict(record.metadata),
+            metadata=self._bridge_metadata(record.metadata, record.session_id, record.turn_id),
         )
 
-    def record_tool_proposal(self, proposal: OmpToolProposal) -> str:
+    def record_tool_proposal(self, proposal: ExecutionToolProposal) -> str:
         return self._context_for(proposal.session_id, proposal.turn_id).record_tool_call_proposal(
             tool_name=proposal.tool_name,
             arguments=dict(proposal.arguments),
@@ -261,24 +297,61 @@ class OmpLedgerBridge:
             model_call_ref=proposal.model_call_ref,
             confidence=proposal.confidence,
             reason=proposal.reason,
-            metadata=dict(proposal.metadata),
+            metadata=self._bridge_metadata(proposal.metadata, proposal.session_id, proposal.turn_id),
         )
 
-    def record_tool_execution(self, execution: OmpToolExecution) -> dict[str, Any]:
+    def record_execution_event(
+        self,
+        *,
+        session_id: str,
+        event_name: str,
+        payload: dict[str, Any] | None = None,
+        turn_id: str | None = None,
+        agent_role: str | None = None,
+        causal_token: str | None = None,
+    ) -> tuple[str, int]:
+        """Record source-specific execution metadata without adding a new table."""
+
+        session = self._ensure_session(ExecutionSession(session_id=session_id))
+        active = self._active_turns.get(self._turn_key(session_id, turn_id)) if turn_id else None
+        event_payload = dict(payload or {})
+        event_payload.update(
+            {
+                "schema_version": self.schema_version,
+                "adapter": self.name,
+                "source": self.source,
+                "app_name": self.app_name,
+            }
+        )
+        return self.runtime.store.append_event(
+            run_id=session.run_id,
+            session_id=session.session_id,
+            step_id=active.step_id if active else None,
+            event_type=self._event_type(event_name),
+            payload=event_payload,
+            agent_role=active.agent_role if active else agent_role,
+            state_version=active.state_version if active else self._run_state_version(session.run_id),
+            causal_token=causal_token,
+        )
+
+    def record_tool_execution(self, execution: ExecutionToolExecution) -> dict[str, Any]:
         active = self._require_turn(execution.session_id, execution.turn_id)
         tool_call_id = execution.tool_call_id or new_id("toolcall")
         request = _compact(
             {
-                "schema_version": OMP_ADAPTER_SCHEMA_VERSION,
+                "schema_version": self.schema_version,
+                "source": self.source,
                 "tool": execution.tool_name,
                 "args": dict(execution.arguments),
                 "tool_call_id": tool_call_id,
-                "metadata": dict(execution.metadata),
+                "external_session_id": execution.session_id,
+                "external_turn_id": execution.turn_id,
+                "metadata": self._bridge_metadata(execution.metadata, execution.session_id, execution.turn_id),
             }
         )
         request_hash, request_ref = self.runtime.blobs.put_json(request)
-        idempotency_key = execution.idempotency_key or f"omp:{execution.session_id}:{execution.turn_id}:{execution.tool_name}:{tool_call_id}"
-        causal_token = execution.causal_token or f"omp:{execution.session_id}:{execution.turn_id}:{tool_call_id}"
+        idempotency_key = execution.idempotency_key or f"{self.source}:{execution.session_id}:{execution.turn_id}:{execution.tool_name}:{tool_call_id}"
+        causal_token = execution.causal_token or f"{self.source}:{execution.session_id}:{execution.turn_id}:{tool_call_id}"
         self.runtime.store.append_event(
             run_id=active.run_id,
             session_id=active.session_id,
@@ -309,12 +382,24 @@ class OmpLedgerBridge:
                 session_id=active.session_id,
                 step_id=active.step_id,
                 event_type="tool_call_completed",
-                payload={"tool": execution.tool_name, "replayed_from_ledger": True, "idempotency_key": idempotency_key, "tool_call_id": tool_call_id},
+                payload=_compact(
+                    {
+                        "schema_version": self.schema_version,
+                        "adapter": self.name,
+                        "source": self.source,
+                        "external_session_id": execution.session_id,
+                        "external_turn_id": execution.turn_id,
+                        "tool": execution.tool_name,
+                        "replayed_from_ledger": True,
+                        "idempotency_key": idempotency_key,
+                        "tool_call_id": tool_call_id,
+                        "response_hash": existing["response_hash"],
+                        "response_ref": existing["response_ref"],
+                    }
+                ),
                 agent_role=active.agent_role,
                 state_version=active.state_version,
                 causal_token=causal_token,
-                payload_hash=existing["response_hash"],
-                payload_ref=existing["response_ref"],
             )
             return {"ledger_status": "SUCCEEDED", "replayed_from_ledger": True, "idempotency_key": idempotency_key, "tool_call_id": tool_call_id}
         if existing is not None and existing["status"] == "PENDING_VERIFICATION":
@@ -336,12 +421,19 @@ class OmpLedgerBridge:
         event_type = "tool_call_completed" if ledger_status in _SUCCESS_LEDGER_STATUSES else "tool_call_failed"
         payload = _compact(
             {
+                "schema_version": self.schema_version,
+                "adapter": self.name,
+                "source": self.source,
+                "external_session_id": execution.session_id,
+                "external_turn_id": execution.turn_id,
                 "tool": execution.tool_name,
                 "tool_call_id": tool_call_id,
                 "idempotency_key": idempotency_key,
                 "ledger_status": ledger_status,
                 "error": execution.error_message,
                 "error_type": execution.error_type,
+                "response_hash": response_hash,
+                "response_ref": response_ref,
             }
         )
         self.runtime.store.append_event(
@@ -353,8 +445,6 @@ class OmpLedgerBridge:
             agent_role=active.agent_role,
             state_version=active.state_version,
             causal_token=causal_token,
-            payload_hash=response_hash,
-            payload_ref=response_ref,
         )
         if ledger_status not in {"RESERVED", "RUNNING"}:
             self.runtime.store.record_cost(
@@ -365,11 +455,11 @@ class OmpLedgerBridge:
                 name=execution.tool_name,
                 amount=1.0,
                 unit="call",
-                metadata={"external_runtime": "omp", "ledger_status": ledger_status},
+                metadata={"external_runtime": self.source, "ledger_status": ledger_status},
             )
         return {"ledger_status": ledger_status, "idempotency_key": idempotency_key, "tool_call_id": tool_call_id}
 
-    def record_failure(self, failure: OmpFailure) -> None:
+    def record_failure(self, failure: ExecutionFailure) -> None:
         active = self._require_turn(failure.session_id, failure.turn_id)
         if failure.category == "model":
             self._context_for(failure.session_id, failure.turn_id).record_model_failure(
@@ -381,7 +471,7 @@ class OmpLedgerBridge:
                 request=dict(failure.request),
                 usage=dict(failure.usage),
                 total_usd=float(failure.total_usd),
-                metadata=dict(failure.metadata),
+                metadata=self._bridge_metadata(failure.metadata, failure.session_id, failure.turn_id),
             )
         if not failure.terminal:
             return
@@ -394,18 +484,18 @@ class OmpLedgerBridge:
             self.runtime.store.mark_failed(run_id=active.run_id, step_id=active.step_id, error=failure.message, error_type=failure.error_type)
         self._active_turns.pop(self._turn_key(failure.session_id, failure.turn_id), None)
 
-    def record_state_change(self, change: OmpStateChange) -> int | None:
-        session = self._ensure_session(OmpSession(session_id=change.session_id))
+    def record_state_change(self, change: ExecutionStateChange) -> int | None:
+        session = self._ensure_session(ExecutionSession(session_id=change.session_id))
         active = self._active_turns.get(self._turn_key(change.session_id, change.turn_id)) if change.turn_id else None
         artifact_refs: dict[str, Any] = {}
-        artifact_prefix = f"omp-{change.label}"
+        artifact_prefix = f"{self.source}-{change.label}"
         if change.before_snapshot is not None:
             artifact_refs["before_artifact_id"] = self._store_artifact(
                 run_id=session.run_id,
                 step_id=active.step_id if active else None,
                 name=f"{artifact_prefix}-before",
                 content=change.before_snapshot,
-                metadata={"schema_version": OMP_ADAPTER_SCHEMA_VERSION, "kind": "before_snapshot", "external_session_id": change.session_id},
+                metadata={"schema_version": self.schema_version, "source": self.source, "kind": "before_snapshot", "external_session_id": change.session_id},
                 agent_role=active.agent_role if active else None,
                 state_version=active.state_version if active else self._run_state_version(session.run_id),
             )
@@ -415,7 +505,7 @@ class OmpLedgerBridge:
                 step_id=active.step_id if active else None,
                 name=f"{artifact_prefix}-after",
                 content=change.after_snapshot,
-                metadata={"schema_version": OMP_ADAPTER_SCHEMA_VERSION, "kind": "after_snapshot", "external_session_id": change.session_id},
+                metadata={"schema_version": self.schema_version, "source": self.source, "kind": "after_snapshot", "external_session_id": change.session_id},
                 agent_role=active.agent_role if active else None,
                 state_version=active.state_version if active else self._run_state_version(session.run_id),
             )
@@ -425,7 +515,7 @@ class OmpLedgerBridge:
                 step_id=active.step_id if active else None,
                 name=f"{artifact_prefix}-diff",
                 content=change.diff,
-                metadata={"schema_version": OMP_ADAPTER_SCHEMA_VERSION, "kind": "diff", "external_session_id": change.session_id},
+                metadata={"schema_version": self.schema_version, "source": self.source, "kind": "diff", "external_session_id": change.session_id},
                 agent_role=active.agent_role if active else None,
                 state_version=active.state_version if active else self._run_state_version(session.run_id),
             )
@@ -439,11 +529,12 @@ class OmpLedgerBridge:
             run_id=session.run_id,
             session_id=session.session_id,
             step_id=active.step_id if active else None,
-            event_type="omp_state_change_recorded",
+            event_type=self._event_type("state_change_recorded"),
             payload=_compact(
                 {
-                    "schema_version": OMP_ADAPTER_SCHEMA_VERSION,
+                    "schema_version": self.schema_version,
                     "adapter": self.name,
+                    "source": self.source,
                     "app_name": self.app_name,
                     "external_session_id": change.session_id,
                     "external_turn_id": change.turn_id,
@@ -459,7 +550,101 @@ class OmpLedgerBridge:
         )
         return new_version
 
-    def _ensure_session(self, session: OmpSession) -> _BridgeSession:
+    def record_artifact(self, artifact: ExecutionArtifact) -> str:
+        """Store an external artifact manifest and preserve its refs."""
+
+        if not artifact.name.strip():
+            raise ValueError("execution artifact name must not be empty")
+        if not any((artifact.uri, artifact.content_ref, artifact.external_id, artifact.derived_outputs)):
+            raise ValueError("execution artifact requires a uri, content_ref, external_id, or derived_outputs")
+        session = self._ensure_session(ExecutionSession(session_id=artifact.session_id))
+        active = self._active_turns.get(self._turn_key(artifact.session_id, artifact.turn_id)) if artifact.turn_id else None
+        metadata = {
+            **dict(artifact.metadata),
+            "schema_version": self.schema_version,
+            "source": self.source,
+            "external_session_id": artifact.session_id,
+        }
+        metadata.update(
+            _compact(
+                {
+                    "kind": artifact.kind,
+                    "uri": artifact.uri,
+                    "content_ref": artifact.content_ref,
+                    "external_id": artifact.external_id,
+                    "lineage": dict(artifact.lineage),
+                    "derived_outputs": dict(artifact.derived_outputs),
+                }
+            )
+        )
+        if artifact.kind in MEDIA_KINDS:
+            media = MediaArtifact(
+                kind=artifact.kind,
+                uri=artifact.uri,
+                content_ref=artifact.content_ref,
+                metadata=artifact.metadata,
+                lineage=artifact.lineage,
+                derived_outputs=artifact.derived_outputs,
+            )
+            manifest = media.to_content()
+            metadata.update(media.to_artifact_metadata())
+        else:
+            manifest = _compact(
+                {
+                    "schema_version": self.schema_version,
+                    "source": self.source,
+                    "kind": artifact.kind,
+                    "uri": artifact.uri,
+                    "content_ref": artifact.content_ref,
+                    "external_id": artifact.external_id,
+                    "metadata": dict(artifact.metadata),
+                    "lineage": dict(artifact.lineage),
+                    "derived_outputs": dict(artifact.derived_outputs),
+                }
+            )
+        blob_hash, blob_ref = self.runtime.blobs.put_json(manifest)
+        artifact_id = self.runtime.store.create_artifact(
+            run_id=session.run_id,
+            step_id=active.step_id if active else None,
+            name=artifact.name,
+            blob_hash=blob_hash,
+            blob_ref=blob_ref,
+            metadata=metadata,
+        )
+        self.runtime.store.append_event(
+            run_id=session.run_id,
+            session_id=session.session_id,
+            step_id=active.step_id if active else None,
+            event_type="artifact_created",
+            payload=_compact(
+                {
+                    "artifact_id": artifact_id,
+                    "name": artifact.name,
+                    "kind": artifact.kind,
+                    "source": self.source,
+                    "external_session_id": artifact.session_id,
+                    "external_turn_id": artifact.turn_id,
+                    "external_id": artifact.external_id,
+                }
+            ),
+            agent_role=active.agent_role if active else None,
+            state_version=active.state_version if active else self._run_state_version(session.run_id),
+            payload_hash=blob_hash,
+            payload_ref=blob_ref,
+        )
+        return artifact_id
+
+    def _bridge_metadata(self, metadata: dict[str, Any], session_id: str, turn_id: str | None) -> dict[str, Any]:
+        return {
+            **dict(metadata),
+            "schema_version": self.schema_version,
+            "adapter": self.name,
+            "source": self.source,
+            "external_session_id": session_id,
+            "external_turn_id": turn_id,
+        }
+
+    def _ensure_session(self, session: ExecutionSession) -> _BridgeSession:
         existing = self._sessions.get(session.session_id)
         if existing is not None:
             return existing
@@ -481,7 +666,7 @@ class OmpLedgerBridge:
     def _require_turn(self, external_session_id: str, turn_id: str) -> _ActiveTurn:
         active = self._active_turns.get(self._turn_key(external_session_id, turn_id))
         if active is None:
-            raise KeyError(f"OMP turn not active: {external_session_id}/{turn_id}")
+            raise KeyError(f"{self.source} turn not active: {external_session_id}/{turn_id}")
         return active
 
     def _context_for(self, external_session_id: str, turn_id: str) -> AgentContext:
@@ -535,9 +720,25 @@ class OmpLedgerBridge:
                 return str(row["step_id"])
         return None
 
+    def _event_type(self, suffix: str) -> str:
+        return f"{self.event_prefix}_{suffix}"
+
     @staticmethod
     def _turn_key(external_session_id: str, turn_id: str | None) -> str:
         return f"{external_session_id}\x1f{turn_id or ''}"
+
+
+class OmpLedgerBridge(ExecutionEvidenceBridge):
+    """Backward-compatible OMP bridge over the generic evidence boundary."""
+
+    name = "omp-ledger-bridge"
+    source = "omp"
+    schema_version = OMP_ADAPTER_SCHEMA_VERSION
+    event_prefix = "omp"
+    checkpoint_prefix = "omp"
+
+    def __init__(self, runtime: Runtime, *, app_name: str, worker_id: str | None = None, lease_seconds: int = 60):
+        super().__init__(runtime, app_name=app_name, source=self.source, worker_id=worker_id, lease_seconds=lease_seconds)
 
 
 def _external_id_from_result(result: Any) -> str | None:

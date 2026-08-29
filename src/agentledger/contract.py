@@ -47,6 +47,8 @@ def runtime_contract() -> dict[str, Any]:
             "ToolLedgerEntry",
             "ArtifactRef",
             "ArtifactLineage",
+            "ExecutionEvidenceBridge",
+            "ExecutionArtifact",
             "MediaArtifact",
             "MediaMetadata",
             "StreamChunkRef",
@@ -113,6 +115,11 @@ def runtime_contract() -> dict[str, Any]:
             "cost_recorded",
             "budget_check_failed",
             "failure_classified",
+            "execution_session_started",
+            "execution_turn_started",
+            "execution_turn_completed",
+            "execution_state_change_recorded",
+            "execution_task_receipt_recorded",
         ],
         "state_store_operations": [
             "create_run",
@@ -142,10 +149,12 @@ def runtime_contract() -> dict[str, Any]:
             "sandbox-required tools fail closed when the executor is missing or disabled",
             "media and stream artifacts store refs, metadata, lineage, and checkpoints instead of raw codec processing",
             "model evidence records archived provider inputs, outputs, failures, and proposed tool calls without routing providers",
+            "external execution evidence preserves source, correlation IDs, receipts, and unknown side-effect states without owning the external harness",
         ],
         "artifact_contracts": {
             "media_schema_version": MEDIA_SCHEMA_VERSION,
             "model_evidence_schema_version": MODEL_EVIDENCE_SCHEMA_VERSION,
+            "execution_evidence_schema_version": "agentledger.execution.evidence.v1",
             "media_kinds": sorted(MEDIA_KINDS),
             "stream_schema_version": STREAM_SCHEMA_VERSION,
             "stream_checkpoint_fields": [
@@ -197,6 +206,7 @@ def runtime_contract() -> dict[str, Any]:
                 "contracts/conformance/policy_approval_sandbox.v1.json",
                 "contracts/conformance/cost_failure_attribution.v1.json",
                 "contracts/conformance/media_stream_artifacts.v1.json",
+                "contracts/conformance/execution_evidence.v1.json",
             ],
         },
         "stability": {

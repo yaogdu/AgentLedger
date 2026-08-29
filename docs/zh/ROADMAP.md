@@ -14,6 +14,7 @@
 |---|---|---|---|
 | Planning / Workflow | adapter contract、runtime-managed checkpoint、evidence hook、tool boundary integration | LangGraph、CrewAI、AutoGen、LangChain、Temporal、Prefect、Airflow、自定义 workflow adapter | 重新实现 planner、graph engine 或 workflow engine |
 | Runtime Adapters | stable event/evidence contracts、run/step/model/tool/failure/state mapping、replay 和 redaction invariants | Oh My Pi / OMP、framework runtime、自定义 runtime bridge | 学习应用专属产品语义、私有路径、memory 含义、账号/额度逻辑或 workspace 规则 |
+| Cross-Harness Execution Evidence | portable run/turn/step/tool/model/approval/artifact/failure records、correlation、receipt、idempotency 和 unknown-state/replay invariant | DSH、Temporal、LangGraph、OpenAI Agents SDK、MCP、A2A、ModLens/ASR evidence observer | 重做完整 harness、protocol server、media model 或 observability platform |
 | Eval / Evidence Consumers | evidence export、replay、deterministic rerun hooks、最小 side-effect-free regression checks、conformance fixtures、eval-adapter output formats | Langfuse、Phoenix、promptfoo、DeepEval、Ragas、OpenAI Evals、LangSmith/Braintrust-style consumers、CI report sinks | standalone Eval Platform、跑 N 个 agent x M 个 case 的完整离线评测器、指标服务、case 管理、scorer 管理 UI 或长运行 eval Web 应用 |
 | Tracing / Observability | structured events、trace JSONL、OTLP/JSON export、evidence links | OpenTelemetry SDK packages、collector recipes、external trace stores | 完整观测套件 |
 | Guardrails | ToolSpec schema validation、policy checks、approval、pre/postcondition hooks、adversarial review gates | 更强 policy engine、项目规则包、外部 review 流程 | 业务治理后台 |
@@ -127,14 +128,15 @@ tool marketplace or app store
 ### 1.5.0 之后的推荐实现顺序
 
 1. 落地 Oh My Pi / OMP runtime adapter 边界：作为通用 runtime adapter，把 OMP session、turn、model-call、tool-proposal、tool-execution、failure、artifact 和 versioned state-change record 翻译成现有 AgentLedger evidence，不加入应用专属语义。
-2. 在首批 adoption path 基础上继续扩展 framework 接入：LangGraph package-compatibility smoke、上游稳定后再加入 dependency-backed smoke、LangChain/CrewAI/AutoGen facades，以及更丰富的 runtime-boundary examples。
-3. 把 Temporal bridge 继续收敛成更清晰的 optional adapter boundary：保持 workflow/activity ownership 明确，增加更强的 correlation example，同时保留 single-write retry semantics。
-4. 继续改进 Inspector 作为 language-neutral companion：更好的 run-index filtering/search，以及面向不想在应用 runtime 安装 Python 的 Go/TypeScript/Rust 用户的 standalone viewer path。
-5. 强化 observability 和 eval exports，不只停留在本地 JSON mapping：先补 OTLP deployment recipes，再做 Langfuse/Phoenix/promptfoo/DeepEval/Ragas/OpenAI-Evals/LangSmith-style evidence adapters，但不替代这些工具。
-6. 继续做 production-pilot adapter hardening：Postgres、MySQL、S3/MinIO、worker、OTLP transport、sandbox packages 的真实服务 conformance、权限边界、backup/restore drill 和 failure semantics。
-7. 在 model/tool/failure evidence 路径保持稳定后，启动 Runtime Memory Lifecycle baseline：memory refs、snapshot、read/write、diff、lineage、replay semantics 和 redaction hooks。
-8. 增加 sub-agent/multi-agent runtime semantics，但只作为可靠性层：parent-child run link、spawn/join event、cancellation propagation、replay-safe join、cost/failure attribution。
-9. 通过 optional processing adapters 扩展 media/stream，runtime-core 继续只保存 ref、metadata、lineage、checkpoint 和 replay validation。
+2. 构建 Cross-Harness Execution Evidence v1：把 DSH、Temporal、LangGraph、OpenAI Agents SDK、MCP 和 A2A 的执行事实归一到 portable AgentLedger record，覆盖 correlation、receipt、idempotency、unknown-state/retry、remote task/handoff 和 media-derived evidence ref。先做 observer-first adapter、一个 crash/replay demo 和 conformance fixture；不做完整 protocol server 或 media model。
+3. 在首批 adoption path 基础上继续扩展 framework 接入：LangGraph package-compatibility smoke、上游稳定后再加入 dependency-backed smoke、LangChain/CrewAI/AutoGen facades，以及更丰富的 runtime-boundary examples。
+4. 把 Temporal bridge 继续收敛成更清晰的 optional adapter boundary：保持 workflow/activity ownership 明确，增加更强的 correlation example，同时保留 single-write retry semantics。
+5. 继续改进 Inspector 作为 language-neutral companion：更好的 run-index filtering/search，以及面向不想在应用 runtime 安装 Python 的 Go/TypeScript/Rust 用户的 standalone viewer path。
+6. 强化 observability 和 eval exports，不只停留在本地 JSON mapping：先补 OTLP deployment recipes，再做 Langfuse/Phoenix/promptfoo/DeepEval/Ragas/OpenAI-Evals/LangSmith-style evidence adapters，但不替代这些工具。
+7. 继续做 production-pilot adapter hardening：Postgres、MySQL、S3/MinIO、worker、OTLP transport、sandbox packages 的真实服务 conformance、权限边界、backup/restore drill 和 failure semantics。
+8. 在 model/tool/failure evidence 路径保持稳定后，启动 Runtime Memory Lifecycle baseline：memory refs、snapshot、read/write、diff、lineage、replay semantics 和 redaction hooks。
+9. 增加 sub-agent/multi-agent runtime semantics，但只作为可靠性层：parent-child run link、spawn/join event、cancellation propagation、replay-safe join、cost/failure attribution。
+10. 通过 optional processing adapters 扩展 media/stream，runtime-core 继续只保存 ref、metadata、lineage、checkpoint 和 replay validation。
 
 ## Open Source Adoption And Maintainer Workflow
 
@@ -173,6 +175,7 @@ Companion product 方向：
 | 方向 | 为什么重要 | package boundary |
 |---|---|---|
 | AgentLedger Inspector | 通过 timeline、Tool Ledger、approval、replay diff、artifact、cost、failure attribution 让 run 可见 | 独立 read-only 本地/内网工具，不进入 runtime-core UI |
+| Cross-Harness Execution Evidence | 让 DSH、Temporal、framework runtime、MCP 和 A2A 共享 execution record、receipt、replay 和 side-effect accountability | observer-first adapter、evidence contract 和 conformance fixture；不做完整 harness 或 protocol server |
 | Tool Governance / MCP Gateway | 在工具副作用发生前强制执行 schema、permission、approval、sandbox、audit、idempotency | optional gateway package 或 reference service |
 | Eval adapters / Replay regression | 让团队基于历史 evidence 测试 prompt、model、tool-schema、agent-logic 变更，且不重复副作用 | 基于 evidence bundle 的 exporter 和 CLI/CI companion；不做 standalone eval platform |
 | Production Harness Blueprint | 展示 AgentLedger 如何和 LangGraph/OpenAI Agents SDK、Temporal、Langfuse/OTel、MCP、Postgres/S3、Docker sandbox 组合 | examples、templates、deployment recipes |
@@ -336,10 +339,11 @@ complete core parity/package dry-run script
 候选后续 release trains：
 
 ```text
-1.6.0  standalone Inspector and evidence consumer UX：非 Python viewer path、model-call panel、filtering/search
-1.7.0  Runtime Memory Lifecycle：memory refs、snapshots、reads/writes、diffs、lineage、replay semantics
-1.8.0  sub-agent/multi-agent runtime semantics：parent-child runs、spawn/join、cancellation/failure/cost attribution
-1.9.0  media adapter release：frame/audio/video refs、transcription/embedding adapters、stream transports
+1.6.0  Cross-Harness Execution Evidence v1：DSH/Temporal/MCP/A2A observer adapter、correlation/receipt/replay conformance
+1.7.0  standalone Inspector and evidence consumer UX：非 Python viewer path、model-call panel、filtering/search
+1.8.0  Runtime Memory Lifecycle：memory refs、snapshots、reads/writes、diffs、lineage、replay semantics
+1.9.0  sub-agent/multi-agent runtime semantics：parent-child runs、spawn/join、cancellation/failure/cost attribution
+1.10.0 media adapter release：frame/audio/video refs、transcription/embedding adapters、stream transports
 1.x    production-pilot adapter hardening 在有真实服务证据时可用 patch/minor release 发布
 ```
 
@@ -987,6 +991,39 @@ AgentLedger 现有 evidence、Tool Ledger、model evidence、failure、replay
 - adapter 设计解释清楚 versioned document/state evidence 如何工作，但不把 AgentLedger 变成 memory product
 - bridge 已在 Python、Go、TypeScript、Rust 中提供，并有测试和示例
 - roadmap 明确这是 patch-level bridge implementation，不是 runtime-core semantic change
+
+## 1.6.0 - Cross-Harness Execution Evidence v1
+
+状态：已作为 Python observer-first release 实现。runtime-core 保留 portable
+event、Tool Ledger、artifact、failure、replay 和 contract boundary；外部
+harness 继续负责 orchestration 和 transport。
+
+已实现：
+
+- source-neutral `ExecutionEvidenceBridge`，覆盖 session、turn、model、tool、
+  failure、state-change、receipt 和 external artifact evidence
+- 不依赖第三方 SDK 的 Temporal、DSH、LangGraph/OpenAI Agents SDK-style
+  framework、MCP 和 A2A task/handoff observer
+- external workflow、activity、thread、task、request、checkpoint、handoff
+  和 artifact identifier 的 correlation metadata
+- 保留 idempotency/retry 语义；外部副作用尚不确定时保留
+  `PENDING_VERIFICATION`
+- media-derived artifact ref 的 URI、content ref、lineage 和 derived-output
+  metadata，不接管 codec 或 transport
+- Inspector JSON/HTML execution evidence read model，展示 source、receipt、
+  checkpoint 和 artifact summary
+- `execution_evidence.v1.json` shared conformance scenario，以及
+  reference runtime focused coverage
+
+明确不做：
+
+- runtime-core 不引入 Temporal、DSH、framework、MCP 或 A2A SDK 依赖
+- 不做 protocol server、scheduler、media processor 或 observability backend
+- 在没有语言侧需求和稳定 package boundary 前，不新增
+  Go/TypeScript/Rust observer layer
+
+后续应放到 adapter 或 adoption release：依赖真实 SDK 的 smoke、面向非
+Python 用户的 standalone Inspector distribution，以及 real-service hardening。
 
 ## v1.0 - Stable Runtime Contract
 

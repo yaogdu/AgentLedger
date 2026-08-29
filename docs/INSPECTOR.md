@@ -89,6 +89,7 @@ agentledger inspector run <run_id> --root .agentledger --html ./inspector.html
 agentledger inspector run <run_id> --backend sqlite --db .agentledger/state.db --blob-root .agentledger/blobs --out ./inspector.json
 agentledger inspector runs --root .agentledger --html ./runs.html
 agentledger inspector runs --root .agentledger --out ./runs.json
+agentledger inspector runs --root .agentledger --status failed --query payment --out ./failed-payment-runs.json
 ```
 
 Postgres and MySQL are also supported through the existing StateStore adapter boundaries. Inspector uses read-only store wrappers for these paths and does not run migrations or create tables:
@@ -105,6 +106,8 @@ Use database credentials with read-only permissions. AgentLedger does not add an
 The `--blob-root` argument currently points at a local blob directory containing the payload blobs referenced by the runtime metadata. If payload blobs live in S3/MinIO or another managed object store, export an evidence bundle first or provide a custom `EvidenceBlobStoreProtocol` implementation through the extension API.
 
 For `agentledger inspector runs`, `--blob-root` is optional. When present, Inspector may use it to extract an application-level `agent_run_id` from event payloads. When absent, the run index still works but may show `agent_run_id` as `-`.
+
+`--status` filters by run status. `--query` performs a case-insensitive substring search across run, event, tool, approval, and error metadata, then applies `--limit` to the matching runs. The search is read-only and capped at the store's existing 1000-run boundary.
 
 ## Output
 

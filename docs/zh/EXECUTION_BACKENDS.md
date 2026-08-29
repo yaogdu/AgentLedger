@@ -108,6 +108,41 @@ Temporal
 
 Temporal 可以负责运行 activity。AgentLedger 仍然应该负责 tool/model boundary。
 
+Python reference package 还提供 `TemporalEvidenceObserver`，用于
+observer-first 集成。它接收 Temporal workflow/activity callback 产出的
+规范化 dictionary，再转发给 source-neutral execution evidence bridge：
+
+```python
+from agentledger import TemporalEvidenceObserver
+
+observer = TemporalEvidenceObserver(runtime, app_name="my-workflows")
+observer.observe({
+    "type": "activity_started",
+    "workflow_id": "wf-1",
+    "workflow_run_id": "run-1",
+    "activity_id": "activity-1",
+    "attempt": 1,
+})
+observer.observe({
+    "type": "tool_execution",
+    "workflow_id": "wf-1",
+    "workflow_run_id": "run-1",
+    "activity_id": "activity-1",
+    "tool_name": "case.create",
+    "idempotency_key": "case:wf-1",
+    "ledger_status": "SUCCEEDED",
+    "result": {"external_id": "CASE-1"},
+})
+```
+
+Observer 不解析 SDK 私有 history，也不运行 Temporal server。SDK-specific
+callback 仍负责把 provider 字段收敛成这个小 event envelope。
+
+外部 workflow 或 media worker 也可以调用
+`ExecutionEvidenceBridge.record_artifact(...)`，传入 media kind、
+URI/content ref、lineage 和 derived-output ref。AgentLedger 只把 manifest
+写入 artifact index，不下载或处理原始媒体字节。
+
 ## 重合是正常的
 
 确实有重合：

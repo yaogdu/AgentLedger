@@ -53,10 +53,12 @@ class InspectorReport:
         summary = self.data.get("summary", {})
         risk_flags = self.data.get("risk_flags", [])
         evidence = self.data.get("evidence", {})
+        execution_evidence = self.data.get("execution_evidence", {})
         navigation = [
             ("evidence", "Evidence"),
             ("risk-flags", "Risk Flags"),
             ("event-stream", "Event Stream"),
+            ("execution-evidence", "Execution Evidence"),
             ("failures", "Failures"),
             ("failure-lifecycle", "Failure Lifecycle"),
             ("failure-replay", "Replay Plan"),
@@ -210,6 +212,15 @@ class InspectorReport:
       <h2>Event Stream</h2>
       <p class="section-note">Chronological event view keyed by runtime run id and agent run id, with links back to detailed timeline records.</p>
       {_event_stream(self.data.get("event_stream", []))}
+    </section>
+
+    <section class="section" id="execution-evidence">
+      <h2>Execution Evidence</h2>
+      {_table(["seq", "type", "source", "session_id", "turn_id", "receipt_type", "checkpoint_id", "artifact_refs", "summary"], execution_evidence.get("events", []))}
+      <div class="grid-2">
+        <pre>{_json_block({"source_counts": execution_evidence.get("source_counts", {}), "receipt_type_counts": execution_evidence.get("receipt_type_counts", {}), "artifact_source_counts": execution_evidence.get("artifact_source_counts", {})})}</pre>
+      {_table(["artifact_id", "name", "source", "kind", "uri", "content_ref", "external_id", "lineage", "derived_outputs"], execution_evidence.get("artifacts", []))}
+      </div>
     </section>
 
     <section class="section" id="failures">
@@ -537,6 +548,7 @@ class InspectorReportBuilder:
         artifacts = _artifacts(evidence)
         cost_records = [_project_cost(row) for row in evidence.get("cost_records", [])]
         events = [_safe_dict(event) for event in evidence.get("events", [])]
+        execution_evidence = _execution_evidence(events, evidence, include_payloads=include_payloads)
         timeline = [_timeline_event(event, include_payloads=include_payloads) for event in events]
         policy_decisions = [_policy_decision(event, include_payloads=include_payloads) for event in events if event.get("type") == "tool_permission_decided"]
         policy_decisions = [row for row in policy_decisions if row is not None]
@@ -609,6 +621,10 @@ class InspectorReportBuilder:
             "model_call_count": len(model_calls),
             "model_call_failed_count": sum(1 for item in model_calls if item.get("status") == "failed"),
             "tool_call_proposal_count": len(tool_proposals),
+            "execution_event_count": execution_evidence["event_count"],
+            "execution_receipt_count": execution_evidence["receipt_count"],
+            "execution_source_counts": execution_evidence["source_counts"],
+            "execution_artifact_count": execution_evidence["artifact_count"],
         }
         failure_export = FailureExportMapper().export(
             run_id=str(run.get("run_id") or ""),
@@ -646,6 +662,7 @@ class InspectorReportBuilder:
             "failure_alerts": failure_alerts,
             "failure_export": failure_export,
             "artifacts": artifacts,
+            "execution_evidence": execution_evidence,
             "evidence": {
                 "schema_version": evidence.get("schema_version"),
                 "bundle_hash": evidence.get("bundle_hash"),
@@ -671,10 +688,21 @@ class InspectorReportBuilder:
         blobs: EvidenceBlobStoreProtocol | None = None,
         limit: int = 100,
         status: str | None = None,
+        query: str | None = None,
         source: dict[str, Any] | None = None,
         run_link_template: str | None = None,
     ) -> InspectorRunIndex:
-        rows = [_run_index_row(store=store, blobs=blobs, run=row, run_link_template=run_link_template) for row in store.runs(limit=limit, status=status)]
+        normalized_query = query.strip().casefold() if isinstance(query, str) and query.strip() else None
+        safe_limit = max(1, min(int(limit), 1000))
+        candidate_limit = 1000 if normalized_query else safe_limit
+        rows = []
+        for run in store.runs(limit=candidate_limit, status=status):
+            row = _run_index_row(store=store, blobs=blobs, run=run, run_link_template=run_link_template)
+            if normalized_query and normalized_query not in row.pop("_search_text", ""):
+                continue
+            row.pop("_search_text", None)
+            rows.append(row)
+        rows = rows[:safe_limit]
         active_statuses = {"pending", "running", "waiting_human", "retry_scheduled"}
         summary = {
             "run_count": len(rows),
@@ -683,6 +711,7 @@ class InspectorReportBuilder:
             "total_usd": round(sum(float(row.get("total_usd") or 0) for row in rows), 6),
             "limit": limit,
             "status_filter": status,
+            "query_filter": query.strip() if isinstance(query, str) and query.strip() else None,
         }
         return InspectorRunIndex(
             {
@@ -864,10 +893,11 @@ class InspectorDataSource:
         blobs: EvidenceBlobStoreProtocol | None = None,
         limit: int = 100,
         status: str | None = None,
+        query: str | None = None,
         run_link_template: str | None = None,
     ) -> InspectorRunIndex:
         """Build a read-only run index from an application-provided store."""
-        return self.builder.run_index(store=store, blobs=blobs, limit=limit, status=status, source={"kind": "runtime_store"}, run_link_template=run_link_template)
+        return self.builder.run_index(store=store, blobs=blobs, limit=limit, status=status, query=query, source={"kind": "runtime_store"}, run_link_template=run_link_template)
 
     def from_sqlite(
         self,
@@ -892,6 +922,7 @@ class InspectorDataSource:
         blob_root: str | Path | None = None,
         limit: int = 100,
         status: str | None = None,
+        query: str | None = None,
         run_link_template: str | None = None,
     ) -> InspectorRunIndex:
         store = ReadOnlySQLiteStore(db_path)
@@ -902,6 +933,7 @@ class InspectorDataSource:
                 blobs=blobs,
                 limit=limit,
                 status=status,
+                query=query,
                 source={"kind": "runtime_store", "backend": "sqlite", "db_path": str(db_path)},
                 run_link_template=run_link_template,
             )
@@ -934,6 +966,7 @@ class InspectorDataSource:
         blob_root: str | Path | None = None,
         limit: int = 100,
         status: str | None = None,
+        query: str | None = None,
         run_link_template: str | None = None,
     ) -> InspectorRunIndex:
         store = ReadOnlyPostgresStore(PostgresStoreConfig(dsn=dsn, schema=schema))
@@ -945,6 +978,7 @@ class InspectorDataSource:
                 blobs=blobs,
                 limit=limit,
                 status=status,
+                query=query,
                 source={"kind": "runtime_store", "backend": "postgres", "schema": schema},
                 run_link_template=run_link_template,
             )
@@ -977,6 +1011,7 @@ class InspectorDataSource:
         blob_root: str | Path | None = None,
         limit: int = 100,
         status: str | None = None,
+        query: str | None = None,
         run_link_template: str | None = None,
     ) -> InspectorRunIndex:
         store = ReadOnlyMySQLStore(MySQLStoreConfig(dsn=dsn, database=database))
@@ -988,6 +1023,7 @@ class InspectorDataSource:
                 blobs=blobs,
                 limit=limit,
                 status=status,
+                query=query,
                 source={"kind": "runtime_store", "backend": "mysql", "database": database},
                 run_link_template=run_link_template,
             )
@@ -1021,6 +1057,16 @@ def _run_index_row(
         agent_run_id = _find_agent_run_id(_decode_json_field(run_row.get("initial_state")))
     if agent_run_id is None:
         agent_run_id = _agent_run_id_from_events(events, blobs)
+    searchable_events: list[Any] = list(events)
+    if blobs is not None:
+        for event in events:
+            payload_ref = event.get("payload_ref")
+            if not isinstance(payload_ref, str):
+                continue
+            try:
+                searchable_events.append({"payload": decode_payload(blobs, payload_ref)})
+            except Exception:
+                continue
     failure_count = sum(1 for event in events if _is_failure_event(event.get("type"))) + sum(1 for step in steps if step.get("status") == "failed")
     status = run_row.get("status")
     row = {
@@ -1040,6 +1086,18 @@ def _run_index_row(
         "cost_summary": cost_summary,
         "raw_created_at": run_row.get("created_at"),
         "raw_updated_at": run_row.get("updated_at"),
+        "_search_text": json.dumps(
+            {
+                "run": run_row,
+                "steps": steps,
+                "events": searchable_events,
+                "tool_ledger": ledger,
+                "approvals": approvals,
+            },
+            ensure_ascii=False,
+            default=str,
+            sort_keys=True,
+        ).casefold(),
     }
     href = _run_link(run_link_template, run_id)
     if href:
@@ -1245,6 +1303,115 @@ def _timeline_event(event: dict[str, Any], *, include_payloads: bool) -> dict[st
     if include_payloads:
         item["payload"] = payload
     return item
+
+
+def _execution_evidence(
+    events: list[dict[str, Any]],
+    evidence: dict[str, Any],
+    *,
+    include_payloads: bool,
+) -> dict[str, Any]:
+    rows: list[dict[str, Any]] = []
+    source_counts: Counter[str] = Counter()
+    receipt_type_counts: Counter[str] = Counter()
+    artifact_source_by_id = {
+        str(item.get("artifact_id")): str(source)
+        for raw_row in evidence.get("artifacts", [])
+        if (item := _safe_dict(raw_row))
+        if (source := _metadata(item).get("source")) is not None
+    }
+    source_by_step: dict[str, str] = {}
+    correlation_by_step: dict[str, tuple[Any, Any]] = {}
+    boundary_events = {
+        "model_call_requested",
+        "model_call_completed",
+        "model_call_failed",
+        "tool_call_proposed",
+        "tool_call_requested",
+        "tool_call_completed",
+        "tool_call_failed",
+    }
+    for event in events:
+        event_type = str(event.get("type") or "")
+        payload = _safe_dict(event.get("payload"))
+        metadata = _safe_dict(payload.get("metadata"))
+        step_key = _text_value(event.get("step_id"))
+        source = payload.get("source") or metadata.get("source")
+        if source is None and event_type == "artifact_created":
+            source = artifact_source_by_id.get(str(payload.get("artifact_id")))
+        if source is not None and step_key:
+            source_by_step[step_key] = str(source)
+            correlation_by_step[step_key] = (
+                payload.get("external_session_id") or metadata.get("external_session_id"),
+                payload.get("external_turn_id") or metadata.get("external_turn_id"),
+            )
+        if source is None and step_key:
+            source = source_by_step.get(step_key)
+        is_execution_event = event_type.startswith(("execution_", "omp_")) or (event_type in boundary_events and source is not None)
+        is_external_artifact_event = event_type == "artifact_created" and source is not None
+        if not (is_execution_event or is_external_artifact_event):
+            continue
+        source_name = str(source or "unknown")
+        source_counts[source_name] += 1
+        receipt_type = payload.get("receipt_type")
+        if receipt_type is not None:
+            receipt_type_counts[str(receipt_type)] += 1
+        session_id = payload.get("external_session_id") or metadata.get("external_session_id")
+        turn_id = payload.get("external_turn_id") or metadata.get("external_turn_id")
+        if step_key:
+            fallback_session_id, fallback_turn_id = correlation_by_step.get(step_key, (None, None))
+            session_id = session_id or fallback_session_id
+            turn_id = turn_id or fallback_turn_id
+        artifact_refs = payload.get("artifact_refs", payload.get("artifacts"))
+        row = {
+            "seq": event.get("seq"),
+            "type": event_type,
+            "source": source_name,
+            "session_id": session_id or payload.get("context_id") or event.get("session_id"),
+            "turn_id": turn_id,
+            "receipt_type": receipt_type,
+            "checkpoint_id": payload.get("checkpoint_id"),
+            "artifact_refs": artifact_refs,
+            "summary": _payload_summary(payload),
+        }
+        if include_payloads:
+            row["payload"] = payload
+        rows.append(row)
+
+    artifact_rows: list[dict[str, Any]] = []
+    artifact_source_counts: Counter[str] = Counter()
+    for raw_row in evidence.get("artifacts", []):
+        item = _safe_dict(raw_row)
+        metadata = _metadata(item)
+        media = _safe_dict(metadata.get("agentledger_media"))
+        source = metadata.get("source")
+        if source is None:
+            continue
+        source_name = str(source)
+        artifact_source_counts[source_name] += 1
+        artifact_rows.append(
+            {
+                "artifact_id": item.get("artifact_id"),
+                "name": item.get("name"),
+                "source": source_name,
+                "kind": media.get("kind") or metadata.get("kind"),
+                "uri": media.get("uri") or metadata.get("uri"),
+                "content_ref": media.get("content_ref") or metadata.get("content_ref"),
+                "external_id": metadata.get("external_id"),
+                "lineage": media.get("lineage") or metadata.get("lineage") or {},
+                "derived_outputs": media.get("derived_outputs") or metadata.get("derived_outputs") or {},
+            }
+        )
+    return {
+        "event_count": len(rows),
+        "receipt_count": sum(receipt_type_counts.values()),
+        "source_counts": dict(source_counts),
+        "receipt_type_counts": dict(receipt_type_counts),
+        "artifact_count": len(artifact_rows),
+        "artifact_source_counts": dict(artifact_source_counts),
+        "events": rows,
+        "artifacts": artifact_rows,
+    }
 
 
 def _chronological_event_stream(timeline: list[dict[str, Any]], *, runtime_run_id: Any, agent_run_id: str | None) -> list[dict[str, Any]]:
