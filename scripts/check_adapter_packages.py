@@ -123,13 +123,15 @@ def check_python_package_metadata(adapter: PythonAdapter, extras: dict, *, expec
     metadata = load_toml(package_dir / "pyproject.toml")["project"]
     if metadata["name"] != adapter.package:
         fail(f"{adapter.package}: package name mismatch")
-    if expected_version is not None and metadata["version"] != expected_version:
-        fail(f"{adapter.package}: expected version {expected_version}, got {metadata['version']}")
-    if not str(metadata["version"]).startswith("1.5."):
-        fail(f"{adapter.package}: expected 1.5.x package boundary, got {metadata['version']}")
+    package_version = str(metadata["version"])
+    if expected_version is not None and package_version != expected_version:
+        fail(f"{adapter.package}: expected version {expected_version}, got {package_version}")
+    if expected_version is None and not package_version.startswith("1.5."):
+        fail(f"{adapter.package}: expected 1.5.x package boundary, got {package_version}")
+    dependency_family = expected_version.rsplit(".", 1)[0] if expected_version else "1.5"
     deps = metadata.get("dependencies", [])
-    if not any(dep.startswith("agentledger-runtime>=1.5") for dep in deps):
-        fail(f"{adapter.package}: missing dependency on agentledger-runtime>=1.5")
+    if not any(dep.startswith(f"agentledger-runtime>={dependency_family}") for dep in deps):
+        fail(f"{adapter.package}: missing dependency on agentledger-runtime>={dependency_family}")
     if adapter.required_dependency and not any(adapter.required_dependency in dep for dep in deps):
         fail(f"{adapter.package}: missing dependency containing {adapter.required_dependency}")
     if adapter.package not in "\n".join(extras.get("all", [])):

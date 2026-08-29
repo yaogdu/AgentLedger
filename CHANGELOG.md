@@ -6,6 +6,8 @@ This project follows semantic versioning for the stable runtime-core contract. O
 
 ## Unreleased
 
+## 1.6.0 - 2026-08-29
+
 ### Added
 
 - Added Cross-Harness Execution Evidence v1 with a source-neutral execution bridge and dependency-free Temporal, DSH, framework, MCP, and A2A observers.

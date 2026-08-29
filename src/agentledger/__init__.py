@@ -1,6 +1,6 @@
 """AgentLedger stable agent runtime core."""
 
-__version__ = "1.5.3"
+__version__ = "1.6.0"
 
 from .adapters import FrameworkAdapter, PythonFunctionAdapter, python_agent
 from .adapters_a2a import A2A_OBSERVER_SCHEMA_VERSION, A2AEvidenceObserver

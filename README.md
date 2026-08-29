@@ -3,7 +3,7 @@
 [English](README.md) | [中文](README.zh-CN.md)
 
 ![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)
-![Version 1.5.x stable](https://img.shields.io/badge/Version-1.5.x--stable-111827)
+![Version 1.6.x stable](https://img.shields.io/badge/Version-1.6.x--stable-111827)
 ![License Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-0f766e)
 ![Runtime Durable](https://img.shields.io/badge/Runtime-durable%20execution-1f6feb)
 ![Storage SQLite/Postgres/MySQL](https://img.shields.io/badge/Storage-SQLite%20%7C%20Postgres%20%7C%20MySQL-b45309)
@@ -305,7 +305,8 @@ AgentLedger is also not a new LLM SDK, not a workflow engine, not a general obse
 
 ## Current maturity
 
-AgentLedger 1.5.x is a stable runtime-core line with Python as the reference implementation and Go, TypeScript, and Rust covered by shared runtime-core parity gates. The four language runtimes share the same runtime-core failure semantics, model evidence boundary, and normalized OMP runtime bridge: failed steps, retry scheduling, cancellation, lease recovery, Tool Ledger unknown-state handling, cost/failure attribution, evidence, replay, normalized failure envelopes, failure lifecycle, causal graph, replay plan, regression report, alerts, failure export mappings, archived model request/response/failure evidence, model-proposed tool-call records, and OMP session/turn/tool/state evidence mapping. The current runtime-core release is 1.5.3 for the Python reference package; Go and TypeScript are on 1.5.4 for operator recovery parity; Rust is on 1.5.5 with an optional SQLite evidence sidecar. Inspector remains a language-neutral companion viewer distributed through Python/PyPI. It is suitable for local use, framework adapter integration, reliability semantics validation, and production pilot preparation with explicit adapter boundaries.
+AgentLedger 1.6.0 is an observer-first Python reference release on top of the stable 1.5.x runtime-core contract. The current runtime-core release is 1.6.0 for the Python reference package and Inspector; Go, TypeScript, and Rust remain on 1.5.4 for operator recovery parity. It adds source-neutral Cross-Harness Execution Evidence and dependency-free observers for Temporal, DSH, frameworks, MCP, and A2A. Inspector remains a language-neutral companion viewer distributed through Python/PyPI, now with run-index query filtering. It is suitable for local use, framework adapter integration, reliability semantics validation, and production pilot preparation with explicit adapter boundaries.
+AgentLedger 1.6.0 is an observer-first Python reference release on top of the stable 1.5.x runtime-core contract. The current runtime-core release is 1.6.0 for the Python reference package and Inspector; Go and TypeScript remain on 1.5.4 for operator recovery parity, while Rust is on 1.5.5 with an optional SQLite evidence sidecar. It adds source-neutral Cross-Harness Execution Evidence and dependency-free observers for Temporal, DSH, frameworks, MCP, and A2A. Inspector remains a language-neutral companion viewer distributed through Python/PyPI, now with run-index query filtering. It is suitable for local use, framework adapter integration, reliability semantics validation, and production pilot preparation with explicit adapter boundaries.
 
 The runtime-core contract is stable; optional production adapters and external infrastructure hardening remain separately tracked. See [docs/MATURITY_MODEL.md](docs/MATURITY_MODEL.md), [docs/IMPLEMENTATION_STATUS.md](docs/IMPLEMENTATION_STATUS.md), and [docs/ROADMAP.md](docs/ROADMAP.md).
 

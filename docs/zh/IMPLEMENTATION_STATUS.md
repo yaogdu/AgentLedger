@@ -1,12 +1,12 @@
 # 实现状态
 
-更新日期：2026-08-14
+更新日期：2026-08-29
 
 本文是 `../IMPLEMENTATION_STATUS.md` 的中文主路径版本，用来说明 runtime-core 已实现什么、哪些属于可选 adapter 或后续阶段、哪些不应该进入 runtime-core。
 
 ## 当前基线
 
-AgentLedger 1.5.x 是 stable runtime-core line，Python 是 reference implementation，Go/TypeScript/Rust 已通过共享 runtime-core parity gate 覆盖。1.5 line 保留 1.4 已稳定的 runtime-core contract，继续保留 language-neutral、read-only Inspector companion path，并在不改变 portable runtime-core semantics 的前提下补充首批 framework/Temporal adoption examples 和 smoke coverage。它适合：
+AgentLedger 1.6.0 是基于稳定 1.5.x runtime-core line 的 observer-first Python reference release。Go/TypeScript/Rust 继续在 1.5.4 上通过共享 runtime-core parity gate 覆盖；Python 和 Inspector companion 新增 source-neutral Cross-Harness Execution Evidence、dependency-free observers 和 run-index query filtering。它适合：
 
 - 本地使用
 - runtime 设计评审
@@ -15,7 +15,7 @@ AgentLedger 1.5.x 是 stable runtime-core line，Python 是 reference implementa
 - reliability semantics 验证
 - 在明确 adapter 边界下做 production pilot 准备
 
-版本范围说明：1.3.x 增加并完善 Inspector，定位是只读 evidence/runtime metadata consumer。它可以读取导出的 evidence bundle，也可以用只读凭证连接 SQLite/Postgres/MySQL AgentLedger metadata，并导出静态 HTML debug report。1.4.0 增加四语言 Agent Failure Lifecycle baseline：normalized failure envelopes、lifecycle stages、causal graph、replay plan、regression report、本地 alert records 和 portable failure export mappings。1.4.1 增加四语言 Runtime Model Evidence Boundary：archived model request/response/failure evidence、model-proposed tool call、model cost/failure/replay semantics，但不做 provider routing。1.4.2 在这条路径上做收敛：增加专门的 Inspector model-call/tool-proposal 视图、更强的 failure export mappings、model evidence example 和 boundary lint 加固。1.5.0 保持这套 runtime-core contract 不变，同时新增 dependency-free OpenAI Agents SDK-style approval/replay example、Temporal bridge example、framework-native smoke coverage、benchmark gate 和对应文档入口。1.5.2 在 Python、Go、TypeScript、Rust 中增加 normalized Oh My Pi / OMP runtime bridge：把 session、turn、model-call、tool-proposal、tool-execution、failure、artifact 和 versioned state-change record 映射到现有 AgentLedger evidence，同时不引入应用专属语义。1.5.4 对齐 Go、TypeScript、Rust 的 operator recovery CLI parity，用 `ledger-resolve` 支持 pending Tool Ledger verification；Python reference support 已在 1.5.3 发布。Rust 1.5.5 增加可选 `sqlite-evidence` sidecar，提供 durable ingest、单文件诊断包、只读 replay 校验和按活跃事件日保留；这是 Rust 专属集成面，不是新的四语言写入 parity 声明。MySQL 仍是 1.2.2 的 storage adapter boundary，Langfuse 仍是 1.2.3 的 observability adapter boundary；真实服务生产级声明仍需要外部验证。
+版本范围说明：1.3.x 增加并完善 Inspector，定位是只读 evidence/runtime metadata consumer。它可以读取导出的 evidence bundle，也可以用只读凭证连接 SQLite/Postgres/MySQL AgentLedger metadata，并导出静态 HTML debug report。1.4.0 增加四语言 Agent Failure Lifecycle baseline：normalized failure envelopes、lifecycle stages、causal graph、replay plan、regression report、本地 alert records 和 portable failure export mappings。1.4.1 增加四语言 Runtime Model Evidence Boundary：archived model request/response/failure evidence、model-proposed tool call、model cost/failure/replay semantics，但不做 provider routing。1.4.2 在这条路径上做收敛：增加专门的 Inspector model-call/tool-proposal 视图、更强的 failure export mappings、model evidence example 和 boundary lint 加固。1.5.0 保持这套 runtime-core contract 不变，同时新增 dependency-free OpenAI Agents SDK-style approval/replay example、Temporal bridge example、framework-native smoke coverage、benchmark gate 和对应文档入口。1.5.2 在 Python、Go、TypeScript、Rust 中增加 normalized Oh My Pi / OMP runtime bridge：把 session、turn、model-call、tool-proposal、tool-execution、failure、artifact 和 versioned state-change record 映射到现有 AgentLedger evidence，同时不引入应用专属语义。1.5.4 对齐 Go、TypeScript、Rust 的 operator recovery CLI parity，用 `ledger-resolve` 支持 pending Tool Ledger verification；Python reference support 已在 1.5.3 发布。Rust 1.5.5 增加可选 `sqlite-evidence` sidecar，提供 durable ingest、单文件诊断包、只读 replay 校验和按活跃事件日保留；这是 Rust 专属集成面，不是新的四语言写入 parity 声明。1.6.0 增加 source-neutral cross-harness execution evidence、observer-first adapter boundary 和 Inspector run-index `--query` filtering。MySQL 仍是 1.2.2 的 storage adapter boundary，Langfuse 仍是 1.2.3 的 observability adapter boundary；真实服务生产级声明仍需要外部验证。
 
 runtime-core contract 已稳定。optional production adapter、外部基础设施加固和完整 eval 系统都不属于 stable core 边界；非 Python runtime-core baseline 由共享 parity gate 验证。
 
@@ -38,7 +38,7 @@ release gates 证明的是已覆盖的 runtime contract 和 conformance 场景�
 
 ## 当前完成边界
 
-对当前 1.5.x 目标来说，“stable runtime-core plus adoption proof around framework/Temporal boundaries”指 Python reference runtime 已经可用、已文档化、已测试、可按 release gate 检查、contract 已冻结，并且 Go/TypeScript/Rust 已由 runtime-core parity gate 覆盖。它也表示第一方 adapter boundary 已在适合的语言生态中完成 package/import 边界，Inspector 可以消费跨语言 evidence，并且仓库里已经有 dependency-free example 展示 framework-owned execution 如何仍然记录 runtime-managed approval、Tool Ledger、model evidence、replay 和 retry safety。它不代表所有 optional production adapter 或外部 eval integration 都已在每种语言生产加固。
+对当前 1.6.0 目标来说，“stable runtime-core plus observer-first cross-harness evidence”指 Python reference runtime 和 Inspector companion 已经可用、已文档化、已测试、可按 release gate 检查、contract 已冻结，并且 Go/TypeScript/Rust 继续由 1.5.4 runtime-core parity gate 覆盖。它也表示第一方 observer boundary 不依赖外部 SDK，Inspector 可以消费跨语言 evidence，并且仓库里已经有 example 展示外部编排的 execution 如何记录 runtime-managed approval、Tool Ledger、model evidence、replay、retry safety 和 execution receipt。它不代表所有 optional production adapter 或外部 eval integration 都已在每种语言生产加固。
 
 包含在当前完成边界内：
 

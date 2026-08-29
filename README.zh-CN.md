@@ -3,7 +3,7 @@
 [English](README.md) | [中文](README.zh-CN.md)
 
 ![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)
-![Version 1.5.x stable](https://img.shields.io/badge/Version-1.5.x--stable-111827)
+![Version 1.6.x stable](https://img.shields.io/badge/Version-1.6.x--stable-111827)
 ![License Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-0f766e)
 ![Runtime Durable](https://img.shields.io/badge/Runtime-durable%20execution-1f6feb)
 ![Storage SQLite/Postgres/MySQL](https://img.shields.io/badge/Storage-SQLite%20%7C%20Postgres%20%7C%20MySQL-b45309)
@@ -301,7 +301,8 @@ AgentLedger 也不是新的 LLM SDK，不是 workflow engine，不是通用 obse
 
 ## 当前成熟度
 
-AgentLedger 1.5.x 是 stable runtime-core line，Python 是 reference implementation，Go、TypeScript、Rust 已由共享 runtime-core parity gate 覆盖。四种语言 runtime 共享同一组 runtime-core failure semantics、model evidence boundary 和 normalized OMP runtime bridge：failed step、retry scheduling、cancellation、lease recovery、Tool Ledger unknown-state handling、cost/failure attribution、evidence、replay、normalized failure envelope、failure lifecycle、causal graph、replay plan、regression report、alerts、failure export mappings、archived model request/response/failure evidence、model-proposed tool-call records，以及 OMP session/turn/tool/state evidence mapping。当前 Python reference package 是 1.5.3，Go、TypeScript 是 1.5.4，Rust 是 1.5.5，并增加可选 SQLite evidence sidecar；Inspector 仍是 language-neutral companion viewer，通过 Python/PyPI 分发。适合本地使用、framework adapter integration、reliability semantics 验证，以及在明确 adapter 边界下做 production pilot 准备。
+AgentLedger 1.6.0 是基于稳定 1.5.x runtime-core contract 的 observer-first Python reference release，新增 source-neutral Cross-Harness Execution Evidence，以及面向 Temporal、DSH、framework、MCP 和 A2A 的 dependency-free observer；Go、TypeScript、Rust 继续保持 1.5.4，用于 operator recovery parity。Inspector 仍是通过 Python/PyPI 分发的 language-neutral companion viewer，并新增 run-index query filtering。适合本地使用、framework adapter integration、reliability semantics 验证，以及在明确 adapter 边界下做 production pilot 准备。
+AgentLedger 1.6.0 是基于稳定 1.5.x runtime-core contract 的 observer-first Python reference release，新增 source-neutral Cross-Harness Execution Evidence，以及面向 Temporal、DSH、framework、MCP 和 A2A 的 dependency-free observer；Go、TypeScript 继续保持 1.5.4，用于 operator recovery parity，Rust 为 1.5.5 并增加可选 SQLite evidence sidecar。Inspector 仍是通过 Python/PyPI 分发的 language-neutral companion viewer，并新增 run-index query filtering。适合本地使用、framework adapter integration、reliability semantics 验证，以及在明确 adapter 边界下做 production pilot 准备。
 
 runtime-core contract 已稳定；optional production adapter 和外部基础设施加固仍按独立阶段推进。详见 [docs/MATURITY_MODEL.md](docs/MATURITY_MODEL.md)、[docs/zh/IMPLEMENTATION_STATUS.md](docs/zh/IMPLEMENTATION_STATUS.md) 和 [docs/zh/ROADMAP.md](docs/zh/ROADMAP.md)。
 
