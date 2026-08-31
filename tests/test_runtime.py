@@ -613,6 +613,7 @@ class RuntimeTests(unittest.TestCase):
             )
             data = index.to_dict()
             self.assertEqual(data["schema_version"], INSPECTOR_RUN_INDEX_SCHEMA_VERSION)
+            self.assertEqual(data["source"]["schema_version"], "0001")
             self.assertEqual(data["summary"]["run_count"], 2)
             rows = {row["run_id"]: row for row in data["runs"]}
             self.assertIn(run_id, rows)
@@ -738,6 +739,63 @@ class RuntimeTests(unittest.TestCase):
                     mysql_store.record_cost(run_id="run-1", session_id=None, step_id=None, category="tool", name="probe", amount=1, unit="call")
             finally:
                 mysql_store.close()
+
+    def test_inspector_rejects_incompatible_sqlite_schema_before_reading(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            missing_migrations = Path(tmp) / "missing-migrations.db"
+            with sqlite3.connect(missing_migrations) as conn:
+                conn.execute("CREATE TABLE runs(run_id TEXT)")
+            with self.assertRaisesRegex(ValueError, "schema version"):
+                InspectorDataSource().runs_from_sqlite(db_path=missing_migrations)
+
+            future_schema = Path(tmp) / "future-schema.db"
+            with sqlite3.connect(future_schema) as conn:
+                conn.execute("CREATE TABLE schema_migrations(version TEXT PRIMARY KEY)")
+                conn.execute("INSERT INTO schema_migrations(version) VALUES('9999')")
+            with self.assertRaisesRegex(ValueError, "9999"):
+                InspectorDataSource().runs_from_sqlite(db_path=future_schema)
+
+            evidence_bundle = Path(tmp) / "evidence-bundle.db"
+            with sqlite3.connect(evidence_bundle) as conn:
+                conn.execute("CREATE TABLE evidence_bundle_metadata(key TEXT PRIMARY KEY, value TEXT NOT NULL)")
+                conn.execute(
+                    "INSERT INTO evidence_bundle_metadata(key, value) VALUES('schema_version', ?)",
+                    ("agentledger.sqlite.evidence.bundle.v1",),
+                )
+            store = ReadOnlySQLiteStore(evidence_bundle)
+            try:
+                self.assertEqual(store.inspector_schema_version(), "agentledger.sqlite.evidence.bundle.v1")
+            finally:
+                store.close()
+
+    def test_inspector_reads_inline_sqlite_evidence_bundle_without_blob_root(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "bundle"
+            rt = Runtime.local(root)
+            run_id, _ = rt.create_run(initial_state={"source": "rust-evidence"})
+            with rt.store.conn:
+                rt.store.conn.execute("CREATE TABLE evidence_bundle_metadata(key TEXT PRIMARY KEY, value TEXT NOT NULL)")
+                rt.store.conn.execute(
+                    "INSERT INTO evidence_bundle_metadata(key, value) VALUES('schema_version', ?)",
+                    ("agentledger.sqlite.evidence.bundle.v1",),
+                )
+                rt.store.conn.execute("DROP TABLE schema_migrations")
+            rt.store.close()
+
+            missing_blob_root = Path(tmp) / "no-blob-sidecar"
+            source = InspectorDataSource()
+            report = source.from_sqlite(
+                db_path=root / "state.db",
+                blob_root=missing_blob_root,
+                run_id=run_id,
+                include_payloads=True,
+            ).to_dict()
+            self.assertFalse(missing_blob_root.exists())
+            self.assertEqual(report["run"]["run_id"], run_id)
+            self.assertEqual(report["timeline"][0]["payload"]["initial_state"]["source"], "rust-evidence")
+            index = source.runs_from_sqlite(db_path=root / "state.db", blob_root=missing_blob_root).to_dict()
+            self.assertEqual(index["source"]["schema_version"], "agentledger.sqlite.evidence.bundle.v1")
+            self.assertEqual(index["summary"]["run_count"], 1)
 
     def test_inspector_extension_api_accepts_custom_read_store_and_escapes_html(self) -> None:
         class CustomBlobStore:

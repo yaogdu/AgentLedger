@@ -813,7 +813,7 @@ Tool Ledger view：idempotency key、causal token、side-effect status、request
 artifact/evidence browser：payload refs、blob hashes、media refs、stream checkpoint refs
 cost / failure attribution panels
 prompt、大 blob 和项目自定义 evidence field 的更丰富 redaction preset
-读取数据库前做 schema/version compatibility check
+读取数据库前做 schema/version compatibility check；缺失或不支持的 schema version record 会直接拒绝
 ```
 
 明确非目标：

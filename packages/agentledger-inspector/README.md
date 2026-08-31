@@ -28,6 +28,14 @@ Inspect an exported evidence bundle:
 agentledger inspector evidence ./evidence/<run_id> --html ./inspector.html
 ```
 
+A self-contained Rust SQLite evidence bundle marked
+`agentledger.sqlite.evidence.bundle.v1` stores event payloads inline, so it
+does not need a blob sidecar:
+
+```bash
+agentledger inspector run <run_id> --backend sqlite --db ./<run_id>.agentledger.db --out ./inspector.json
+```
+
 Redact sensitive keys before writing JSON or HTML:
 
 ```bash
@@ -51,7 +59,7 @@ Reusable redaction policy:
 agentledger inspector run <run_id> --root .agentledger --redaction-policy ./inspector-redaction.json --out ./inspector.json
 ```
 
-For Postgres or MySQL, use a read-only database credential and pass the local blob root that contains the referenced payload blobs. Inspector uses read-only store wrappers and does not run migrations or create tables:
+For Postgres or MySQL, use a read-only database credential and pass the local blob root that contains the referenced payload blobs. Inspector uses read-only store wrappers, checks the recorded storage schema version before reading, and does not run migrations or create tables:
 
 ```bash
 agentledger inspector run <run_id> --backend postgres --dsn "$AGENTLEDGER_POSTGRES_DSN" --blob-root .agentledger/blobs --html ./inspector.html

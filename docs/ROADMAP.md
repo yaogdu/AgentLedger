@@ -757,7 +757,7 @@ Follow-up work:
 - artifact/evidence browser with payload refs, blob hashes, media refs, and stream checkpoint refs
 - cost and failure attribution panels
 - richer redaction presets for prompts, large blobs, and project-specific evidence fields
-- schema/version compatibility checks before reading a database
+- schema/version compatibility checks before reading a database, rejecting missing or unsupported schema version records
 
 Explicit non-goals:
 

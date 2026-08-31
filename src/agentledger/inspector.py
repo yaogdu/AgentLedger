@@ -17,11 +17,26 @@ from .failure import FailureAlertEvaluator, FailureCausalGraphBuilder, FailureEn
 from .protocol import EvidenceBlobStoreProtocol, EvidenceStateStoreProtocol
 from .storage_mysql import MySQLStore, MySQLStoreConfig
 from .storage_postgres import PostgresStore, PostgresStoreConfig
+from .storage_schema import latest_schema_version
 from .store import SQLiteStore
 
 
 INSPECTOR_SCHEMA_VERSION = "agentledger.inspector.v1"
 INSPECTOR_RUN_INDEX_SCHEMA_VERSION = "agentledger.inspector.runs.v1"
+INSPECTOR_SQLITE_EVIDENCE_BUNDLE_SCHEMA_VERSION = "agentledger.sqlite.evidence.bundle.v1"
+
+
+def _require_compatible_schema(store: Any, dialect: str) -> str:
+    expected = latest_schema_version(dialect)
+    actual = store.inspector_schema_version()
+    accepted = {expected}
+    if dialect == "sqlite":
+        accepted.add(INSPECTOR_SQLITE_EVIDENCE_BUNDLE_SCHEMA_VERSION)
+    if actual not in accepted:
+        found = actual or "missing"
+        accepted_versions = ", ".join(sorted(value for value in accepted if value is not None))
+        raise ValueError(f"Inspector schema version incompatible for {dialect}: expected one of {accepted_versions}, found {found}")
+    return actual
 
 
 @dataclass(frozen=True)
@@ -741,6 +756,25 @@ class ReadOnlySQLiteStore(SQLiteStore):
         # Inspector must never create or migrate user databases.
         return None
 
+    def inspector_schema_version(self) -> str | None:
+        table = self.conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='schema_migrations'"
+        ).fetchone()
+        if table is not None:
+            row = self.conn.execute(
+                "SELECT version FROM schema_migrations ORDER BY version DESC LIMIT 1"
+            ).fetchone()
+            return row["version"] if row is not None else None
+        bundle_table = self.conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='evidence_bundle_metadata'"
+        ).fetchone()
+        if bundle_table is None:
+            return None
+        row = self.conn.execute(
+            "SELECT value FROM evidence_bundle_metadata WHERE key='schema_version'"
+        ).fetchone()
+        return row["value"] if row is not None else None
+
 
 class ReadOnlyLocalBlobStore(LocalBlobStore):
     """Local blob reader that does not create directories or write blobs."""
@@ -752,6 +786,13 @@ class ReadOnlyLocalBlobStore(LocalBlobStore):
 
     def put_json(self, value: Any) -> tuple[str, str]:
         raise RuntimeError("Inspector blob store is read-only")
+
+
+class _InlinePayloadBlobStore:
+    """Reject external blob refs from a self-contained evidence bundle."""
+
+    def get_json(self, ref: str) -> Any:
+        raise ValueError(f"SQLite evidence bundle does not include external blob ref: {ref}")
 
 
 def _read_only_error(operation: str) -> RuntimeError:
@@ -769,6 +810,24 @@ class _ReadOnlyStateStoreMixin:
 
     def schema_version(self) -> Any:
         raise _read_only_error("schema_version")
+
+    def inspector_schema_version(self) -> str | None:
+        try:
+            row = self.conn.execute(
+                "SELECT version FROM schema_migrations ORDER BY version DESC LIMIT 1"
+            ).fetchone()
+        except Exception as exc:
+            message = str(exc).lower()
+            if "no such table" in message or "does not exist" in message or "doesn't exist" in message or "unknown table" in message:
+                return None
+            raise
+        if row is None:
+            return None
+        if isinstance(row, dict):
+            return row.get("version")
+        if hasattr(row, "keys"):
+            return row["version"]
+        return row[0]
 
     def _ensure_migration_table(self) -> None:
         raise _read_only_error("migration table creation")
@@ -910,7 +969,12 @@ class InspectorDataSource:
     ) -> InspectorReport:
         store = ReadOnlySQLiteStore(db_path)
         try:
-            blobs = ReadOnlyLocalBlobStore(blob_root)
+            schema_version = _require_compatible_schema(store, "sqlite")
+            blobs: EvidenceBlobStoreProtocol
+            if schema_version == INSPECTOR_SQLITE_EVIDENCE_BUNDLE_SCHEMA_VERSION:
+                blobs = _InlinePayloadBlobStore()
+            else:
+                blobs = ReadOnlyLocalBlobStore(blob_root)
             return self.from_runtime_store(store=store, blobs=blobs, run_id=run_id, include_payloads=include_payloads, redaction_policy=redaction_policy)
         finally:
             store.close()
@@ -927,6 +991,7 @@ class InspectorDataSource:
     ) -> InspectorRunIndex:
         store = ReadOnlySQLiteStore(db_path)
         try:
+            schema_version = _require_compatible_schema(store, "sqlite")
             blobs = _optional_local_blob_store(blob_root)
             return self.builder.run_index(
                 store=store,
@@ -934,7 +999,7 @@ class InspectorDataSource:
                 limit=limit,
                 status=status,
                 query=query,
-                source={"kind": "runtime_store", "backend": "sqlite", "db_path": str(db_path)},
+                source={"kind": "runtime_store", "backend": "sqlite", "db_path": str(db_path), "schema_version": schema_version},
                 run_link_template=run_link_template,
             )
         finally:
@@ -953,6 +1018,7 @@ class InspectorDataSource:
         store = ReadOnlyPostgresStore(PostgresStoreConfig(dsn=dsn, schema=schema))
         try:
             store._configure_schema()
+            _require_compatible_schema(store, "postgres")
             blobs = ReadOnlyLocalBlobStore(blob_root)
             return self.from_runtime_store(store=store, blobs=blobs, run_id=run_id, include_payloads=include_payloads, redaction_policy=redaction_policy)
         finally:
@@ -972,6 +1038,7 @@ class InspectorDataSource:
         store = ReadOnlyPostgresStore(PostgresStoreConfig(dsn=dsn, schema=schema))
         try:
             store._configure_schema()
+            schema_version = _require_compatible_schema(store, "postgres")
             blobs = _optional_local_blob_store(blob_root)
             return self.builder.run_index(
                 store=store,
@@ -979,7 +1046,7 @@ class InspectorDataSource:
                 limit=limit,
                 status=status,
                 query=query,
-                source={"kind": "runtime_store", "backend": "postgres", "schema": schema},
+                source={"kind": "runtime_store", "backend": "postgres", "schema": schema, "schema_version": schema_version},
                 run_link_template=run_link_template,
             )
         finally:
@@ -998,6 +1065,7 @@ class InspectorDataSource:
         store = ReadOnlyMySQLStore(MySQLStoreConfig(dsn=dsn, database=database))
         try:
             store._configure_schema()
+            _require_compatible_schema(store, "mysql")
             blobs = ReadOnlyLocalBlobStore(blob_root)
             return self.from_runtime_store(store=store, blobs=blobs, run_id=run_id, include_payloads=include_payloads, redaction_policy=redaction_policy)
         finally:
@@ -1017,6 +1085,7 @@ class InspectorDataSource:
         store = ReadOnlyMySQLStore(MySQLStoreConfig(dsn=dsn, database=database))
         try:
             store._configure_schema()
+            schema_version = _require_compatible_schema(store, "mysql")
             blobs = _optional_local_blob_store(blob_root)
             return self.builder.run_index(
                 store=store,
@@ -1024,7 +1093,7 @@ class InspectorDataSource:
                 limit=limit,
                 status=status,
                 query=query,
-                source={"kind": "runtime_store", "backend": "mysql", "database": database},
+                source={"kind": "runtime_store", "backend": "mysql", "database": database, "schema_version": schema_version},
                 run_link_template=run_link_template,
             )
         finally:

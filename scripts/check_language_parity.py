@@ -320,6 +320,7 @@ def main(argv: list[str] | None = None) -> int:
             replay = json.loads(replay_report.read_text(encoding="utf-8"))
             if replay.get("run_id") != "interop-run" or len(replay.get("timeline", [])) != 2:
                 raise ValueError("Rust replay CLI did not preserve the SQLite evidence timeline")
+            bundle_before_inspection = bundle.read_bytes()
             run(
                 [
                     sys.executable,
@@ -334,8 +335,6 @@ def main(argv: list[str] | None = None) -> int:
                     "sqlite",
                     "--db",
                     str(bundle),
-                    "--blob-root",
-                    str(root),
                     "--include-payloads",
                     "--out",
                     str(inspector_report),
@@ -346,6 +345,8 @@ def main(argv: list[str] | None = None) -> int:
             inspector = json.loads(inspector_report.read_text(encoding="utf-8"))
             if inspector.get("run", {}).get("run_id") != "interop-run" or len(inspector.get("timeline", [])) != 2:
                 raise ValueError("Python Inspector did not preserve the Rust SQLite evidence bundle")
+            if bundle.read_bytes() != bundle_before_inspection:
+                raise ValueError("Python Inspector modified the Rust SQLite evidence bundle")
         if not args.skip_docs:
             check_markdown_links()
             run(["git", "diff", "--check"], name="git_diff_check")
