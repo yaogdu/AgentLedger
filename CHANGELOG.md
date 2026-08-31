@@ -6,9 +6,11 @@ This project follows semantic versioning for the stable runtime-core contract. O
 
 ## Unreleased
 
-### Added
+## 1.6.1 - 2026-08-31
 
-- Inspector direct database reads now verify the recorded storage schema version before building reports or run indexes, while recognizing self-contained Rust SQLite evidence bundles with inline payloads.
+### Fixed
+
+- Hardened Inspector direct database reads to verify the recorded storage schema version before building reports or run indexes, while recognizing self-contained Rust SQLite evidence bundles with inline payloads.
 
 ## 1.6.0 - 2026-08-29
 

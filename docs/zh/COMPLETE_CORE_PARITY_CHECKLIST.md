@@ -26,7 +26,7 @@
 1. 四语言 CLI baseline 已有自动化检查，不再只依赖 conformance。
 2. Go、TypeScript、Rust 已有 runnable quickstart example files。
 3. TypeScript/Rust package surface 已有 `npm pack --dry-run` / `cargo package --allow-dirty --no-verify` 发布 dry-run；发布后仍需重复 clean install smoke。
-4. Python、TypeScript、Rust 的 package release boundary 已自动检查。稳定的四语言 runtime-core baseline 仍是 `1.5`；Python 1.6.0 是第一批发布的 observer release，当前 Go/TypeScript/Rust 源码 runtime 已承载同一套 observer 语义，后续按各语言 package 节奏发布；`1.5.0` 引入了 framework/Temporal adoption examples、smoke coverage 和 benchmark gate。
+4. Python、TypeScript、Rust 的 package release boundary 已自动检查。稳定的四语言 runtime-core baseline 仍是 `1.5`；Python/Inspector 当前是继 `1.6.0` 之后的 `1.6.1` observer patch release，当前 Go/TypeScript/Rust 源码 runtime 已承载同一套 observer 语义，后续按各语言 package 节奏发布；`1.5.0` 引入了 framework/Temporal adoption examples、smoke coverage 和 benchmark gate。
 5. Go module 外部消费依赖 Git tag/release；每次 release 推送 `go/vX.Y.Z` tag 后都需要重复 clean external `go get` smoke。
 6. 真实服务 hardening 仍不属于 core parity，继续作为 optional follow-up 记录。
 
