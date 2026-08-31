@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { DockerSandboxExecutor, JSONStore, LocalBlobStore, LocalWorker, OmpLedgerBridge, RetryableAgentError, Runtime, WorkerService, exportEvidence, replay, costAttribution, failureAttribution } from '../src/index.js';
+import { A2AEvidenceObserver, DSHEvidenceObserver, DockerSandboxExecutor, ExecutionEvidenceBridge, FrameworkEvidenceObserver, JSONStore, LocalBlobStore, LocalWorker, MCPEvidenceObserver, OmpLedgerBridge, RetryableAgentError, Runtime, TemporalEvidenceObserver, WorkerService, exportEvidence, replay, costAttribution, failureAttribution } from '../src/index.js';
 
 test('adapter subpath exports expose the current package boundary', async () => {
   const postgres = await import('../src/adapters/postgres.js');
@@ -489,6 +489,47 @@ test('omp bridge records model failure and retry lifecycle', async () => {
   assert.equal(retryStepId, stepId);
   assert.equal(rt.store.steps(runId).length, 1);
   assert.equal(rt.store.steps(runId)[0].status, 'running');
+});
+
+test('execution evidence bridge preserves source correlation, replay, and external artifact refs', async () => {
+  const rt = new Runtime(JSONStore.memory());
+  const bridge = new ExecutionEvidenceBridge(rt, { appName: 'temporal-demo', source: 'temporal' });
+  const runId = await bridge.recordSessionStarted({ sessionId: 'workflow-1', initialState: { topic: 'contract' } });
+  await bridge.recordTurnStarted({ sessionId: 'workflow-1', turnId: 'activity-1', agentRole: 'TemporalActivityAgent' });
+  await bridge.recordModelCall({ sessionId: 'workflow-1', turnId: 'activity-1', provider: 'openai', model: 'gpt-4.1', usage: { input_tokens: 2, output_tokens: 1 } });
+  const input = { sessionId: 'workflow-1', turnId: 'activity-1', toolName: 'search', arguments: { q: 'payment' }, toolCallId: 'call-1', idempotencyKey: 'temporal:workflow-1:activity-1:search:call-1', result: { ok: true }, ledgerStatus: 'SUCCEEDED' };
+  await bridge.recordToolExecution(input);
+  const replayed = await bridge.recordToolExecution(input);
+  assert.equal(replayed.replayed_from_ledger, true);
+  await bridge.recordArtifact({ sessionId: 'workflow-1', turnId: 'activity-1', name: 'frame-1', kind: 'frame', contentRef: 's3://media/frame-1.jpg', lineage: { source_blob_refs: ['s3://media/input.mp4'] }, derivedOutputs: { transcript: 'blob://sha256/transcript.json' } });
+  const evidence = exportEvidence(rt.store, runId);
+  assert.equal(evidence.media_artifacts[0].derived_outputs.transcript, 'blob://sha256/transcript.json');
+  await bridge.recordExecutionEvent('workflow-1', 'task_receipt_recorded', { workflow_id: 'wf-1' }, 'activity-1', null, 'temporal:workflow-1:activity-1');
+  const eventTypes = rt.store.events(runId).map((event) => event.type);
+  assert.ok(eventTypes.includes('execution_session_started'));
+  assert.ok(eventTypes.includes('execution_turn_started'));
+  assert.ok(eventTypes.includes('model_call_completed'));
+  assert.ok(eventTypes.includes('execution_task_receipt_recorded'));
+  assert.equal(rt.store.ledger(runId).length, 1);
+  assert.equal(rt.store.artifacts(runId)[0].metadata.content_ref, 's3://media/frame-1.jpg');
+});
+
+test('execution observers map normalized lifecycle events without protocol dependencies', async () => {
+  const cases = [
+    [TemporalEvidenceObserver, { type: 'workflow_started', session_id: 'temporal-session' }],
+    [DSHEvidenceObserver, { type: 'run_started', session_id: 'dsh-session' }],
+    [A2AEvidenceObserver, { type: 'task_submitted', context_id: 'a2a-context', task_id: 'task-1' }],
+    [FrameworkEvidenceObserver, { type: 'graph_started', thread_id: 'framework-thread' }],
+    [MCPEvidenceObserver, { type: 'connection_started', connection_id: 'mcp-connection' }],
+  ];
+  for (const [Observer, event] of cases) {
+    const rt = new Runtime(JSONStore.memory());
+    const observer = new Observer(rt, { appName: 'observer-smoke' });
+    await observer.observe(event);
+    const runId = Object.keys(rt.store.data.runs)[0];
+    assert.ok(runId);
+    assert.ok(rt.store.events(runId).some((item) => item.payload.observer_schema_version || item.payload.schema_version));
+  }
 });
 
 test('media and stream artifacts are indexed in evidence and replay', async () => {

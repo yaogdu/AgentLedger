@@ -168,6 +168,7 @@ export class AgentContext {
 }
 
 export const OMP_ADAPTER_SCHEMA_VERSION: string;
+export const EXECUTION_EVIDENCE_SCHEMA_VERSION: string;
 export interface OmpSession { sessionId: string; initialState?: JSONObject; metadata?: JSONObject; runId?: string | null; }
 export interface OmpTurn { sessionId: string; turnId: string; agentRole?: string; statePatch?: JSONObject; metadata?: JSONObject; }
 export interface OmpModelCall { sessionId: string; turnId: string; provider: string; model: string; request?: JSONObject; response?: JSONObject; usage?: JSONObject; totalUsd?: number; metadata?: JSONObject; }
@@ -175,8 +176,16 @@ export interface OmpToolProposal { sessionId: string; turnId: string; toolName: 
 export interface OmpToolExecution { sessionId: string; turnId: string; toolName: string; arguments?: JSONObject; result?: unknown; toolCallId?: string; toolVersion?: string; idempotencyKey?: string; ledgerStatus?: string; errorType?: string; errorMessage?: string; externalId?: string; causalToken?: string; metadata?: JSONObject; }
 export interface OmpFailure { sessionId: string; turnId: string; errorType: string; message: string; retryable?: boolean | null; status?: string; terminal?: boolean; category?: string; provider?: string; model?: string; request?: JSONObject; usage?: JSONObject; totalUsd?: number; metadata?: JSONObject; approvalId?: string | null; }
 export interface OmpStateChange { sessionId: string; turnId?: string | null; reason: string; patch?: JSONObject; label?: string; commitStatus?: string; beforeSnapshot?: unknown; afterSnapshot?: unknown; diff?: unknown; metadata?: JSONObject; }
+export type ExecutionSession = OmpSession;
+export type ExecutionTurn = OmpTurn;
+export type ExecutionModelCall = OmpModelCall;
+export type ExecutionToolProposal = OmpToolProposal;
+export type ExecutionToolExecution = OmpToolExecution;
+export type ExecutionFailure = OmpFailure;
+export type ExecutionStateChange = OmpStateChange;
+export interface ExecutionArtifact { sessionId: string; turnId?: string | null; name: string; kind?: string; uri?: string | null; contentRef?: string | null; externalId?: string | null; metadata?: JSONObject; lineage?: JSONObject; derivedOutputs?: JSONObject; }
 export class OmpLedgerBridge {
-  constructor(runtime: Runtime, options?: { appName?: string; workerId?: string | null; leaseSeconds?: number });
+  constructor(runtime: Runtime, options?: { appName?: string; workerId?: string | null; leaseSeconds?: number; source?: string; schemaVersion?: string; adapterName?: string; eventPrefix?: string; checkpointPrefix?: string; defaultRole?: string });
   recordSessionStarted(session: OmpSession): Promise<string>;
   recordTurnStarted(turn: OmpTurn): Promise<string>;
   recordTurnCompleted(turn: OmpTurn): Promise<number>;
@@ -185,6 +194,36 @@ export class OmpLedgerBridge {
   recordToolExecution(execution: OmpToolExecution): Promise<JSONObject>;
   recordFailure(failure: OmpFailure): Promise<void>;
   recordStateChange(change: OmpStateChange): Promise<number>;
+  recordExecutionEvent(sessionId: string, eventName: string, payload?: JSONObject, turnId?: string | null, agentRole?: string | null, causalToken?: string | null): Promise<JSONObject>;
+  recordArtifact(artifact: ExecutionArtifact): Promise<string>;
+}
+export class ExecutionEvidenceBridge extends OmpLedgerBridge {
+  constructor(runtime: Runtime, options?: { appName?: string; source?: string; workerId?: string | null; leaseSeconds?: number });
+}
+export const TEMPORAL_OBSERVER_SCHEMA_VERSION: string;
+export const DSH_OBSERVER_SCHEMA_VERSION: string;
+export const A2A_OBSERVER_SCHEMA_VERSION: string;
+export const FRAMEWORK_OBSERVER_SCHEMA_VERSION: string;
+export const MCP_OBSERVER_SCHEMA_VERSION: string;
+export class TemporalEvidenceObserver {
+  constructor(runtime: Runtime, options: { appName: string; runId?: string | null });
+  observe(event: JSONObject): Promise<unknown>;
+}
+export class DSHEvidenceObserver {
+  constructor(runtime: Runtime, options: { appName: string; runId?: string | null });
+  observe(event: JSONObject): Promise<unknown>;
+}
+export class A2AEvidenceObserver {
+  constructor(runtime: Runtime, options: { appName: string; runId?: string | null });
+  observe(event: JSONObject): Promise<unknown>;
+}
+export class FrameworkEvidenceObserver {
+  constructor(runtime: Runtime, options: { appName: string; source?: string; runId?: string | null });
+  observe(event: JSONObject): Promise<unknown>;
+}
+export class MCPEvidenceObserver {
+  constructor(runtime: Runtime, options: { appName: string; runId?: string | null });
+  observe(event: JSONObject): Promise<unknown>;
 }
 
 export function exportEvidence(store: JSONStore, runId: string): JSONObject;

@@ -1,12 +1,12 @@
 # 实现状态
 
-更新日期：2026-08-29
+更新日期：2026-08-31
 
 本文是 `../IMPLEMENTATION_STATUS.md` 的中文主路径版本，用来说明 runtime-core 已实现什么、哪些属于可选 adapter 或后续阶段、哪些不应该进入 runtime-core。
 
 ## 当前基线
 
-AgentLedger 1.6.0 是基于稳定 1.5.x runtime-core line 的 observer-first Python reference release。Go/TypeScript/Rust 继续在 1.5.4 上通过共享 runtime-core parity gate 覆盖；Python 和 Inspector companion 新增 source-neutral Cross-Harness Execution Evidence、dependency-free observers 和 run-index query filtering。它适合：
+AgentLedger 1.6.0 是基于稳定 1.5.x runtime-core line 的第一批 observer release。Python 和 Inspector companion 已发布 reference path；当前 Go/TypeScript/Rust 源码 runtime 也已实现同一套 source-neutral bridge 和 dependency-free observer，package 仍按各语言 release 节奏发布。它适合：
 
 - 本地使用
 - runtime 设计评审
@@ -38,7 +38,7 @@ release gates 证明的是已覆盖的 runtime contract 和 conformance 场景�
 
 ## 当前完成边界
 
-对当前 1.6.0 目标来说，“stable runtime-core plus observer-first cross-harness evidence”指 Python reference runtime 和 Inspector companion 已经可用、已文档化、已测试、可按 release gate 检查、contract 已冻结，并且 Go/TypeScript/Rust 继续由 1.5.4 runtime-core parity gate 覆盖。它也表示第一方 observer boundary 不依赖外部 SDK，Inspector 可以消费跨语言 evidence，并且仓库里已经有 example 展示外部编排的 execution 如何记录 runtime-managed approval、Tool Ledger、model evidence、replay、retry safety 和 execution receipt。它不代表所有 optional production adapter 或外部 eval integration 都已在每种语言生产加固。
+对当前 1.6.0 目标来说，“stable runtime-core plus observer-first cross-harness evidence”指 Python reference runtime 和 Inspector companion 已经可用、已文档化、已测试、可按 release gate 检查、contract 已冻结，同时 Go/TypeScript/Rust 源码 runtime 也承载同一套 bridge 和 observer 语义，并继续沿用各自 package release line。它也表示第一方 observer boundary 不依赖外部 SDK，Inspector 可以消费跨语言 evidence，并且仓库里已经有 example 展示外部编排的 execution 如何记录 runtime-managed approval、Tool Ledger、model evidence、replay、retry safety 和 execution receipt。它不代表所有 optional production adapter 或外部 eval integration 都已在每种语言生产加固。
 
 包含在当前完成边界内：
 

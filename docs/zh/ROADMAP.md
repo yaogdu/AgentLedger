@@ -994,16 +994,18 @@ AgentLedger 现有 evidence、Tool Ledger、model evidence、failure、replay
 
 ## 1.6.0 - Cross-Harness Execution Evidence v1
 
-状态：已作为 Python observer-first release 实现。runtime-core 保留 portable
-event、Tool Ledger、artifact、failure、replay 和 contract boundary；外部
-harness 继续负责 orchestration 和 transport。
+状态：已在四种源码 runtime 中实现，Python 1.6.0 package 是第一批发布的
+observer release。runtime-core 保留 portable event、Tool Ledger、artifact、
+failure、replay 和 contract boundary；外部 harness 继续负责 orchestration
+和 transport。
 
 已实现：
 
 - source-neutral `ExecutionEvidenceBridge`，覆盖 session、turn、model、tool、
   failure、state-change、receipt 和 external artifact evidence
-- 不依赖第三方 SDK 的 Temporal、DSH、LangGraph/OpenAI Agents SDK-style
-  framework、MCP 和 A2A task/handoff observer
+- Python、Go、TypeScript、Rust 都提供不依赖第三方 SDK 的 Temporal、DSH、
+  LangGraph/OpenAI Agents SDK-style framework、MCP 和 A2A task/handoff
+  observer
 - external workflow、activity、thread、task、request、checkpoint、handoff
   和 artifact identifier 的 correlation metadata
 - 保留 idempotency/retry 语义；外部副作用尚不确定时保留
@@ -1019,8 +1021,8 @@ harness 继续负责 orchestration 和 transport。
 
 - runtime-core 不引入 Temporal、DSH、framework、MCP 或 A2A SDK 依赖
 - 不做 protocol server、scheduler、media processor 或 observability backend
-- 在没有语言侧需求和稳定 package boundary 前，不新增
-  Go/TypeScript/Rust observer layer
+- runtime-core 不引入 protocol SDK dependency，也不做完整
+  framework-specific adapter
 
 后续应放到 adapter 或 adoption release：依赖真实 SDK 的 smoke、面向非
 Python 用户的 standalone Inspector distribution，以及 real-service hardening。

@@ -4,7 +4,7 @@
 
 This document makes the cross-language boundary explicit. AgentLedger's complete parity claim means **portable runtime-core parity**, not identical provider or ecosystem adapter implementations in every language.
 
-Patch versions do not need to move in lockstep when a release only changes a language-specific package, companion tool, read model, or adapter wrapper. The `1.5.x` line keeps the four-language runtime-core release train aligned: it preserves the 1.4 failure lifecycle and model evidence contracts across Python, Go, TypeScript, and Rust while adding framework/Temporal adoption examples, smoke coverage, benchmark gates, and the normalized OMP runtime bridge. Inspector remains a language-neutral companion viewer distributed through Python/PyPI, and the portable runtime-core contracts themselves remain implemented across all four runtime packages.
+Patch versions do not need to move in lockstep when a release only changes a language-specific package, companion tool, read model, or adapter wrapper. The `1.5.x` line keeps the four-language runtime-core release train aligned: it preserves the 1.4 failure lifecycle and model evidence contracts across Python, Go, TypeScript, and Rust while adding framework/Temporal adoption examples, smoke coverage, benchmark gates, and the normalized OMP runtime bridge. The Python 1.6.0 package published the first observer release; the current source tree now carries the same source-neutral bridge and observer semantics in Go, TypeScript, and Rust, pending their package release cadence. Inspector remains a language-neutral companion viewer distributed through Python/PyPI, and the portable runtime-core contracts themselves remain implemented across all four runtime packages.
 
 ## How To Read This Table
 
@@ -38,6 +38,7 @@ These capabilities are the parity target. All four languages must implement the 
 | Cost attribution | Yes | Yes | Yes | Yes | Run/step/tool/model attribution shape. |
 | Failure attribution | Yes | Yes | Yes | Yes | Agent/tool/model/runtime classification. |
 | Model evidence boundary | Yes | Yes | Yes | Yes | `agentledger.model.evidence.v1`, `model_call_requested/completed/failed`, and `tool_call_proposed`; no provider routing in core. |
+| Cross-Harness execution evidence | Yes | Yes | Yes | Yes | Source-neutral bridge plus dependency-free Temporal, DSH, framework, MCP, and A2A observers; shared correlation, receipt, replay, and artifact-ref semantics. |
 | Evidence export | Yes | Yes | Yes | Yes | Evidence bundle consumers. |
 | Replay without side effects | Yes | Yes | Yes | Yes | Replay skips external side effects. |
 | Diff / divergence / debug summary | Yes | Yes | Yes | Yes | Evidence consumers. |

@@ -928,16 +928,18 @@ Exit criteria:
 
 ## 1.6.0 - Cross-Harness Execution Evidence v1
 
-Status: implemented as a Python observer-first release. Runtime-core keeps the
-portable event, Tool Ledger, artifact, failure, replay, and contract boundaries;
-external harnesses remain responsible for orchestration and transport.
+Status: implemented in the four source runtimes, with the Python 1.6.0 package
+as the first published observer release. Runtime-core keeps the portable event,
+Tool Ledger, artifact, failure, replay, and contract boundaries; external
+harnesses remain responsible for orchestration and transport.
 
 Implemented:
 
 - source-neutral `ExecutionEvidenceBridge` for session, turn, model, tool,
   failure, state-change, receipt, and external artifact evidence
 - dependency-free observers for Temporal, DSH, LangGraph/OpenAI Agents
-  SDK-style framework events, MCP, and A2A task/handoff events
+  SDK-style framework events, MCP, and A2A task/handoff events in Python, Go,
+  TypeScript, and Rust
 - correlation metadata for external workflow, activity, thread, task, request,
   checkpoint, handoff, and artifact identifiers
 - retry/idempotency handling that preserves `PENDING_VERIFICATION` when an
@@ -953,8 +955,7 @@ Explicit non-goals:
 
 - no Temporal, DSH, framework, MCP, or A2A SDK dependency in runtime-core
 - no protocol server, scheduler, media processor, or observability backend
-- no new Go/TypeScript/Rust observer layer before a language-specific demand
-  and stable package boundary exists
+- no protocol SDK dependency or full framework-specific adapter in runtime-core
 
 Remaining work belongs to later adapter or adoption releases: dependency-backed
 SDK smoke, standalone non-Python Inspector distribution, and real-service

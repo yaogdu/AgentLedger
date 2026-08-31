@@ -4,7 +4,7 @@
 
 本文明确四种语言的实现边界。AgentLedger 的“完全对齐”指 **portable runtime-core parity**，不是要求每种语言都有完全相同的 provider、云 SDK、沙箱执行器或生态框架 adapter。
 
-Patch 版本不需要在所有语言里强行同步。当某个 release 只修改某个语言的 package、companion tool、read model 或 adapter wrapper 时，只发布受影响的包即可。`1.5.x` 这条线继续保持四语言 runtime-core release train 对齐：在 Python、Go、TypeScript、Rust 中保留 1.4 已完成的 failure lifecycle 和 model evidence contract，同时新增 framework/Temporal adoption examples、smoke coverage、benchmark gate 和 normalized OMP runtime bridge。Inspector 仍是通过 Python/PyPI 分发的 language-neutral companion viewer，而 portable runtime-core contract 本身继续在四种 runtime package 中实现。
+Patch 版本不需要在所有语言里强行同步。当某个 release 只修改某个语言的 package、companion tool、read model 或 adapter wrapper 时，只发布受影响的包即可。`1.5.x` 这条线继续保持四语言 runtime-core release train 对齐：在 Python、Go、TypeScript、Rust 中保留 1.4 已完成的 failure lifecycle 和 model evidence contract，同时新增 framework/Temporal adoption examples、smoke coverage、benchmark gate 和 normalized OMP runtime bridge。Python 1.6.0 package 首先发布了 observer release；当前源码树也已在 Go、TypeScript、Rust 中实现同一套 source-neutral bridge 和 observer 语义，后续按各语言 package 节奏发布。Inspector 仍是通过 Python/PyPI 分发的 language-neutral companion viewer，而 portable runtime-core contract 本身继续在四种 runtime package 中实现。
 
 ## 表格说明
 
@@ -38,6 +38,7 @@ Patch 版本不需要在所有语言里强行同步。当某个 release 只修�
 | Cost attribution | Yes | Yes | Yes | Yes | run/step/tool/model attribution shape。 |
 | Failure attribution | Yes | Yes | Yes | Yes | agent/tool/model/runtime 分类。 |
 | Model evidence boundary | Yes | Yes | Yes | Yes | `agentledger.model.evidence.v1`、`model_call_requested/completed/failed` 和 `tool_call_proposed`；core 不做 provider routing。 |
+| Cross-Harness execution evidence | Yes | Yes | Yes | Yes | source-neutral bridge，以及 Temporal、DSH、framework、MCP、A2A 的 dependency-free observer；共享 correlation、receipt、replay 和 artifact-ref 语义。 |
 | Evidence export | Yes | Yes | Yes | Yes | evidence bundle consumers。 |
 | Replay without side effects | Yes | Yes | Yes | Yes | replay 不重复外部副作用。 |
 | Diff / divergence / debug summary | Yes | Yes | Yes | Yes | evidence consumers。 |

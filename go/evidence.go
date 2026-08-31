@@ -89,15 +89,16 @@ func mediaArtifactsFrom(artifacts []Artifact) []JSONObject {
 			}
 		}
 		out = append(out, compactJSON(JSONObject{
-			"artifact_id": artifact.ArtifactID,
-			"name":        artifact.Name,
-			"blob_hash":   artifact.BlobHash,
-			"blob_ref":    artifact.BlobRef,
-			"kind":        metadata["kind"],
-			"uri":         metadata["uri"],
-			"content_ref": metadata["content_ref"],
-			"metadata":    metadata["metadata"],
-			"lineage":     metadata["lineage"],
+			"artifact_id":     artifact.ArtifactID,
+			"name":            artifact.Name,
+			"blob_hash":       artifact.BlobHash,
+			"blob_ref":        artifact.BlobRef,
+			"kind":            metadata["kind"],
+			"uri":             metadata["uri"],
+			"content_ref":     metadata["content_ref"],
+			"metadata":        metadata["metadata"],
+			"lineage":         metadata["lineage"],
+			"derived_outputs": metadata["derived_outputs"],
 		}))
 	}
 	return out
@@ -554,7 +555,7 @@ func firstText(values ...string) string {
 			return value
 		}
 	}
-	return "failure signal"
+	return ""
 }
 
 func stringValue(value any) string {

@@ -744,6 +744,128 @@ func TestOmpBridgeRecordsModelFailureAndRetryLifecycle(t *testing.T) {
 	}
 }
 
+func TestExecutionEvidenceBridgePreservesSourceCorrelationAndReceipts(t *testing.T) {
+	rt := NewRuntime(NewMemoryStore())
+	bridge := NewExecutionEvidenceBridge(rt, "temporal-demo", "temporal")
+	runID, err := bridge.RecordSessionStarted(ExecutionSession{SessionID: "workflow-1", InitialState: JSONObject{"topic": "contract"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := bridge.RecordTurnStarted(ExecutionTurn{SessionID: "workflow-1", TurnID: "activity-1", AgentRole: "TemporalActivityAgent"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := bridge.RecordModelCall(ExecutionModelCall{
+		SessionID: "workflow-1",
+		TurnID:    "activity-1",
+		Provider:  "openai",
+		Model:     "gpt-4.1",
+		Usage:     JSONObject{"input_tokens": 2, "output_tokens": 1},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := bridge.RecordToolExecution(ExecutionToolExecution{
+		SessionID:      "workflow-1",
+		TurnID:         "activity-1",
+		ToolName:       "search",
+		Arguments:      JSONObject{"q": "payment"},
+		ToolCallID:     "call-1",
+		IdempotencyKey: "temporal:workflow-1:activity-1:search:call-1",
+		Result:         JSONObject{"ok": true},
+		LedgerStatus:   "SUCCEEDED",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	replay, err := bridge.RecordToolExecution(ExecutionToolExecution{
+		SessionID:      "workflow-1",
+		TurnID:         "activity-1",
+		ToolName:       "search",
+		Arguments:      JSONObject{"q": "payment"},
+		ToolCallID:     "call-1",
+		IdempotencyKey: "temporal:workflow-1:activity-1:search:call-1",
+		Result:         JSONObject{"ok": true},
+		LedgerStatus:   "SUCCEEDED",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if replay["replayed_from_ledger"] != true {
+		t.Fatalf("expected Tool Ledger replay: %#v", replay)
+	}
+	if _, err := bridge.RecordArtifact(ExecutionArtifact{
+		SessionID:  "workflow-1",
+		TurnID:     "activity-1",
+		Name:       "frame-1",
+		Kind:       "frame",
+		ContentRef: "s3://media/frame-1.jpg",
+		Lineage:    JSONObject{"source_blob_refs": []any{"s3://media/input.mp4"}},
+		DerivedOutputs: JSONObject{
+			"transcript": "blob://sha256/transcript.json",
+		},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	bundle, err := ExportEvidence(rt.Store, runID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	media, ok := bundle.MediaArtifacts[0]["derived_outputs"].(map[string]any)
+	if !ok || media["transcript"] != "blob://sha256/transcript.json" {
+		t.Fatalf("expected derived media outputs: %#v", bundle.MediaArtifacts)
+	}
+	if _, err := bridge.RecordExecutionEvent("workflow-1", "task_receipt_recorded", JSONObject{"workflow_id": "wf-1"}, "activity-1", "", "temporal:workflow-1:activity-1"); err != nil {
+		t.Fatal(err)
+	}
+	events := rt.Store.Events(runID)
+	for _, eventType := range []string{"execution_session_started", "execution_turn_started", "model_call_requested", "model_call_completed", "tool_call_completed", "artifact_created", "execution_task_receipt_recorded"} {
+		if !eventTypeExists(events, eventType) {
+			t.Fatalf("expected %s in events: %#v", eventType, events)
+		}
+	}
+	if len(rt.Store.Ledger(runID)) != 1 {
+		t.Fatalf("expected one Tool Ledger row: %#v", rt.Store.Ledger(runID))
+	}
+	artifact := rt.Store.Artifacts(runID)
+	if len(artifact) != 1 || artifact[0].Metadata["content_ref"] != "s3://media/frame-1.jpg" {
+		t.Fatalf("expected external artifact refs: %#v", artifact)
+	}
+}
+
+func TestFrameworkEvidenceObserverPreservesCustomSource(t *testing.T) {
+	rt := NewRuntime(NewMemoryStore())
+	observer := NewFrameworkEvidenceObserver(rt, "framework-demo", "langgraph")
+	result, err := observer.Observe(JSONObject{"type": "graph_started", "thread_id": "thread-1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	runID, ok := result.(string)
+	if !ok {
+		t.Fatalf("expected run id, got %#v", result)
+	}
+	events := rt.Store.Events(runID)
+	var sessionEvent *Event
+	for i := range events {
+		if events[i].Type == "execution_session_started" {
+			sessionEvent = &events[i]
+			break
+		}
+	}
+	if sessionEvent == nil || sessionEvent.Payload["source"] != "langgraph" {
+		t.Fatalf("expected custom framework source: %#v", events)
+	}
+	if result, err := observer.Observe(JSONObject{"type": "artifact_recorded", "thread_id": "thread-1", "node_id": "node-1", "name": "trace", "uri": "s3://trace"}); err != nil {
+		t.Fatal(err)
+	} else if result == "" {
+		t.Fatalf("expected artifact id, got %#v", result)
+	}
+	artifacts := rt.Store.Artifacts(runID)
+	if len(artifacts) != 1 || artifacts[0].Metadata["source"] != "langgraph" {
+		t.Fatalf("expected artifact custom source metadata: %#v", artifacts)
+	}
+	if _, err := observer.Observe(JSONObject{"type": "graph_started", "thread_id": "thread-2", "metadata": "invalid"}); err == nil {
+		t.Fatal("expected non-object metadata to be rejected")
+	}
+}
+
 func TestMediaAndStreamArtifactsParity(t *testing.T) {
 	rt := NewRuntime(NewMemoryStore())
 	runID, _, err := rt.CreateRun(JSONObject{})

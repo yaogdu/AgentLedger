@@ -301,8 +301,7 @@ AgentLedger 也不是新的 LLM SDK，不是 workflow engine，不是通用 obse
 
 ## 当前成熟度
 
-AgentLedger 1.6.0 是基于稳定 1.5.x runtime-core contract 的 observer-first Python reference release，新增 source-neutral Cross-Harness Execution Evidence，以及面向 Temporal、DSH、framework、MCP 和 A2A 的 dependency-free observer；Go、TypeScript、Rust 继续保持 1.5.4，用于 operator recovery parity。Inspector 仍是通过 Python/PyPI 分发的 language-neutral companion viewer，并新增 run-index query filtering。适合本地使用、framework adapter integration、reliability semantics 验证，以及在明确 adapter 边界下做 production pilot 准备。
-AgentLedger 1.6.0 是基于稳定 1.5.x runtime-core contract 的 observer-first Python reference release，新增 source-neutral Cross-Harness Execution Evidence，以及面向 Temporal、DSH、framework、MCP 和 A2A 的 dependency-free observer；Go、TypeScript 继续保持 1.5.4，用于 operator recovery parity，Rust 为 1.5.5 并增加可选 SQLite evidence sidecar。Inspector 仍是通过 Python/PyPI 分发的 language-neutral companion viewer，并新增 run-index query filtering。适合本地使用、framework adapter integration、reliability semantics 验证，以及在明确 adapter 边界下做 production pilot 准备。
+AgentLedger 1.6.0 是基于稳定 1.5.x runtime-core contract 的第一批 observer release。Python 和 Inspector companion 已发布 reference path；当前 Go、TypeScript、Rust 源码 runtime 也已实现同一套 source-neutral Cross-Harness Execution Evidence bridge 和 dependency-free observer，package 按各语言 release 节奏发布。Inspector 仍是通过 Python/PyPI 分发的 language-neutral companion viewer，并新增 run-index query filtering。适合本地使用、framework adapter integration、reliability semantics 验证，以及在明确 adapter 边界下做 production pilot 准备。
 
 runtime-core contract 已稳定；optional production adapter 和外部基础设施加固仍按独立阶段推进。详见 [docs/MATURITY_MODEL.md](docs/MATURITY_MODEL.md)、[docs/zh/IMPLEMENTATION_STATUS.md](docs/zh/IMPLEMENTATION_STATUS.md) 和 [docs/zh/ROADMAP.md](docs/zh/ROADMAP.md)。
 

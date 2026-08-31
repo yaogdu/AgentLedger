@@ -1,12 +1,12 @@
 # Implementation Status
 
-Updated: 2026-08-29
+Updated: 2026-08-31
 
 This document tracks what is implemented in runtime-core, what remains planned for optional adapters, and what should stay outside runtime-core.
 
 ## Current Baseline
 
-AgentLedger 1.6.0 is an observer-first Python reference release on top of the stable 1.5.x runtime-core line. Go/TypeScript/Rust remain covered by shared runtime-core parity gates at 1.5.4, while Python and the Inspector companion add source-neutral Cross-Harness Execution Evidence, dependency-free observers, and run-index query filtering. It is suitable for:
+AgentLedger 1.6.0 is the first published observer release on top of the stable 1.5.x runtime-core line. Python and the Inspector companion shipped the reference path; the current Go/TypeScript/Rust source runtimes now implement the same source-neutral bridge and dependency-free observers, with package publication still following their language release cadence. It is suitable for:
 
 - local use
 - runtime design review
@@ -39,7 +39,7 @@ When this document says a feature is implemented or stable, it means the feature
 
 ## Current Completion Boundary
 
-For the current 1.6.0 goal, "stable runtime-core plus observer-first cross-harness evidence" means the Python reference runtime and Inspector companion are usable, documented, tested, release-gated, and contract-frozen, with Go/TypeScript/Rust covered by the existing 1.5.4 runtime-core parity gates. It also means first-party observer boundaries are dependency-free, the Inspector can consume exported evidence across languages, and the repo includes examples showing how externally orchestrated execution can record runtime-managed approval, Tool Ledger, model evidence, replay, retry safety, and execution receipts. It does not mean every optional production adapter or external eval integration is production-hardened in every language.
+For the current 1.6.0 goal, "stable runtime-core plus observer-first cross-harness evidence" means the Python reference runtime and Inspector companion are usable, documented, tested, release-gated, and contract-frozen, while Go/TypeScript/Rust source runtimes carry the same bridge and observer semantics under their existing package release lines. It also means first-party observer boundaries are dependency-free, the Inspector can consume exported evidence across languages, and the repo includes examples showing how externally orchestrated execution can record runtime-managed approval, Tool Ledger, model evidence, replay, retry safety, and execution receipts. It does not mean every optional production adapter or external eval integration is production-hardened in every language.
 
 Included in this boundary:
 
@@ -75,7 +75,7 @@ Excluded from this boundary:
 | Adapter contracts | framework adapter base, LangGraph facade, MCP tool/context mapping, dependency-free method facades, normalized OMP runtime bridge, first-party adapter package boundaries |
 | Sandbox boundary | fail-closed `none`, local executor, router, external executor contracts, Docker/bubblewrap command paths, Kubernetes dry-run/gated path |
 | Observability | trace JSONL export with media/stream spans, dependency-free OTLP JSON export, optional OTLP/JSON collector POST, evidence-linked audit records |
-| Cross-Harness Execution Evidence | source-neutral bridge plus dependency-free Temporal, DSH, framework, MCP, and A2A observers; external correlation/receipt/retry/artifact evidence; shared conformance fixture |
+| Cross-Harness Execution Evidence | source-neutral bridge plus dependency-free Temporal, DSH, framework, MCP, and A2A observers in Python, Go, TypeScript, and Rust; external correlation/receipt/retry/artifact evidence; shared conformance fixture |
 | Inspector | `agentledger.inspector.v1` single-run read model, `agentledger.inspector.runs.v1` run-index read model, `agentledger inspector run/runs/evidence`, static HTML reports, section navigation, row anchors, cross-links between related records, read-only run-index status/query filtering, evidence-bundle input, read-only SQLite input, Postgres/MySQL read paths through existing adapter boundaries, configurable redaction policy, optional `agentledger-inspector` companion package |
 | Reliability checks | failure injection suite, failure attribution report, conformance runners including media runtime conformance, runtime-boundary lint, scheduler facade, adversarial review, evidence regression for shell, HTTP, database, filesystem, cloud, GitHub, risky ToolSpec metadata, and common model SDK bypasses with JSON rule-pack extension |
 | Media and stream contracts | `MediaArtifact`, `MediaMetadata`, `ArtifactLineage`, `StreamChunkRef`, `EventStreamCheckpoint`, `AgentContext.create_media_artifact(...)`, `AgentContext.create_stream_checkpoint(...)`, media/stream tool schema conventions, ToolGateway/Tool Ledger media tool example, evidence indexes, replay artifact validation/counts |

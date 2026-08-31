@@ -6,6 +6,7 @@ import (
 )
 
 const OMPAdapterSchemaVersion = "agentledger.omp.adapter.v1"
+const ExecutionEvidenceSchemaVersion = "agentledger.execution.evidence.v1"
 
 type OmpSession struct {
 	SessionID    string
@@ -95,6 +96,27 @@ type OmpStateChange struct {
 	Metadata       JSONObject
 }
 
+type ExecutionSession = OmpSession
+type ExecutionTurn = OmpTurn
+type ExecutionModelCall = OmpModelCall
+type ExecutionToolProposal = OmpToolProposal
+type ExecutionToolExecution = OmpToolExecution
+type ExecutionFailure = OmpFailure
+type ExecutionStateChange = OmpStateChange
+
+type ExecutionArtifact struct {
+	SessionID      string
+	TurnID         string
+	Name           string
+	Kind           string
+	URI            string
+	ContentRef     string
+	ExternalID     string
+	Metadata       JSONObject
+	Lineage        JSONObject
+	DerivedOutputs JSONObject
+}
+
 type ompBridgeSession struct {
 	RunID         string
 	SessionID     string
@@ -112,28 +134,57 @@ type ompActiveTurn struct {
 }
 
 type OmpLedgerBridge struct {
-	Runtime      *Runtime
-	AppName      string
-	WorkerID     string
-	LeaseSeconds int
-	sessions     map[string]*ompBridgeSession
-	activeTurns  map[string]*ompActiveTurn
+	Runtime          *Runtime
+	AppName          string
+	WorkerID         string
+	LeaseSeconds     int
+	sessions         map[string]*ompBridgeSession
+	activeTurns      map[string]*ompActiveTurn
+	schemaVersion    string
+	adapterName      string
+	source           string
+	eventPrefix      string
+	checkpointPrefix string
+	defaultRole      string
 }
 
 func NewOmpLedgerBridge(runtime *Runtime, appName string) *OmpLedgerBridge {
+	return newLedgerBridge(runtime, appName, "omp", OMPAdapterSchemaVersion, "omp-ledger-bridge", "omp", "omp", "OMPAgent")
+}
+
+type ExecutionEvidenceBridge struct {
+	*OmpLedgerBridge
+}
+
+func NewExecutionEvidenceBridge(runtime *Runtime, appName, source string) *ExecutionEvidenceBridge {
+	if source == "" {
+		source = "external"
+	}
+	return &ExecutionEvidenceBridge{
+		OmpLedgerBridge: newLedgerBridge(runtime, appName, source, ExecutionEvidenceSchemaVersion, "execution-evidence-bridge", "execution", "execution", "Agent"),
+	}
+}
+
+func newLedgerBridge(runtime *Runtime, appName, source, schemaVersion, adapterName, eventPrefix, checkpointPrefix, defaultRole string) *OmpLedgerBridge {
 	if runtime == nil {
 		runtime = NewRuntime(nil)
 	}
 	if appName == "" {
-		appName = "omp"
+		appName = source
 	}
 	return &OmpLedgerBridge{
-		Runtime:      runtime,
-		AppName:      appName,
-		WorkerID:     "omp:" + appName,
-		LeaseSeconds: 60,
-		sessions:     map[string]*ompBridgeSession{},
-		activeTurns:  map[string]*ompActiveTurn{},
+		Runtime:          runtime,
+		AppName:          appName,
+		WorkerID:         source + ":" + appName,
+		LeaseSeconds:     60,
+		sessions:         map[string]*ompBridgeSession{},
+		activeTurns:      map[string]*ompActiveTurn{},
+		schemaVersion:    schemaVersion,
+		adapterName:      adapterName,
+		source:           source,
+		eventPrefix:      eventPrefix,
+		checkpointPrefix: checkpointPrefix,
+		defaultRole:      defaultRole,
 	}
 }
 
@@ -150,8 +201,8 @@ func (b *OmpLedgerBridge) RecordSessionStarted(session OmpSession) (string, erro
 		return "", err
 	}
 	_, err = b.Runtime.Store.AppendEvent(AppendEventInput{
-		RunID: bridgeSession.RunID, SessionID: bridgeSession.SessionID, Type: "omp_session_started", StateVersion: run.StateVersion,
-		Payload: compactJSON(JSONObject{"schema_version": OMPAdapterSchemaVersion, "adapter": "omp-ledger-bridge", "app_name": b.AppName, "external_session_id": session.SessionID, "metadata": cloneJSONObject(session.Metadata)}),
+		RunID: bridgeSession.RunID, SessionID: bridgeSession.SessionID, Type: b.eventType("session_started"), StateVersion: run.StateVersion,
+		Payload: b.decoratePayload(compactJSON(JSONObject{"external_session_id": session.SessionID, "metadata": cloneJSONObject(session.Metadata)})),
 	})
 	return bridgeSession.RunID, err
 }
@@ -176,17 +227,17 @@ func (b *OmpLedgerBridge) RecordTurnStarted(turn OmpTurn) (string, error) {
 	if leaseSeconds == 0 {
 		leaseSeconds = 60
 	}
-	workerID := firstText(b.WorkerID, "omp:"+b.AppName)
+	workerID := firstText(b.WorkerID, b.source+":"+b.AppName)
 	claim, err := b.Runtime.Store.ClaimStep(workerID, session.RunID, leaseSeconds)
 	if err != nil {
 		return "", err
 	}
-	role := firstText(turn.AgentRole, "OMPAgent")
+	role := firstText(turn.AgentRole, b.defaultRole)
 	active := &ompActiveTurn{RunID: claim.RunID, SessionID: claim.SessionID, StepID: claim.StepID, LeaseToken: claim.LeaseToken, Attempt: claim.Attempt, StateVersion: claim.StateVersion, AgentRole: role}
 	b.activeTurns[key] = active
 	_, err = b.Runtime.Store.AppendEvent(AppendEventInput{
-		RunID: active.RunID, SessionID: active.SessionID, StepID: active.StepID, Type: "omp_turn_started", AgentRole: role, StateVersion: active.StateVersion,
-		Payload: compactJSON(JSONObject{"schema_version": OMPAdapterSchemaVersion, "adapter": "omp-ledger-bridge", "app_name": b.AppName, "external_session_id": turn.SessionID, "external_turn_id": turn.TurnID, "metadata": cloneJSONObject(turn.Metadata)}),
+		RunID: active.RunID, SessionID: active.SessionID, StepID: active.StepID, Type: b.eventType("turn_started"), AgentRole: role, StateVersion: active.StateVersion,
+		Payload: b.decoratePayload(compactJSON(JSONObject{"external_session_id": turn.SessionID, "external_turn_id": turn.TurnID, "metadata": cloneJSONObject(turn.Metadata)})),
 	})
 	if err != nil {
 		return "", err
@@ -199,13 +250,13 @@ func (b *OmpLedgerBridge) RecordTurnCompleted(turn OmpTurn) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	nextVersion, err := b.Runtime.Store.CommitStatePatch(active.RunID, active.StepID, active.LeaseToken, active.StateVersion, cloneJSONObject(turn.StatePatch), fmt.Sprintf("omp:%s:%d", turn.TurnID, active.Attempt))
+	nextVersion, err := b.Runtime.Store.CommitStatePatch(active.RunID, active.StepID, active.LeaseToken, active.StateVersion, cloneJSONObject(turn.StatePatch), fmt.Sprintf("%s:%s:%d", b.checkpointPrefix, turn.TurnID, active.Attempt))
 	if err != nil {
 		return 0, err
 	}
 	_, err = b.Runtime.Store.AppendEvent(AppendEventInput{
-		RunID: active.RunID, SessionID: active.SessionID, StepID: active.StepID, Type: "omp_turn_completed", AgentRole: active.AgentRole, StateVersion: nextVersion,
-		Payload: compactJSON(JSONObject{"schema_version": OMPAdapterSchemaVersion, "adapter": "omp-ledger-bridge", "app_name": b.AppName, "external_session_id": turn.SessionID, "external_turn_id": turn.TurnID, "metadata": cloneJSONObject(turn.Metadata)}),
+		RunID: active.RunID, SessionID: active.SessionID, StepID: active.StepID, Type: b.eventType("turn_completed"), AgentRole: active.AgentRole, StateVersion: nextVersion,
+		Payload: b.decoratePayload(compactJSON(JSONObject{"external_session_id": turn.SessionID, "external_turn_id": turn.TurnID, "metadata": cloneJSONObject(turn.Metadata)})),
 	})
 	delete(b.activeTurns, b.turnKey(turn.SessionID, turn.TurnID))
 	return nextVersion, err
@@ -216,7 +267,7 @@ func (b *OmpLedgerBridge) RecordModelCall(record OmpModelCall) error {
 	if err != nil {
 		return err
 	}
-	return ctx.RecordModelCallEvidence(ModelCallEvidence{Provider: record.Provider, Model: record.Model, Request: cloneJSONObject(record.Request), Response: cloneJSONObject(record.Response), Usage: cloneJSONObject(record.Usage), TotalUSD: record.TotalUSD, Metadata: cloneJSONObject(record.Metadata)})
+	return ctx.RecordModelCallEvidence(ModelCallEvidence{Provider: record.Provider, Model: record.Model, Request: cloneJSONObject(record.Request), Response: cloneJSONObject(record.Response), Usage: cloneJSONObject(record.Usage), TotalUSD: record.TotalUSD, Metadata: b.bridgeMetadata(record.Metadata, record.SessionID, record.TurnID)})
 }
 
 func (b *OmpLedgerBridge) RecordToolProposal(proposal OmpToolProposal) error {
@@ -224,7 +275,7 @@ func (b *OmpLedgerBridge) RecordToolProposal(proposal OmpToolProposal) error {
 	if err != nil {
 		return err
 	}
-	return ctx.RecordToolCallProposal(ToolCallProposal{ToolName: proposal.ToolName, Arguments: cloneJSONObject(proposal.Arguments), Provider: proposal.Provider, Model: proposal.Model, ModelCallRef: proposal.ModelCallRef, Confidence: proposal.Confidence, Reason: proposal.Reason, Metadata: cloneJSONObject(proposal.Metadata)})
+	return ctx.RecordToolCallProposal(ToolCallProposal{ToolName: proposal.ToolName, Arguments: cloneJSONObject(proposal.Arguments), Provider: proposal.Provider, Model: proposal.Model, ModelCallRef: proposal.ModelCallRef, Confidence: proposal.Confidence, Reason: proposal.Reason, Metadata: b.bridgeMetadata(proposal.Metadata, proposal.SessionID, proposal.TurnID)})
 }
 
 func (b *OmpLedgerBridge) RecordToolExecution(execution OmpToolExecution) (JSONObject, error) {
@@ -234,14 +285,14 @@ func (b *OmpLedgerBridge) RecordToolExecution(execution OmpToolExecution) (JSONO
 	}
 	toolCallID := firstText(execution.ToolCallID, newID("toolcall"))
 	toolVersion := firstText(execution.ToolVersion, "external")
-	request := compactJSON(JSONObject{"schema_version": OMPAdapterSchemaVersion, "tool": execution.ToolName, "args": cloneJSONObject(execution.Arguments), "tool_call_id": toolCallID, "metadata": cloneJSONObject(execution.Metadata)})
+	request := compactJSON(JSONObject{"schema_version": b.schemaVersion, "source": b.source, "tool": execution.ToolName, "args": cloneJSONObject(execution.Arguments), "tool_call_id": toolCallID, "external_session_id": execution.SessionID, "external_turn_id": execution.TurnID, "metadata": b.bridgeMetadata(execution.Metadata, execution.SessionID, execution.TurnID)})
 	requestHash, err := sha256JSON(request)
 	if err != nil {
 		return nil, err
 	}
 	requestRef := mustJSON(request)
-	idempotencyKey := firstText(execution.IdempotencyKey, fmt.Sprintf("omp:%s:%s:%s:%s", execution.SessionID, execution.TurnID, execution.ToolName, toolCallID))
-	causalToken := firstText(execution.CausalToken, fmt.Sprintf("omp:%s:%s:%s", execution.SessionID, execution.TurnID, toolCallID))
+	idempotencyKey := firstText(execution.IdempotencyKey, fmt.Sprintf("%s:%s:%s:%s:%s", b.source, execution.SessionID, execution.TurnID, execution.ToolName, toolCallID))
+	causalToken := firstText(execution.CausalToken, fmt.Sprintf("%s:%s:%s:%s", b.source, execution.SessionID, execution.TurnID, toolCallID))
 	if _, err := b.Runtime.Store.AppendEvent(AppendEventInput{RunID: active.RunID, SessionID: active.SessionID, StepID: active.StepID, Type: "tool_call_requested", AgentRole: active.AgentRole, StateVersion: active.StateVersion, CausalToken: causalToken, PayloadHash: requestHash, PayloadRef: requestRef, Payload: request}); err != nil {
 		return nil, err
 	}
@@ -251,7 +302,7 @@ func (b *OmpLedgerBridge) RecordToolExecution(execution OmpToolExecution) (JSONO
 	}
 	if existing != nil {
 		if existing.Status == "SUCCEEDED" {
-			_, err := b.Runtime.Store.AppendEvent(AppendEventInput{RunID: active.RunID, SessionID: active.SessionID, StepID: active.StepID, Type: "tool_call_completed", AgentRole: active.AgentRole, StateVersion: active.StateVersion, CausalToken: causalToken, PayloadHash: existing.ResponseHash, PayloadRef: existing.ResponseRef, Payload: JSONObject{"tool": execution.ToolName, "replayed_from_ledger": true, "idempotency_key": idempotencyKey, "tool_call_id": toolCallID}})
+			_, err := b.Runtime.Store.AppendEvent(AppendEventInput{RunID: active.RunID, SessionID: active.SessionID, StepID: active.StepID, Type: "tool_call_completed", AgentRole: active.AgentRole, StateVersion: active.StateVersion, CausalToken: causalToken, PayloadHash: existing.ResponseHash, PayloadRef: existing.ResponseRef, Payload: b.decoratePayload(JSONObject{"tool": execution.ToolName, "external_session_id": execution.SessionID, "external_turn_id": execution.TurnID, "replayed_from_ledger": true, "idempotency_key": idempotencyKey, "tool_call_id": toolCallID, "response_hash": existing.ResponseHash, "response_ref": existing.ResponseRef})})
 			return JSONObject{"ledger_status": "SUCCEEDED", "replayed_from_ledger": true, "idempotency_key": idempotencyKey, "tool_call_id": toolCallID}, err
 		}
 		if existing.Status == "PENDING_VERIFICATION" {
@@ -281,11 +332,11 @@ func (b *OmpLedgerBridge) RecordToolExecution(execution OmpToolExecution) (JSONO
 	if ledgerStatus == "SUCCEEDED" || ledgerStatus == "COMPENSATED" {
 		eventType = "tool_call_completed"
 	}
-	if _, err := b.Runtime.Store.AppendEvent(AppendEventInput{RunID: active.RunID, SessionID: active.SessionID, StepID: active.StepID, Type: eventType, AgentRole: active.AgentRole, StateVersion: active.StateVersion, CausalToken: causalToken, PayloadHash: responseHash, PayloadRef: responseRef, Payload: compactJSON(JSONObject{"tool": execution.ToolName, "tool_call_id": toolCallID, "idempotency_key": idempotencyKey, "ledger_status": ledgerStatus, "error": execution.ErrorMessage, "error_type": execution.ErrorType})}); err != nil {
+	if _, err := b.Runtime.Store.AppendEvent(AppendEventInput{RunID: active.RunID, SessionID: active.SessionID, StepID: active.StepID, Type: eventType, AgentRole: active.AgentRole, StateVersion: active.StateVersion, CausalToken: causalToken, PayloadHash: responseHash, PayloadRef: responseRef, Payload: b.decoratePayload(compactJSON(JSONObject{"external_session_id": execution.SessionID, "external_turn_id": execution.TurnID, "tool": execution.ToolName, "tool_call_id": toolCallID, "idempotency_key": idempotencyKey, "ledger_status": ledgerStatus, "error": execution.ErrorMessage, "error_type": execution.ErrorType, "response_hash": responseHash, "response_ref": responseRef}))}); err != nil {
 		return nil, err
 	}
 	if ledgerStatus != "RESERVED" && ledgerStatus != "RUNNING" {
-		if _, err := b.Runtime.Store.RecordCost(CostRecordInput{RunID: active.RunID, SessionID: active.SessionID, StepID: active.StepID, Category: "tool", Name: execution.ToolName, Amount: 1, Unit: "call", Metadata: JSONObject{"external_runtime": "omp", "ledger_status": ledgerStatus}}); err != nil {
+		if _, err := b.Runtime.Store.RecordCost(CostRecordInput{RunID: active.RunID, SessionID: active.SessionID, StepID: active.StepID, Category: "tool", Name: execution.ToolName, Amount: 1, Unit: "call", Metadata: JSONObject{"external_runtime": b.source, "ledger_status": ledgerStatus}}); err != nil {
 			return nil, err
 		}
 	}
@@ -302,7 +353,7 @@ func (b *OmpLedgerBridge) RecordFailure(failure OmpFailure) error {
 		if err != nil {
 			return err
 		}
-		if err := ctx.RecordModelFailure(ModelFailureEvidence{Provider: firstText(failure.Provider, "custom"), Model: firstText(failure.Model, "unknown"), ErrorType: failure.ErrorType, Message: failure.Message, Retryable: failure.Retryable, Request: cloneJSONObject(failure.Request), Usage: cloneJSONObject(failure.Usage), TotalUSD: failure.TotalUSD, Metadata: cloneJSONObject(failure.Metadata)}); err != nil {
+		if err := ctx.RecordModelFailure(ModelFailureEvidence{Provider: firstText(failure.Provider, "custom"), Model: firstText(failure.Model, "unknown"), ErrorType: failure.ErrorType, Message: failure.Message, Retryable: failure.Retryable, Request: cloneJSONObject(failure.Request), Usage: cloneJSONObject(failure.Usage), TotalUSD: failure.TotalUSD, Metadata: b.bridgeMetadata(failure.Metadata, failure.SessionID, failure.TurnID)}); err != nil {
 			return err
 		}
 	}
@@ -330,21 +381,21 @@ func (b *OmpLedgerBridge) RecordStateChange(change OmpStateChange) (int, error) 
 	artifactRefs := JSONObject{}
 	label := firstText(change.Label, "state")
 	if change.BeforeSnapshot != nil {
-		id, err := b.storeArtifact(session.RunID, stepIDOrEmpty(active), "omp-"+label+"-before", change.BeforeSnapshot, JSONObject{"schema_version": OMPAdapterSchemaVersion, "kind": "before_snapshot", "external_session_id": change.SessionID}, active)
+		id, err := b.storeArtifact(session.RunID, stepIDOrEmpty(active), b.source+"-"+label+"-before", change.BeforeSnapshot, JSONObject{"schema_version": b.schemaVersion, "source": b.source, "kind": "before_snapshot", "external_session_id": change.SessionID}, active)
 		if err != nil {
 			return 0, err
 		}
 		artifactRefs["before_artifact_id"] = id
 	}
 	if change.AfterSnapshot != nil {
-		id, err := b.storeArtifact(session.RunID, stepIDOrEmpty(active), "omp-"+label+"-after", change.AfterSnapshot, JSONObject{"schema_version": OMPAdapterSchemaVersion, "kind": "after_snapshot", "external_session_id": change.SessionID}, active)
+		id, err := b.storeArtifact(session.RunID, stepIDOrEmpty(active), b.source+"-"+label+"-after", change.AfterSnapshot, JSONObject{"schema_version": b.schemaVersion, "source": b.source, "kind": "after_snapshot", "external_session_id": change.SessionID}, active)
 		if err != nil {
 			return 0, err
 		}
 		artifactRefs["after_artifact_id"] = id
 	}
 	if change.Diff != nil {
-		id, err := b.storeArtifact(session.RunID, stepIDOrEmpty(active), "omp-"+label+"-diff", change.Diff, JSONObject{"schema_version": OMPAdapterSchemaVersion, "kind": "diff", "external_session_id": change.SessionID}, active)
+		id, err := b.storeArtifact(session.RunID, stepIDOrEmpty(active), b.source+"-"+label+"-diff", change.Diff, JSONObject{"schema_version": b.schemaVersion, "source": b.source, "kind": "diff", "external_session_id": change.SessionID}, active)
 		if err != nil {
 			return 0, err
 		}
@@ -367,10 +418,136 @@ func (b *OmpLedgerBridge) RecordStateChange(change OmpStateChange) (int, error) 
 		stepID = active.StepID
 	}
 	_, err = b.Runtime.Store.AppendEvent(AppendEventInput{
-		RunID: session.RunID, SessionID: session.SessionID, StepID: stepID, Type: "omp_state_change_recorded", AgentRole: agentRole, StateVersion: version,
-		Payload: compactJSON(JSONObject{"schema_version": OMPAdapterSchemaVersion, "adapter": "omp-ledger-bridge", "app_name": b.AppName, "external_session_id": change.SessionID, "external_turn_id": change.TurnID, "reason": change.Reason, "commit_status": firstText(change.CommitStatus, "committed"), "patch": cloneJSONObject(change.Patch), "artifacts": artifactRefs, "metadata": cloneJSONObject(change.Metadata)}),
+		RunID: session.RunID, SessionID: session.SessionID, StepID: stepID, Type: b.eventType("state_change_recorded"), AgentRole: agentRole, StateVersion: version,
+		Payload: b.decoratePayload(compactJSON(JSONObject{"external_session_id": change.SessionID, "external_turn_id": change.TurnID, "reason": change.Reason, "commit_status": firstText(change.CommitStatus, "committed"), "patch": cloneJSONObject(change.Patch), "artifacts": artifactRefs, "metadata": cloneJSONObject(change.Metadata)})),
 	})
 	return version, err
+}
+
+func (b *OmpLedgerBridge) RecordExecutionEvent(sessionID, eventName string, payload JSONObject, turnID, agentRole, causalToken string) (Event, error) {
+	session, err := b.ensureSession(OmpSession{SessionID: sessionID})
+	if err != nil {
+		return Event{}, err
+	}
+	active := (*ompActiveTurn)(nil)
+	if turnID != "" {
+		active = b.activeTurns[b.turnKey(sessionID, turnID)]
+	}
+	if payload == nil {
+		payload = JSONObject{}
+	}
+	payload["event_name"] = eventName
+	payload = b.decoratePayload(payload)
+	role := agentRole
+	stateVersion := b.runStateVersion(session.RunID)
+	stepID := ""
+	if active != nil {
+		role = active.AgentRole
+		stateVersion = active.StateVersion
+		stepID = active.StepID
+	}
+	return b.Runtime.Store.AppendEvent(AppendEventInput{
+		RunID: session.RunID, SessionID: session.SessionID, StepID: stepID,
+		Type: b.eventType(eventName), AgentRole: role, StateVersion: stateVersion,
+		CausalToken: causalToken, Payload: payload,
+	})
+}
+
+func (b *OmpLedgerBridge) RecordArtifact(artifact ExecutionArtifact) (string, error) {
+	if strings.TrimSpace(artifact.Name) == "" {
+		return "", fmt.Errorf("%s artifact name must not be empty", b.source)
+	}
+	if artifact.URI == "" && artifact.ContentRef == "" && artifact.ExternalID == "" && len(artifact.DerivedOutputs) == 0 {
+		return "", fmt.Errorf("%s artifact requires a uri, content_ref, external_id, or derived_outputs", b.source)
+	}
+	session, err := b.ensureSession(OmpSession{SessionID: artifact.SessionID})
+	if err != nil {
+		return "", err
+	}
+	active := (*ompActiveTurn)(nil)
+	if artifact.TurnID != "" {
+		active = b.activeTurns[b.turnKey(artifact.SessionID, artifact.TurnID)]
+	}
+	kind := firstText(artifact.Kind, "artifact")
+	manifest := compactJSON(JSONObject{
+		"schema_version":  b.schemaVersion,
+		"source":          b.source,
+		"kind":            kind,
+		"uri":             artifact.URI,
+		"content_ref":     artifact.ContentRef,
+		"external_id":     artifact.ExternalID,
+		"metadata":        cloneJSONObject(artifact.Metadata),
+		"lineage":         cloneJSONObject(artifact.Lineage),
+		"derived_outputs": cloneJSONObject(artifact.DerivedOutputs),
+	})
+	metadata := cloneJSONObject(artifact.Metadata)
+	if metadata == nil {
+		metadata = JSONObject{}
+	}
+	metadata["schema_version"] = b.schemaVersion
+	metadata["source"] = b.source
+	metadata["external_session_id"] = artifact.SessionID
+	metadata["kind"] = kind
+	if artifact.URI != "" {
+		metadata["uri"] = artifact.URI
+	}
+	if artifact.ContentRef != "" {
+		metadata["content_ref"] = artifact.ContentRef
+	}
+	if artifact.ExternalID != "" {
+		metadata["external_id"] = artifact.ExternalID
+	}
+	if len(artifact.Lineage) > 0 {
+		metadata["lineage"] = cloneJSONObject(artifact.Lineage)
+	}
+	if len(artifact.DerivedOutputs) > 0 {
+		metadata["derived_outputs"] = cloneJSONObject(artifact.DerivedOutputs)
+	}
+	if mediaKinds[kind] {
+		mediaMetadata := cloneJSONObject(artifact.Metadata)
+		if mediaMetadata == nil {
+			mediaMetadata = JSONObject{}
+		}
+		mediaMetadata["schema_version"] = MediaSchemaVersion
+		mediaMetadata["kind"] = kind
+		manifest = compactJSON(JSONObject{
+			"schema_version":  MediaSchemaVersion,
+			"kind":            kind,
+			"uri":             artifact.URI,
+			"content_ref":     artifact.ContentRef,
+			"metadata":        mediaMetadata,
+			"lineage":         cloneJSONObject(artifact.Lineage),
+			"derived_outputs": cloneJSONObject(artifact.DerivedOutputs),
+		})
+		metadata["agentledger_media"] = compactJSON(JSONObject{
+			"schema_version":  MediaSchemaVersion,
+			"kind":            kind,
+			"uri":             artifact.URI,
+			"content_ref":     artifact.ContentRef,
+			"metadata":        mediaMetadata,
+			"lineage":         cloneJSONObject(artifact.Lineage),
+			"derived_outputs": cloneJSONObject(artifact.DerivedOutputs),
+		})
+	}
+	stored, err := b.Runtime.Store.CreateArtifact(session.RunID, stepIDOrEmpty(active), artifact.Name, manifest, metadata)
+	if err != nil {
+		return "", err
+	}
+	stateVersion := b.runStateVersion(session.RunID)
+	role := ""
+	if active != nil {
+		stateVersion = active.StateVersion
+		role = active.AgentRole
+	}
+	if _, err := b.Runtime.Store.AppendEvent(AppendEventInput{
+		RunID: session.RunID, SessionID: session.SessionID, StepID: stepIDOrEmpty(active),
+		Type: "artifact_created", AgentRole: role, StateVersion: stateVersion,
+		PayloadHash: stored.BlobHash, PayloadRef: stored.BlobRef,
+		Payload: b.decoratePayload(JSONObject{"artifact_id": stored.ArtifactID, "name": artifact.Name, "kind": kind, "external_session_id": artifact.SessionID, "external_turn_id": artifact.TurnID, "external_id": artifact.ExternalID}),
+	}); err != nil {
+		return "", err
+	}
+	return stored.ArtifactID, nil
 }
 
 func (b *OmpLedgerBridge) ensureSession(session OmpSession) (*ompBridgeSession, error) {
@@ -408,7 +585,7 @@ func (b *OmpLedgerBridge) ensureSession(session OmpSession) (*ompBridgeSession, 
 func (b *OmpLedgerBridge) requireTurn(sessionID, turnID string) (*ompActiveTurn, error) {
 	active := b.activeTurns[b.turnKey(sessionID, turnID)]
 	if active == nil {
-		return nil, fmt.Errorf("OMP turn not active: %s/%s", sessionID, turnID)
+		return nil, fmt.Errorf("%s turn not active: %s/%s", b.source, sessionID, turnID)
 	}
 	return active, nil
 }
@@ -436,7 +613,7 @@ func (b *OmpLedgerBridge) storeArtifact(runID, stepID, name string, content any,
 	} else if run, err := b.Runtime.Store.Run(runID); err == nil {
 		sessionID = run.SessionID
 	}
-	_, err = b.Runtime.Store.AppendEvent(AppendEventInput{RunID: runID, SessionID: sessionID, StepID: stepID, Type: "artifact_created", AgentRole: agentRole, StateVersion: stateVersion, PayloadHash: artifact.BlobHash, PayloadRef: artifact.BlobRef, Payload: JSONObject{"artifact_id": artifact.ArtifactID, "name": name}})
+	_, err = b.Runtime.Store.AppendEvent(AppendEventInput{RunID: runID, SessionID: sessionID, StepID: stepID, Type: "artifact_created", AgentRole: agentRole, StateVersion: stateVersion, PayloadHash: artifact.BlobHash, PayloadRef: artifact.BlobRef, Payload: b.decoratePayload(JSONObject{"artifact_id": artifact.ArtifactID, "name": name})})
 	return artifact.ArtifactID, err
 }
 
@@ -459,6 +636,36 @@ func (b *OmpLedgerBridge) nextRunnableStepID(runID string) string {
 
 func (b *OmpLedgerBridge) turnKey(sessionID, turnID string) string {
 	return sessionID + "\x1f" + turnID
+}
+
+func (b *OmpLedgerBridge) eventType(suffix string) string {
+	return b.eventPrefix + "_" + suffix
+}
+
+func (b *OmpLedgerBridge) decoratePayload(payload JSONObject) JSONObject {
+	if payload == nil {
+		payload = JSONObject{}
+	}
+	payload["schema_version"] = b.schemaVersion
+	payload["adapter"] = b.adapterName
+	payload["source"] = b.source
+	payload["app_name"] = b.AppName
+	return compactJSON(payload)
+}
+
+func (b *OmpLedgerBridge) bridgeMetadata(metadata JSONObject, sessionID, turnID string) JSONObject {
+	result := cloneJSONObject(metadata)
+	if result == nil {
+		result = JSONObject{}
+	}
+	result["schema_version"] = b.schemaVersion
+	result["adapter"] = b.adapterName
+	result["source"] = b.source
+	result["external_session_id"] = sessionID
+	if turnID != "" {
+		result["external_turn_id"] = turnID
+	}
+	return result
 }
 
 func normalizeOmpLedgerStatus(value, errorMessage string) (string, error) {

@@ -67,7 +67,7 @@ The strict core parity gate now covers the previously weak areas:
 1. CLI baseline is automatically checked for all four language CLIs.
 2. Go, TypeScript, and Rust have runnable quickstart example files.
 3. TypeScript and Rust package surfaces have package dry-run checks (`npm pack --dry-run`, `cargo package --allow-dirty --no-verify`) and post-publish install smokes are required for release.
-4. Package release boundaries are checked across Python, TypeScript, and Rust. The stable four-language runtime-core baseline remains `1.5`; `1.6.0` is an observer-first Python reference and Inspector release, while Go/TypeScript/Rust remain on `1.5.4`. The `1.5.0` release introduced the framework/Temporal adoption examples, smoke coverage, and benchmark gates.
+4. Package release boundaries are checked across Python, TypeScript, and Rust. The stable four-language runtime-core baseline remains `1.5`; Python 1.6.0 is the first published observer release, while the current Go/TypeScript/Rust source runtimes carry the same observer semantics and await their language-specific package releases. The `1.5.0` release introduced the framework/Temporal adoption examples, smoke coverage, and benchmark gates.
 5. Go external module consumption is tag/release dependent; each release should repeat the clean external `go get` smoke after pushing the `go/vX.Y.Z` tag.
 6. Real service-backed hardening remains out of scope for core parity and stays documented as optional follow-up work.
 

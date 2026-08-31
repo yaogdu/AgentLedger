@@ -1072,12 +1072,24 @@ export class AgentContext {
 }
 
 export const OMP_ADAPTER_SCHEMA_VERSION = 'agentledger.omp.adapter.v1';
+export const EXECUTION_EVIDENCE_SCHEMA_VERSION = 'agentledger.execution.evidence.v1';
+export const TEMPORAL_OBSERVER_SCHEMA_VERSION = 'agentledger.temporal.observer.v1';
+export const DSH_OBSERVER_SCHEMA_VERSION = 'agentledger.dsh.observer.v1';
+export const A2A_OBSERVER_SCHEMA_VERSION = 'agentledger.a2a.observer.v1';
+export const FRAMEWORK_OBSERVER_SCHEMA_VERSION = 'agentledger.framework.observer.v1';
+export const MCP_OBSERVER_SCHEMA_VERSION = 'agentledger.mcp.observer.v1';
 
 export class OmpLedgerBridge {
-  constructor(runtime, { appName = 'omp', workerId = null, leaseSeconds = 60 } = {}) {
+  constructor(runtime, { appName = 'omp', workerId = null, leaseSeconds = 60, source = 'omp', schemaVersion = OMP_ADAPTER_SCHEMA_VERSION, adapterName = 'omp-ledger-bridge', eventPrefix = 'omp', checkpointPrefix = 'omp', defaultRole = 'OMPAgent' } = {}) {
     this.runtime = runtime ?? new Runtime(JSONStore.memory());
     this.appName = appName;
-    this.workerId = workerId ?? `omp:${appName}`;
+    this.source = source;
+    this.schemaVersion = schemaVersion;
+    this.adapterName = adapterName;
+    this.eventPrefix = eventPrefix;
+    this.checkpointPrefix = checkpointPrefix;
+    this.defaultRole = defaultRole;
+    this.workerId = workerId ?? `${source}:${appName}`;
     this.leaseSeconds = leaseSeconds;
     this.sessions = new Map();
     this.activeTurns = new Map();
@@ -1090,9 +1102,9 @@ export class OmpLedgerBridge {
     await this.runtime.store.appendEvent({
       runId: bridgeSession.runId,
       sessionId: bridgeSession.sessionId,
-      type: 'omp_session_started',
+      type: this.#eventType('session_started'),
       stateVersion: run.state_version,
-      payload: compactObject({ schema_version: OMP_ADAPTER_SCHEMA_VERSION, adapter: 'omp-ledger-bridge', app_name: this.appName, external_session_id: session.sessionId, metadata: session.metadata ?? {} }),
+      payload: this.#decorate({ external_session_id: session.sessionId, metadata: session.metadata ?? {} }),
     });
     return bridgeSession.runId;
   }
@@ -1111,17 +1123,17 @@ export class OmpLedgerBridge {
       leaseToken: claim.lease_token,
       attempt: claim.attempt,
       stateVersion: claim.state_version,
-      agentRole: turn.agentRole ?? 'OMPAgent',
+      agentRole: turn.agentRole ?? this.defaultRole,
     };
     this.activeTurns.set(key, active);
     await this.runtime.store.appendEvent({
       runId: active.runId,
       sessionId: active.sessionId,
       stepId: active.stepId,
-      type: 'omp_turn_started',
+      type: this.#eventType('turn_started'),
       agentRole: active.agentRole,
       stateVersion: active.stateVersion,
-      payload: compactObject({ schema_version: OMP_ADAPTER_SCHEMA_VERSION, adapter: 'omp-ledger-bridge', app_name: this.appName, external_session_id: turn.sessionId, external_turn_id: turn.turnId, metadata: turn.metadata ?? {} }),
+      payload: this.#decorate({ external_session_id: turn.sessionId, external_turn_id: turn.turnId, metadata: turn.metadata ?? {} }),
     });
     return active.stepId;
   }
@@ -1134,16 +1146,16 @@ export class OmpLedgerBridge {
       leaseToken: active.leaseToken,
       baseVersion: active.stateVersion,
       patch: turn.statePatch ?? {},
-      checkpointId: `omp:${turn.turnId}:${active.attempt}`,
+      checkpointId: `${this.checkpointPrefix}:${turn.turnId}:${active.attempt}`,
     });
     await this.runtime.store.appendEvent({
       runId: active.runId,
       sessionId: active.sessionId,
       stepId: active.stepId,
-      type: 'omp_turn_completed',
+      type: this.#eventType('turn_completed'),
       agentRole: active.agentRole,
       stateVersion: nextVersion,
-      payload: compactObject({ schema_version: OMP_ADAPTER_SCHEMA_VERSION, adapter: 'omp-ledger-bridge', app_name: this.appName, external_session_id: turn.sessionId, external_turn_id: turn.turnId, metadata: turn.metadata ?? {} }),
+      payload: this.#decorate({ external_session_id: turn.sessionId, external_turn_id: turn.turnId, metadata: turn.metadata ?? {} }),
     });
     this.activeTurns.delete(this.#turnKey(turn.sessionId, turn.turnId));
     return nextVersion;
@@ -1157,7 +1169,7 @@ export class OmpLedgerBridge {
       response: record.response ?? {},
       usage: record.usage ?? {},
       totalUsd: Number(record.totalUsd ?? record.total_usd ?? 0),
-      metadata: record.metadata ?? {},
+      metadata: this.#bridgeMetadata(record.metadata, record.sessionId, record.turnId),
     });
   }
 
@@ -1170,22 +1182,22 @@ export class OmpLedgerBridge {
       modelCallRef: proposal.modelCallRef,
       confidence: proposal.confidence,
       reason: proposal.reason,
-      metadata: proposal.metadata ?? {},
+      metadata: this.#bridgeMetadata(proposal.metadata, proposal.sessionId, proposal.turnId),
     });
   }
 
   async recordToolExecution(execution) {
     const active = this.#requireTurn(execution.sessionId, execution.turnId);
     const toolCallId = execution.toolCallId ?? newId('toolcall');
-    const request = compactObject({ schema_version: OMP_ADAPTER_SCHEMA_VERSION, tool: execution.toolName, args: execution.arguments ?? {}, tool_call_id: toolCallId, metadata: execution.metadata ?? {} });
+    const request = compactObject({ schema_version: this.schemaVersion, source: this.source, tool: execution.toolName, args: execution.arguments ?? {}, tool_call_id: toolCallId, external_session_id: execution.sessionId, external_turn_id: execution.turnId, metadata: this.#bridgeMetadata(execution.metadata, execution.sessionId, execution.turnId) });
     const requestHash = sha256JSON(request);
     const requestRef = JSON.stringify(request);
-    const idempotencyKey = execution.idempotencyKey ?? `omp:${execution.sessionId}:${execution.turnId}:${execution.toolName}:${toolCallId}`;
-    const causalToken = execution.causalToken ?? `omp:${execution.sessionId}:${execution.turnId}:${toolCallId}`;
+    const idempotencyKey = execution.idempotencyKey ?? `${this.source}:${execution.sessionId}:${execution.turnId}:${execution.toolName}:${toolCallId}`;
+    const causalToken = execution.causalToken ?? `${this.source}:${execution.sessionId}:${execution.turnId}:${toolCallId}`;
     await this.runtime.store.appendEvent({ runId: active.runId, sessionId: active.sessionId, stepId: active.stepId, type: 'tool_call_requested', payload: request, agentRole: active.agentRole, stateVersion: active.stateVersion, causalToken, payloadHash: requestHash, payloadRef: requestRef });
     const existing = await this.runtime.store.reserveLedger({ runId: active.runId, sessionId: active.sessionId, stepId: active.stepId, toolName: execution.toolName, toolVersion: execution.toolVersion ?? 'external', toolCallId, idempotencyKey, causalToken, requestHash, requestRef });
     if (existing?.status === 'SUCCEEDED') {
-      await this.runtime.store.appendEvent({ runId: active.runId, sessionId: active.sessionId, stepId: active.stepId, type: 'tool_call_completed', payload: { tool: execution.toolName, replayed_from_ledger: true, idempotency_key: idempotencyKey, tool_call_id: toolCallId }, agentRole: active.agentRole, stateVersion: active.stateVersion, causalToken, payloadHash: existing.response_hash, payloadRef: existing.response_ref });
+      await this.runtime.store.appendEvent({ runId: active.runId, sessionId: active.sessionId, stepId: active.stepId, type: 'tool_call_completed', payload: this.#decorate({ tool: execution.toolName, external_session_id: execution.sessionId, external_turn_id: execution.turnId, replayed_from_ledger: true, idempotency_key: idempotencyKey, tool_call_id: toolCallId, response_hash: existing.response_hash, response_ref: existing.response_ref }), agentRole: active.agentRole, stateVersion: active.stateVersion, causalToken, payloadHash: existing.response_hash, payloadRef: existing.response_ref });
       return { ledger_status: 'SUCCEEDED', replayed_from_ledger: true, idempotency_key: idempotencyKey, tool_call_id: toolCallId };
     }
     if (existing?.status === 'PENDING_VERIFICATION') throw new Error('tool side effect pending verification');
@@ -1195,9 +1207,9 @@ export class OmpLedgerBridge {
     const responseRef = execution.result === undefined ? null : JSON.stringify(execution.result);
     await this.runtime.store.updateLedger({ idempotencyKey, status: ledgerStatus, externalId: execution.externalId ?? externalIdFromResult(execution.result), responseHash, responseRef, errorType: execution.errorType, response: execution.result });
     const eventType = ['SUCCEEDED', 'COMPENSATED'].includes(ledgerStatus) ? 'tool_call_completed' : 'tool_call_failed';
-    await this.runtime.store.appendEvent({ runId: active.runId, sessionId: active.sessionId, stepId: active.stepId, type: eventType, payload: compactObject({ tool: execution.toolName, tool_call_id: toolCallId, idempotency_key: idempotencyKey, ledger_status: ledgerStatus, error: execution.errorMessage, error_type: execution.errorType }), agentRole: active.agentRole, stateVersion: active.stateVersion, causalToken, payloadHash: responseHash, payloadRef: responseRef });
+    await this.runtime.store.appendEvent({ runId: active.runId, sessionId: active.sessionId, stepId: active.stepId, type: eventType, payload: this.#decorate({ external_session_id: execution.sessionId, external_turn_id: execution.turnId, tool: execution.toolName, tool_call_id: toolCallId, idempotency_key: idempotencyKey, ledger_status: ledgerStatus, error: execution.errorMessage, error_type: execution.errorType, response_hash: responseHash, response_ref: responseRef }), agentRole: active.agentRole, stateVersion: active.stateVersion, causalToken, payloadHash: responseHash, payloadRef: responseRef });
     if (!['RESERVED', 'RUNNING'].includes(ledgerStatus)) {
-      await this.runtime.store.recordCost({ runId: active.runId, sessionId: active.sessionId, stepId: active.stepId, category: 'tool', name: execution.toolName, amount: 1, unit: 'call', metadata: { external_runtime: 'omp', ledger_status: ledgerStatus } });
+      await this.runtime.store.recordCost({ runId: active.runId, sessionId: active.sessionId, stepId: active.stepId, category: 'tool', name: execution.toolName, amount: 1, unit: 'call', metadata: { external_runtime: this.source, ledger_status: ledgerStatus } });
     }
     return { ledger_status: ledgerStatus, idempotency_key: idempotencyKey, tool_call_id: toolCallId };
   }
@@ -1214,7 +1226,7 @@ export class OmpLedgerBridge {
         request: failure.request ?? {},
         usage: failure.usage ?? {},
         totalUsd: Number(failure.totalUsd ?? failure.total_usd ?? 0),
-        metadata: failure.metadata ?? {},
+        metadata: this.#bridgeMetadata(failure.metadata, failure.sessionId, failure.turnId),
       });
     }
     if (failure.terminal === false) return;
@@ -1234,9 +1246,9 @@ export class OmpLedgerBridge {
     const active = change.turnId ? this.activeTurns.get(this.#turnKey(change.sessionId, change.turnId)) : null;
     const artifacts = {};
     const label = change.label ?? 'state';
-    if (change.beforeSnapshot !== undefined) artifacts.before_artifact_id = await this.#storeArtifact(session.runId, active?.stepId ?? null, `omp-${label}-before`, change.beforeSnapshot, { schema_version: OMP_ADAPTER_SCHEMA_VERSION, kind: 'before_snapshot', external_session_id: change.sessionId }, active);
-    if (change.afterSnapshot !== undefined) artifacts.after_artifact_id = await this.#storeArtifact(session.runId, active?.stepId ?? null, `omp-${label}-after`, change.afterSnapshot, { schema_version: OMP_ADAPTER_SCHEMA_VERSION, kind: 'after_snapshot', external_session_id: change.sessionId }, active);
-    if (change.diff !== undefined) artifacts.diff_artifact_id = await this.#storeArtifact(session.runId, active?.stepId ?? null, `omp-${label}-diff`, change.diff, { schema_version: OMP_ADAPTER_SCHEMA_VERSION, kind: 'diff', external_session_id: change.sessionId }, active);
+    if (change.beforeSnapshot !== undefined) artifacts.before_artifact_id = await this.#storeArtifact(session.runId, active?.stepId ?? null, `${this.source}-${label}-before`, change.beforeSnapshot, { schema_version: this.schemaVersion, source: this.source, kind: 'before_snapshot', external_session_id: change.sessionId }, active);
+    if (change.afterSnapshot !== undefined) artifacts.after_artifact_id = await this.#storeArtifact(session.runId, active?.stepId ?? null, `${this.source}-${label}-after`, change.afterSnapshot, { schema_version: this.schemaVersion, source: this.source, kind: 'after_snapshot', external_session_id: change.sessionId }, active);
+    if (change.diff !== undefined) artifacts.diff_artifact_id = await this.#storeArtifact(session.runId, active?.stepId ?? null, `${this.source}-${label}-diff`, change.diff, { schema_version: this.schemaVersion, source: this.source, kind: 'diff', external_session_id: change.sessionId }, active);
     let version = this.runtime.store.run(session.runId).state_version;
     const commitStatus = change.commitStatus ?? 'committed';
     if (Object.keys(change.patch ?? {}).length && ['committed', 'applied'].includes(String(commitStatus).toLowerCase())) {
@@ -1247,12 +1259,46 @@ export class OmpLedgerBridge {
       runId: session.runId,
       sessionId: session.sessionId,
       stepId: active?.stepId ?? null,
-      type: 'omp_state_change_recorded',
+      type: this.#eventType('state_change_recorded'),
       agentRole: active?.agentRole ?? null,
       stateVersion: version,
-      payload: compactObject({ schema_version: OMP_ADAPTER_SCHEMA_VERSION, adapter: 'omp-ledger-bridge', app_name: this.appName, external_session_id: change.sessionId, external_turn_id: change.turnId, reason: change.reason, commit_status: commitStatus, patch: change.patch ?? {}, artifacts, metadata: change.metadata ?? {} }),
+      payload: this.#decorate({ external_session_id: change.sessionId, external_turn_id: change.turnId, reason: change.reason, commit_status: commitStatus, patch: change.patch ?? {}, artifacts, metadata: change.metadata ?? {} }),
     });
     return version;
+  }
+
+  async recordExecutionEvent(sessionId, eventName, payload = {}, turnId = null, agentRole = null, causalToken = null) {
+    const session = await this.#ensureSession({ sessionId });
+    const active = turnId ? this.activeTurns.get(this.#turnKey(sessionId, turnId)) : null;
+    return this.runtime.store.appendEvent({
+      runId: session.runId,
+      sessionId: session.sessionId,
+      stepId: active?.stepId ?? null,
+      type: this.#eventType(eventName),
+      agentRole: active?.agentRole ?? agentRole,
+      stateVersion: active?.stateVersion ?? this.runtime.store.run(session.runId).state_version,
+      causalToken,
+      payload: this.#decorate({ ...payload, event_name: eventName }),
+    });
+  }
+
+  async recordArtifact(artifact) {
+    if (!String(artifact.name ?? '').trim()) throw new Error(`${this.source} artifact name must not be empty`);
+    if (!artifact.uri && !artifact.contentRef && !artifact.externalId && !Object.keys(artifact.derivedOutputs ?? {}).length) throw new Error(`${this.source} artifact requires a uri, content_ref, external_id, or derived_outputs`);
+    const session = await this.#ensureSession({ sessionId: artifact.sessionId });
+    const active = artifact.turnId ? this.activeTurns.get(this.#turnKey(artifact.sessionId, artifact.turnId)) : null;
+    const kind = artifact.kind ?? 'artifact';
+    let manifest = compactObject({ schema_version: this.schemaVersion, source: this.source, kind, uri: artifact.uri, content_ref: artifact.contentRef, external_id: artifact.externalId, metadata: clone(artifact.metadata ?? {}), lineage: clone(artifact.lineage ?? {}), derived_outputs: clone(artifact.derivedOutputs ?? {}) });
+    const metadata = compactObject({ ...clone(artifact.metadata ?? {}), schema_version: this.schemaVersion, source: this.source, external_session_id: artifact.sessionId, kind, uri: artifact.uri, content_ref: artifact.contentRef, external_id: artifact.externalId, lineage: clone(artifact.lineage ?? {}), derived_outputs: clone(artifact.derivedOutputs ?? {}) });
+    if (MEDIA_KINDS.has(kind)) {
+      const mediaMetadata = compactObject({ schema_version: MEDIA_SCHEMA_VERSION, ...clone(artifact.metadata ?? {}), kind });
+      const media = compactObject({ schema_version: MEDIA_SCHEMA_VERSION, kind, uri: artifact.uri, content_ref: artifact.contentRef, metadata: mediaMetadata, lineage: clone(artifact.lineage ?? {}), derived_outputs: clone(artifact.derivedOutputs ?? {}) });
+      metadata.agentledger_media = media;
+      manifest = media;
+    }
+    const stored = await this.runtime.store.createArtifact({ runId: session.runId, stepId: active?.stepId ?? null, name: artifact.name, content: manifest, metadata });
+    await this.runtime.store.appendEvent({ runId: session.runId, sessionId: session.sessionId, stepId: active?.stepId ?? null, type: 'artifact_created', payload: this.#decorate({ artifact_id: stored.artifact_id, name: artifact.name, kind, external_session_id: artifact.sessionId, external_turn_id: artifact.turnId, external_id: artifact.externalId }), agentRole: active?.agentRole ?? null, stateVersion: active?.stateVersion ?? this.runtime.store.run(session.runId).state_version, payloadHash: stored.blob_hash, payloadRef: stored.blob_ref });
+    return stored.artifact_id;
   }
 
   async #ensureSession(session) {
@@ -1273,7 +1319,7 @@ export class OmpLedgerBridge {
 
   #requireTurn(sessionId, turnId) {
     const active = this.activeTurns.get(this.#turnKey(sessionId, turnId));
-    if (!active) throw new Error(`OMP turn not active: ${sessionId}/${turnId}`);
+    if (!active) throw new Error(`${this.source} turn not active: ${sessionId}/${turnId}`);
     return active;
   }
 
@@ -1285,7 +1331,7 @@ export class OmpLedgerBridge {
   async #storeArtifact(runId, stepId, name, content, metadata, active) {
     const artifact = await this.runtime.store.createArtifact({ runId, stepId, name, content, metadata });
     const run = this.runtime.store.run(runId);
-    await this.runtime.store.appendEvent({ runId, sessionId: run.session_id, stepId, type: 'artifact_created', payload: { artifact_id: artifact.artifact_id, name }, agentRole: active?.agentRole ?? null, stateVersion: active?.stateVersion ?? run.state_version, payloadHash: artifact.blob_hash, payloadRef: artifact.blob_ref });
+    await this.runtime.store.appendEvent({ runId, sessionId: run.session_id, stepId, type: 'artifact_created', payload: this.#decorate({ artifact_id: artifact.artifact_id, name }), agentRole: active?.agentRole ?? null, stateVersion: active?.stateVersion ?? run.state_version, payloadHash: artifact.blob_hash, payloadRef: artifact.blob_ref });
     return artifact.artifact_id;
   }
 
@@ -1296,6 +1342,293 @@ export class OmpLedgerBridge {
   #nextRunnableStepId(runId) {
     return this.runtime.store.steps(runId).find((step) => ['pending', 'retry_scheduled'].includes(step.status))?.step_id ?? null;
   }
+
+  #eventType(suffix) {
+    return `${this.eventPrefix}_${suffix}`;
+  }
+
+  #decorate(payload) {
+    return compactObject({ ...payload, schema_version: this.schemaVersion, adapter: this.adapterName, source: this.source, app_name: this.appName });
+  }
+
+  #bridgeMetadata(metadata, sessionId, turnId) {
+    return compactObject({ ...clone(metadata ?? {}), schema_version: this.schemaVersion, adapter: this.adapterName, source: this.source, external_session_id: sessionId, external_turn_id: turnId });
+  }
+}
+
+export class ExecutionEvidenceBridge extends OmpLedgerBridge {
+  constructor(runtime, { appName = 'external', source = 'external', workerId = null, leaseSeconds = 60 } = {}) {
+    super(runtime, { appName, source, workerId, leaseSeconds, schemaVersion: EXECUTION_EVIDENCE_SCHEMA_VERSION, adapterName: 'execution-evidence-bridge', eventPrefix: 'execution', checkpointPrefix: 'execution', defaultRole: 'Agent' });
+  }
+}
+
+const OBSERVER_SCHEMA_VERSIONS = {
+  temporal: TEMPORAL_OBSERVER_SCHEMA_VERSION,
+  dsh: DSH_OBSERVER_SCHEMA_VERSION,
+  a2a: A2A_OBSERVER_SCHEMA_VERSION,
+  framework: FRAMEWORK_OBSERVER_SCHEMA_VERSION,
+  mcp: MCP_OBSERVER_SCHEMA_VERSION,
+};
+
+class NormalizedEvidenceObserver {
+  constructor(runtime, { appName, kind, runId = null, source = kind }) {
+    this.kind = kind;
+    this.schemaVersion = OBSERVER_SCHEMA_VERSIONS[kind];
+    this.runId = runId;
+    this.bridge = new ExecutionEvidenceBridge(runtime, { appName, source });
+  }
+
+  async observe(event) {
+    if (!event || typeof event !== 'object' || Array.isArray(event)) throw new TypeError(`${this.kind} evidence event must be an object`);
+    const eventType = this.eventType(event);
+    const sessionId = this.sessionId(event);
+    await this.ensureBoundSession(event, sessionId);
+    if (this.kind === 'temporal') return this.observeTemporal(event, eventType, sessionId);
+    if (this.kind === 'dsh') return this.observeDsh(event, eventType, sessionId);
+    if (this.kind === 'a2a') return this.observeA2a(event, eventType, sessionId);
+    if (this.kind === 'framework') return this.observeFramework(event, eventType, sessionId);
+    return this.observeMcp(event, eventType, sessionId);
+  }
+
+  async observeTemporal(event, type, sessionId) {
+    const turnId = this.optional(event, 'activity_id', 'turn_id');
+    if (['workflow_started', 'workflow_execution_started'].includes(type)) return this.bridge.recordSessionStarted(this.session(event, sessionId));
+    if (['activity_started', 'activity_task_started'].includes(type)) return this.bridge.recordTurnStarted(this.turn(event, sessionId, this.required(event, 'activity_id', 'turn_id'), 'TemporalActivityAgent'));
+    if (['model_call', 'model_call_completed'].includes(type)) return this.bridge.recordModelCall(this.modelCall(event, sessionId, this.required(event, 'activity_id', 'turn_id')));
+    if (['tool_proposal', 'tool_call_proposed'].includes(type)) return this.bridge.recordToolProposal(this.toolProposal(event, sessionId, this.required(event, 'activity_id', 'turn_id')));
+    if (['tool_execution', 'tool_call_completed', 'tool_call_failed'].includes(type)) return this.bridge.recordToolExecution(this.toolExecution(event, sessionId, this.required(event, 'activity_id', 'turn_id')));
+    if (['state_change', 'state_change_recorded'].includes(type)) return this.bridge.recordStateChange(this.stateChange(event, sessionId, turnId));
+    if (['artifact_recorded', 'artifact_created', 'media_artifact_recorded'].includes(type)) return this.bridge.recordArtifact(this.artifact(event, sessionId, turnId));
+    if (['activity_completed', 'activity_task_completed'].includes(type)) return this.bridge.recordTurnCompleted({ ...this.turn(event, sessionId, this.required(event, 'activity_id', 'turn_id'), 'TemporalActivityAgent'), statePatch: this.dict(event, 'state_patch') });
+    if (['activity_failed', 'activity_task_failed'].includes(type)) return this.bridge.recordFailure(this.failure(event, sessionId, this.required(event, 'activity_id', 'turn_id'), 'TemporalActivityFailure'));
+    if (['activity_scheduled', 'activity_task_scheduled', 'workflow_completed', 'workflow_execution_completed', 'workflow_failed', 'workflow_execution_failed'].includes(type)) {
+      return this.receipt(event, sessionId, this.optional(event, 'causal_token', 'activity_id', 'workflow_run_id'), {
+        receipt_type: type,
+        workflow_id: this.optional(event, 'workflow_id'),
+        workflow_run_id: this.optional(event, 'workflow_run_id'),
+        activity_id: this.optional(event, 'activity_id'),
+        attempt: event.attempt,
+        status: this.optional(event, 'status', 'state') ?? (type.includes('failed') ? 'failed' : 'completed'),
+        metadata: this.metadata(event),
+      });
+    }
+    throw new Error(`unsupported Temporal evidence event type: ${type}`);
+  }
+
+  async observeDsh(event, type, sessionId) {
+    const turnId = this.optional(event, 'step_id', 'turn_id');
+    if (['run_started', 'session_started', 'execution_started'].includes(type)) return this.bridge.recordSessionStarted(this.session(event, sessionId));
+    if (['step_started', 'turn_started'].includes(type)) return this.bridge.recordTurnStarted(this.turn(event, sessionId, this.required(event, 'step_id', 'turn_id'), 'DSHAgent'));
+    if (['model_call', 'model_call_completed'].includes(type)) return this.bridge.recordModelCall(this.modelCall(event, sessionId, this.required(event, 'step_id', 'turn_id')));
+    if (['tool_proposal', 'tool_call_proposed'].includes(type)) return this.bridge.recordToolProposal(this.toolProposal(event, sessionId, this.required(event, 'step_id', 'turn_id')));
+    if (['tool_execution', 'tool_call_completed', 'tool_call_failed'].includes(type)) return this.bridge.recordToolExecution(this.toolExecution(event, sessionId, this.required(event, 'step_id', 'turn_id')));
+    if (['state_change', 'state_change_recorded'].includes(type)) return this.bridge.recordStateChange(this.stateChange(event, sessionId, turnId));
+    if (['artifact_recorded', 'artifact_created', 'media_artifact_recorded'].includes(type)) return this.bridge.recordArtifact(this.artifact(event, sessionId, turnId));
+    if (['side_effect_receipt', 'task_receipt', 'execution_receipt'].includes(type)) return this.receipt(event, sessionId, this.optional(event, 'causal_token', 'receipt_id'), {
+      receipt_type: type, receipt_id: this.optional(event, 'receipt_id'), task_id: this.optional(event, 'task_id'),
+      status: this.optional(event, 'status', 'state'), external_id: this.optional(event, 'external_id'),
+      artifact_refs: event.artifact_refs ?? event.artifacts, metadata: this.metadata(event),
+    });
+    if (['step_completed', 'turn_completed'].includes(type)) return this.bridge.recordTurnCompleted({ ...this.turn(event, sessionId, this.required(event, 'step_id', 'turn_id'), 'DSHAgent'), statePatch: this.dict(event, 'state_patch') });
+    if (['step_failed', 'turn_failed'].includes(type)) return this.bridge.recordFailure(this.failure(event, sessionId, this.required(event, 'step_id', 'turn_id'), 'DSHStepFailure'));
+    throw new Error(`unsupported DSH evidence event type: ${type}`);
+  }
+
+  async observeA2a(event, type, sessionId) {
+    const turnId = this.optional(event, 'task_id', 'turn_id');
+    if (type === 'task_submitted') {
+      const runId = await this.bridge.recordSessionStarted(this.session(event, sessionId));
+      await this.receipt(event, sessionId, this.optional(event, 'causal_token'), this.a2aReceipt(event, type));
+      return runId;
+    }
+    if (type === 'task_started') {
+      await this.bridge.recordSessionStarted(this.session(event, sessionId));
+      return this.bridge.recordTurnStarted(this.turn(event, sessionId, this.required(event, 'task_id', 'turn_id'), this.optional(event, 'agent_role', 'to_agent') ?? 'A2AAgent'));
+    }
+    if (['handoff_requested', 'handoff_completed', 'task_updated'].includes(type)) {
+      await this.bridge.recordSessionStarted(this.session(event, sessionId));
+      return this.receipt(event, sessionId, this.optional(event, 'causal_token'), this.a2aReceipt(event, type));
+    }
+    if (type === 'task_completed') {
+      await this.bridge.recordSessionStarted(this.session(event, sessionId));
+      await this.receipt(event, sessionId, this.optional(event, 'causal_token'), this.a2aReceipt(event, type));
+      return this.bridge.recordTurnCompleted({ ...this.turn(event, sessionId, this.required(event, 'task_id', 'turn_id'), 'A2AAgent'), statePatch: this.dict(event, 'state_patch') });
+    }
+    if (type === 'task_failed') {
+      await this.bridge.recordSessionStarted(this.session(event, sessionId));
+      await this.receipt(event, sessionId, this.optional(event, 'causal_token'), this.a2aReceipt(event, type));
+      return this.bridge.recordFailure(this.failure(event, sessionId, this.required(event, 'task_id', 'turn_id'), 'A2ATaskFailure'));
+    }
+    if (['model_call', 'model_call_completed'].includes(type)) return this.bridge.recordModelCall(this.modelCall(event, sessionId, this.required(event, 'task_id', 'turn_id')));
+    if (['tool_proposal', 'tool_call_proposed'].includes(type)) return this.bridge.recordToolProposal(this.toolProposal(event, sessionId, this.required(event, 'task_id', 'turn_id')));
+    if (['tool_execution', 'tool_call_completed', 'tool_call_failed'].includes(type)) return this.bridge.recordToolExecution(this.toolExecution(event, sessionId, this.required(event, 'task_id', 'turn_id')));
+    if (['state_change', 'state_change_recorded'].includes(type)) return this.bridge.recordStateChange(this.stateChange(event, sessionId, turnId));
+    if (['artifact_recorded', 'artifact_created', 'media_artifact_recorded'].includes(type)) return this.bridge.recordArtifact(this.artifact(event, sessionId, turnId));
+    throw new Error(`unsupported A2A evidence event type: ${type}`);
+  }
+
+  async observeFramework(event, type, sessionId) {
+    const turnId = this.optional(event, 'node_id', 'step_id', 'turn_id');
+    if (['session_started', 'run_started', 'graph_started', 'agent_started'].includes(type)) return this.bridge.recordSessionStarted(this.session(event, sessionId));
+    if (['node_started', 'step_started', 'turn_started'].includes(type)) return this.bridge.recordTurnStarted(this.turn(event, sessionId, this.required(event, 'turn_id', 'node_id', 'step_id'), this.optional(event, 'agent_role', 'node_name') ?? 'FrameworkAgent'));
+    if (['model_call', 'model_call_completed'].includes(type)) return this.bridge.recordModelCall(this.modelCall(event, sessionId, this.required(event, 'turn_id', 'node_id', 'step_id')));
+    if (['tool_proposal', 'tool_call_proposed', 'tool_call_requested'].includes(type)) return this.bridge.recordToolProposal(this.toolProposal(event, sessionId, this.required(event, 'turn_id', 'node_id', 'step_id')));
+    if (['tool_execution', 'tool_call_completed', 'tool_call_failed'].includes(type)) return this.bridge.recordToolExecution(this.toolExecution(event, sessionId, this.required(event, 'turn_id', 'node_id', 'step_id')));
+    if (['state_change', 'state_change_recorded'].includes(type)) return this.bridge.recordStateChange(this.stateChange(event, sessionId, turnId));
+    if (['artifact_recorded', 'artifact_created', 'media_artifact_recorded'].includes(type)) return this.bridge.recordArtifact(this.artifact(event, sessionId, turnId));
+    if (['checkpoint_saved', 'checkpoint_recorded', 'handoff_requested', 'handoff_completed'].includes(type)) return this.receipt(event, sessionId, this.optional(event, 'causal_token', 'checkpoint_id', 'handoff_id'), {
+      receipt_type: type, checkpoint_id: this.optional(event, 'checkpoint_id'), checkpoint_ns: this.optional(event, 'checkpoint_ns'),
+      parent_checkpoint_id: this.optional(event, 'parent_checkpoint_id'), thread_id: this.optional(event, 'thread_id'),
+      handoff_id: this.optional(event, 'handoff_id'), from_agent: this.optional(event, 'from_agent'),
+      to_agent: this.optional(event, 'to_agent'), artifact_refs: event.artifact_refs ?? event.artifacts,
+      status: this.optional(event, 'status', 'state'), metadata: this.metadata(event),
+    });
+    if (['node_completed', 'step_completed', 'turn_completed'].includes(type)) return this.bridge.recordTurnCompleted({ ...this.turn(event, sessionId, this.required(event, 'turn_id', 'node_id', 'step_id'), 'FrameworkAgent'), statePatch: this.dict(event, 'state_patch') });
+    if (['run_completed', 'graph_completed', 'agent_completed'].includes(type)) return this.receipt(event, sessionId, this.optional(event, 'causal_token', 'run_id', 'thread_id'), { receipt_type: type, status: this.optional(event, 'status', 'state') ?? 'completed', metadata: this.metadata(event) });
+    if (['node_failed', 'step_failed', 'turn_failed'].includes(type)) return this.bridge.recordFailure(this.failure(event, sessionId, this.required(event, 'turn_id', 'node_id', 'step_id'), 'FrameworkStepFailure'));
+    throw new Error(`unsupported framework evidence event type: ${type}`);
+  }
+
+  async observeMcp(event, type, sessionId) {
+    const turnId = this.optional(event, 'turn_id', 'request_id');
+    if (['session_started', 'connection_started'].includes(type)) return this.bridge.recordSessionStarted(this.session(event, sessionId));
+    if (['request_started', 'turn_started'].includes(type)) return this.bridge.recordTurnStarted(this.turn(event, sessionId, this.required(event, 'turn_id', 'request_id'), 'MCPAgent'));
+    if (['tool_call_proposed', 'tool_call_requested'].includes(type)) {
+      const proposal = this.toolProposal(event, sessionId, this.required(event, 'turn_id', 'request_id'));
+      proposal.provider ??= this.optional(event, 'server_name', 'provider');
+      return this.bridge.recordToolProposal(proposal);
+    }
+    if (['tool_call_completed', 'tool_call_failed', 'tool_execution'].includes(type)) return this.bridge.recordToolExecution(this.toolExecution(event, sessionId, this.required(event, 'turn_id', 'request_id')));
+    if (['resource_read', 'resource_read_completed', 'resource_read_failed', 'prompt_get', 'prompt_get_completed', 'prompt_get_failed'].includes(type)) return this.receipt(event, sessionId, this.optional(event, 'causal_token', 'request_id'), {
+      receipt_type: type, request_id: this.optional(event, 'request_id'), resource_uri: this.optional(event, 'resource_uri', 'uri'),
+      prompt_name: this.optional(event, 'prompt_name'), mime_type: this.optional(event, 'mime_type'), content_ref: this.optional(event, 'content_ref'),
+      status: this.optional(event, 'status', 'state'), error: this.optional(event, 'error'), metadata: this.metadata(event),
+    });
+    if (['state_change', 'state_change_recorded'].includes(type)) return this.bridge.recordStateChange(this.stateChange(event, sessionId, turnId));
+    if (['artifact_recorded', 'artifact_created', 'media_artifact_recorded'].includes(type)) return this.bridge.recordArtifact(this.artifact(event, sessionId, turnId));
+    if (['request_completed', 'turn_completed'].includes(type)) return this.bridge.recordTurnCompleted({ ...this.turn(event, sessionId, this.required(event, 'turn_id', 'request_id'), 'MCPAgent'), statePatch: this.dict(event, 'state_patch') });
+    throw new Error(`unsupported MCP evidence event type: ${type}`);
+  }
+
+  session(event, sessionId) {
+    return { sessionId, initialState: this.dict(event, 'initial_state'), metadata: this.metadata(event), runId: this.runtimeRunId(event) };
+  }
+
+  turn(event, sessionId, turnId, agentRole) {
+    return { sessionId, turnId, agentRole, metadata: this.metadata(event) };
+  }
+
+  modelCall(event, sessionId, turnId) {
+    return { sessionId, turnId, provider: this.required(event, 'provider'), model: this.required(event, 'model'), request: this.dict(event, 'request'), response: this.dict(event, 'response'), usage: this.dict(event, 'usage'), totalUsd: Number(event.total_usd ?? event.totalUsd ?? 0), metadata: this.metadata(event) };
+  }
+
+  toolProposal(event, sessionId, turnId) {
+    return { sessionId, turnId, toolName: this.required(event, 'tool_name', 'tool'), arguments: this.dict(event, 'arguments', 'args'), provider: this.optional(event, 'provider'), model: this.optional(event, 'model'), modelCallRef: this.optional(event, 'model_call_ref'), confidence: event.confidence, reason: this.optional(event, 'reason'), metadata: this.metadata(event) };
+  }
+
+  toolExecution(event, sessionId, turnId) {
+    return { sessionId, turnId, toolName: this.required(event, 'tool_name', 'tool'), arguments: this.dict(event, 'arguments', 'args'), result: event.result, toolCallId: this.optional(event, 'tool_call_id'), toolVersion: this.optional(event, 'tool_version') ?? 'external', idempotencyKey: this.optional(event, 'idempotency_key'), ledgerStatus: this.optional(event, 'ledger_status', 'status'), errorType: this.optional(event, 'error_type'), errorMessage: this.optional(event, 'error_message', 'error'), externalId: this.optional(event, 'external_id'), causalToken: this.optional(event, 'causal_token'), metadata: this.metadata(event) };
+  }
+
+  failure(event, sessionId, turnId, defaultType) {
+    const retryable = event.retryable;
+    return { sessionId, turnId, errorType: this.optional(event, 'error_type', 'failure_type') ?? defaultType, message: this.required(event, 'message', 'error'), retryable, status: this.optional(event, 'status') ?? (retryable ? 'retry_scheduled' : 'failed'), terminal: event.terminal ?? true, category: this.optional(event, 'category') ?? 'runtime', provider: this.optional(event, 'provider'), model: this.optional(event, 'model'), request: this.dict(event, 'request'), usage: this.dict(event, 'usage'), totalUsd: Number(event.total_usd ?? event.totalUsd ?? 0), metadata: this.metadata(event), approvalId: this.optional(event, 'approval_id') };
+  }
+
+  stateChange(event, sessionId, turnId) {
+    return { sessionId, turnId, reason: this.required(event, 'reason'), patch: this.dict(event, 'patch'), label: this.optional(event, 'label') ?? 'state', commitStatus: this.optional(event, 'commit_status') ?? 'committed', beforeSnapshot: event.before_snapshot, afterSnapshot: event.after_snapshot, diff: event.diff, metadata: this.metadata(event) };
+  }
+
+  artifact(event, sessionId, turnId) {
+    return { sessionId, turnId, name: this.required(event, 'name', 'artifact_name'), kind: this.optional(event, 'kind') ?? 'artifact', uri: this.optional(event, 'uri'), contentRef: this.optional(event, 'content_ref'), externalId: this.optional(event, 'external_id', 'artifact_id'), metadata: this.metadata(event), lineage: this.dict(event, 'lineage'), derivedOutputs: this.dict(event, 'derived_outputs') };
+  }
+
+  async receipt(event, sessionId, causalToken, payload) {
+    return this.bridge.recordExecutionEvent(sessionId, 'task_receipt_recorded', payload, this.optional(event, 'turn_id', 'step_id', 'task_id', 'request_id', 'activity_id', 'node_id'), null, causalToken);
+  }
+
+  a2aReceipt(event, type) {
+    return { receipt_type: type, context_id: this.optional(event, 'context_id', 'session_id'), task_id: this.optional(event, 'task_id', 'turn_id'), handoff_id: this.optional(event, 'handoff_id'), message_id: this.optional(event, 'message_id'), from_agent: this.optional(event, 'from_agent'), to_agent: this.optional(event, 'to_agent'), status: this.optional(event, 'status', 'state'), artifact_refs: event.artifact_refs ?? event.artifacts, metadata: this.metadata(event) };
+  }
+
+  async ensureBoundSession(event, sessionId) {
+    const runId = this.runtimeRunId(event);
+    if (runId) await this.bridge.recordSessionStarted(this.session(event, sessionId));
+  }
+
+  runtimeRunId(event) {
+    return this.optional(event, 'runtime_run_id', 'agentledger_run_id') ?? this.runId;
+  }
+
+  eventType(event) {
+    const value = event.type ?? event.event_type;
+    if (typeof value !== 'string' || !value.trim()) throw new Error(`${this.kind} evidence event requires type`);
+    return value.trim().toLowerCase().replaceAll('.', '_');
+  }
+
+  sessionId(event) {
+    if (this.kind === 'temporal') return this.optional(event, 'session_id') ?? `${this.required(event, 'workflow_id')}:${this.required(event, 'workflow_run_id')}`;
+    if (this.kind === 'dsh') return this.required(event, 'session_id', 'execution_id', 'run_id');
+    if (this.kind === 'a2a') return this.required(event, 'context_id', 'session_id');
+    if (this.kind === 'framework') return this.required(event, 'session_id', 'thread_id', 'run_id');
+    return this.required(event, 'session_id', 'connection_id');
+  }
+
+  metadata(event) {
+    const metadata = event.metadata ?? {};
+    if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) throw new TypeError(`${this.kind} evidence metadata must be an object`);
+    const keys = {
+      temporal: ['workflow_id', 'workflow_run_id', 'activity_id', 'attempt', 'task_queue', 'namespace'],
+      dsh: ['execution_id', 'run_id', 'session_id', 'step_id', 'turn_id', 'attempt', 'worker_id', 'parent_id', 'trace_id', 'sandbox_id', 'task_id', 'receipt_id'],
+      a2a: ['context_id', 'task_id', 'handoff_id', 'message_id', 'from_agent', 'to_agent'],
+      framework: ['session_id', 'thread_id', 'run_id', 'turn_id', 'node_id', 'step_id', 'node_name', 'graph_id', 'agent_id', 'trace_id', 'span_id', 'checkpoint_id', 'checkpoint_ns', 'handoff_id', 'from_agent', 'to_agent', 'attempt'],
+      mcp: ['session_id', 'connection_id', 'turn_id', 'request_id', 'server_name', 'server_uri', 'tool_name', 'resource_uri', 'prompt_name', 'mime_type', 'attempt'],
+    }[this.kind];
+    const result = { ...clone(metadata) };
+    for (const key of keys) if (event[key] !== undefined && event[key] !== null) result[this.kind === 'temporal' && key === 'attempt' ? 'external_activity_attempt' : `external_${key}`] = clone(event[key]);
+    result.observer_schema_version = this.schemaVersion;
+    return result;
+  }
+
+  dict(event, ...keys) {
+    for (const key of keys) {
+      if (event[key] === undefined || event[key] === null) continue;
+      if (!event[key] || typeof event[key] !== 'object' || Array.isArray(event[key])) throw new TypeError(`${this.kind} evidence field ${key} must be an object`);
+      return clone(event[key]);
+    }
+    return {};
+  }
+
+  optional(event, ...keys) {
+    for (const key of keys) if (event[key] !== undefined && event[key] !== null && String(event[key]).trim()) return String(event[key]);
+    return null;
+  }
+
+  required(event, ...keys) {
+    const value = this.optional(event, ...keys);
+    if (!value) throw new Error(`${this.kind} evidence event requires one of: ${keys.join(', ')}`);
+    return value;
+  }
+}
+
+export class TemporalEvidenceObserver extends NormalizedEvidenceObserver {
+  constructor(runtime, { appName, runId = null } = {}) { super(runtime, { appName, kind: 'temporal', runId }); }
+}
+
+export class DSHEvidenceObserver extends NormalizedEvidenceObserver {
+  constructor(runtime, { appName, runId = null } = {}) { super(runtime, { appName, kind: 'dsh', runId }); }
+}
+
+export class A2AEvidenceObserver extends NormalizedEvidenceObserver {
+  constructor(runtime, { appName, runId = null } = {}) { super(runtime, { appName, kind: 'a2a', runId }); }
+}
+
+export class FrameworkEvidenceObserver extends NormalizedEvidenceObserver {
+  constructor(runtime, { appName, source = 'framework', runId = null } = {}) { super(runtime, { appName, kind: 'framework', source, runId }); }
+}
+
+export class MCPEvidenceObserver extends NormalizedEvidenceObserver {
+  constructor(runtime, { appName, runId = null } = {}) { super(runtime, { appName, kind: 'mcp', runId }); }
 }
 
 const TERMINAL_RUN_STATUSES = new Set(['completed', 'failed', 'cancelled']);
@@ -1869,7 +2202,7 @@ function mediaArtifactsFrom(artifacts) {
   return artifacts.flatMap((artifact) => {
     const metadata = artifact.metadata?.agentledger_media;
     if (!metadata) return [];
-    return [compactObject({ artifact_id: artifact.artifact_id, name: artifact.name, blob_hash: artifact.blob_hash, blob_ref: artifact.blob_ref, kind: metadata.kind, uri: metadata.uri, content_ref: metadata.content_ref, metadata: metadata.metadata ?? {}, lineage: metadata.lineage ?? {} })];
+    return [compactObject({ artifact_id: artifact.artifact_id, name: artifact.name, blob_hash: artifact.blob_hash, blob_ref: artifact.blob_ref, kind: metadata.kind, uri: metadata.uri, content_ref: metadata.content_ref, metadata: metadata.metadata ?? {}, lineage: metadata.lineage ?? {}, derived_outputs: metadata.derived_outputs ?? {} })];
   });
 }
 

@@ -2406,6 +2406,7 @@ impl AgentContext {
 }
 
 pub const OMP_ADAPTER_SCHEMA_VERSION: &str = "agentledger.omp.adapter.v1";
+pub const EXECUTION_EVIDENCE_SCHEMA_VERSION: &str = "agentledger.execution.evidence.v1";
 
 #[derive(Clone, Debug, Default)]
 pub struct OmpSession {
@@ -2562,6 +2563,28 @@ impl Default for OmpStateChange {
     }
 }
 
+pub type ExecutionSession = OmpSession;
+pub type ExecutionTurn = OmpTurn;
+pub type ExecutionModelCall = OmpModelCall;
+pub type ExecutionToolProposal = OmpToolProposal;
+pub type ExecutionToolExecution = OmpToolExecution;
+pub type ExecutionFailure = OmpFailure;
+pub type ExecutionStateChange = OmpStateChange;
+
+#[derive(Clone, Debug, Default)]
+pub struct ExecutionArtifact {
+    pub session_id: String,
+    pub turn_id: Option<String>,
+    pub name: String,
+    pub kind: String,
+    pub uri: Option<String>,
+    pub content_ref: Option<String>,
+    pub external_id: Option<String>,
+    pub metadata: State,
+    pub lineage: State,
+    pub derived_outputs: State,
+}
+
 #[derive(Clone, Debug)]
 struct OmpBridgeSession {
     run_id: String,
@@ -2581,26 +2604,42 @@ struct OmpActiveTurn {
 }
 
 pub struct OmpLedgerBridge {
-    pub runtime: Runtime,
-    pub app_name: String,
-    pub worker_id: String,
-    pub lease_seconds: f64,
-    sessions: HashMap<String, OmpBridgeSession>,
-    active_turns: HashMap<String, OmpActiveTurn>,
+	pub runtime: Runtime,
+	pub app_name: String,
+	pub worker_id: String,
+	pub lease_seconds: f64,
+	sessions: HashMap<String, OmpBridgeSession>,
+	active_turns: HashMap<String, OmpActiveTurn>,
+	schema_version: String,
+	adapter_name: String,
+	source: String,
+	event_prefix: String,
+	checkpoint_prefix: String,
+	default_role: String,
 }
 
 impl OmpLedgerBridge {
-    pub fn new(runtime: Runtime, app_name: &str) -> Self {
-        let app = if app_name.is_empty() { "omp" } else { app_name };
-        Self {
-            runtime,
-            app_name: app.to_string(),
-            worker_id: format!("omp:{app}"),
-            lease_seconds: 60.0,
-            sessions: HashMap::new(),
-            active_turns: HashMap::new(),
-        }
-    }
+	pub fn new(runtime: Runtime, app_name: &str) -> Self {
+		Self::configured(runtime, app_name, "omp", OMP_ADAPTER_SCHEMA_VERSION, "omp-ledger-bridge", "omp", "omp", "OMPAgent")
+	}
+
+	fn configured(runtime: Runtime, app_name: &str, source: &str, schema_version: &str, adapter_name: &str, event_prefix: &str, checkpoint_prefix: &str, default_role: &str) -> Self {
+		let app = if app_name.is_empty() { "omp" } else { app_name };
+		Self {
+			runtime,
+			app_name: if app_name.is_empty() { source } else { app }.to_string(),
+			worker_id: format!("{source}:{}", if app_name.is_empty() { source } else { app }),
+			lease_seconds: 60.0,
+			sessions: HashMap::new(),
+			active_turns: HashMap::new(),
+			schema_version: schema_version.to_string(),
+			adapter_name: adapter_name.to_string(),
+			source: source.to_string(),
+			event_prefix: event_prefix.to_string(),
+			checkpoint_prefix: checkpoint_prefix.to_string(),
+			default_role: default_role.to_string(),
+		}
+	}
 
     pub fn record_session_started(&mut self, session: OmpSession) -> Result<String> {
         if let Some(existing) = self.sessions.get(&session.session_id) {
@@ -2609,8 +2648,9 @@ impl OmpLedgerBridge {
         let bridge_session = self.ensure_session(session.clone())?;
         let run = self.runtime.store.run(&bridge_session.run_id)?;
         let payload = compact_state([
-            ("schema_version", OMP_ADAPTER_SCHEMA_VERSION.into()),
-            ("adapter", "omp-ledger-bridge".into()),
+            ("schema_version", self.schema_version.clone().into()),
+            ("adapter", self.adapter_name.clone().into()),
+            ("source", self.source.clone().into()),
             ("app_name", self.app_name.clone().into()),
             ("external_session_id", session.session_id.clone().into()),
             ("metadata", Value::Object(session.metadata)),
@@ -2619,7 +2659,7 @@ impl OmpLedgerBridge {
             &bridge_session.run_id,
             Some(&bridge_session.session_id),
             None,
-            "omp_session_started",
+            &self.event_type("session_started"),
             payload,
             None,
             Some(run.state_version),
@@ -2644,7 +2684,7 @@ impl OmpLedgerBridge {
             self.runtime.store.create_external_step(&session.run_id)?;
         }
         let claim = self.runtime.store.claim_step(&self.worker_id, &session.run_id, self.lease_seconds)?;
-        let role = if turn.agent_role.is_empty() { "OMPAgent".to_string() } else { turn.agent_role.clone() };
+        let role = if turn.agent_role.is_empty() { self.default_role.clone() } else { turn.agent_role.clone() };
         let active = OmpActiveTurn {
             run_id: claim.run_id.clone(),
             session_id: claim.session_id.clone(),
@@ -2656,18 +2696,20 @@ impl OmpLedgerBridge {
         };
         self.active_turns.insert(key, active.clone());
         let payload = compact_state([
-            ("schema_version", OMP_ADAPTER_SCHEMA_VERSION.into()),
-            ("adapter", "omp-ledger-bridge".into()),
+            ("schema_version", self.schema_version.clone().into()),
+            ("adapter", self.adapter_name.clone().into()),
+            ("source", self.source.clone().into()),
             ("app_name", self.app_name.clone().into()),
             ("external_session_id", turn.session_id.clone().into()),
             ("external_turn_id", turn.turn_id.clone().into()),
+            ("checkpoint_id", format!("{}:{}:{}", self.checkpoint_prefix, turn.turn_id, active.attempt).into()),
             ("metadata", Value::Object(turn.metadata)),
         ]);
         self.runtime.store.append_event(
             &active.run_id,
             Some(&active.session_id),
             Some(&active.step_id),
-            "omp_turn_started",
+            &self.event_type("turn_started"),
             payload,
             Some(&active.agent_role),
             Some(active.state_version),
@@ -2686,8 +2728,9 @@ impl OmpLedgerBridge {
             turn.state_patch,
         )?;
         let payload = compact_state([
-            ("schema_version", OMP_ADAPTER_SCHEMA_VERSION.into()),
-            ("adapter", "omp-ledger-bridge".into()),
+            ("schema_version", self.schema_version.clone().into()),
+            ("adapter", self.adapter_name.clone().into()),
+            ("source", self.source.clone().into()),
             ("app_name", self.app_name.clone().into()),
             ("external_session_id", turn.session_id.clone().into()),
             ("external_turn_id", turn.turn_id.clone().into()),
@@ -2697,7 +2740,7 @@ impl OmpLedgerBridge {
             &active.run_id,
             Some(&active.session_id),
             Some(&active.step_id),
-            "omp_turn_completed",
+            &self.event_type("turn_completed"),
             payload,
             Some(&active.agent_role),
             Some(next_version),
@@ -2718,7 +2761,7 @@ impl OmpLedgerBridge {
             record.response,
             record.usage,
             record.total_usd,
-            record.metadata,
+            self.bridge_metadata(&record.metadata, &record.session_id, &record.turn_id),
         )
     }
 
@@ -2733,7 +2776,7 @@ impl OmpLedgerBridge {
             proposal.model_call_ref.as_deref(),
             proposal.confidence,
             proposal.reason.as_deref(),
-            proposal.metadata,
+            self.bridge_metadata(&proposal.metadata, &proposal.session_id, &proposal.turn_id),
         );
         Ok(())
     }
@@ -2743,21 +2786,24 @@ impl OmpLedgerBridge {
         let tool_call_id = execution.tool_call_id.clone().unwrap_or_else(|| new_id("toolcall"));
         let tool_version = if execution.tool_version.is_empty() { "external".to_string() } else { execution.tool_version.clone() };
         let request = compact_state([
-            ("schema_version", OMP_ADAPTER_SCHEMA_VERSION.into()),
+            ("schema_version", self.schema_version.clone().into()),
+            ("source", self.source.clone().into()),
             ("tool", execution.tool_name.clone().into()),
             ("args", Value::Object(execution.arguments.clone())),
             ("tool_call_id", tool_call_id.clone().into()),
-            ("metadata", Value::Object(execution.metadata.clone())),
+            ("external_session_id", execution.session_id.clone().into()),
+            ("external_turn_id", execution.turn_id.clone().into()),
+            ("metadata", Value::Object(self.bridge_metadata(&execution.metadata, &execution.session_id, &execution.turn_id))),
         ]);
         let request_ref = format_state(&request);
         let request_hash = stable_hash(&request_ref);
         let idempotency_key = execution.idempotency_key.clone().unwrap_or_else(|| {
             format!(
-                "omp:{}:{}:{}:{}",
-                execution.session_id, execution.turn_id, execution.tool_name, tool_call_id
+                "{}:{}:{}:{}:{}",
+                self.source, execution.session_id, execution.turn_id, execution.tool_name, tool_call_id
             )
         });
-        let causal_token = execution.causal_token.clone().unwrap_or_else(|| format!("omp:{}:{}:{}", execution.session_id, execution.turn_id, tool_call_id));
+        let causal_token = execution.causal_token.clone().unwrap_or_else(|| format!("{}:{}:{}:{}", self.source, execution.session_id, execution.turn_id, tool_call_id));
         self.runtime.store.append_event(
             &active.run_id,
             Some(&active.session_id),
@@ -2793,10 +2839,17 @@ impl OmpLedgerBridge {
         if let Some(existing) = self.runtime.store.reserve_ledger(&idempotency_key, entry) {
             if existing.status == "SUCCEEDED" {
                 let mut payload = State::new();
+                payload.insert("schema_version".into(), self.schema_version.clone().into());
+                payload.insert("adapter".into(), self.adapter_name.clone().into());
+                payload.insert("source".into(), self.source.clone().into());
                 payload.insert("tool".into(), execution.tool_name.clone().into());
+                payload.insert("external_session_id".into(), execution.session_id.clone().into());
+                payload.insert("external_turn_id".into(), execution.turn_id.clone().into());
                 payload.insert("replayed_from_ledger".into(), Value::Bool(true));
                 payload.insert("idempotency_key".into(), idempotency_key.clone().into());
                 payload.insert("tool_call_id".into(), tool_call_id.clone().into());
+                payload.insert("response_hash".into(), existing.response_hash.clone().unwrap_or_default().into());
+                payload.insert("response_ref".into(), existing.response_ref.clone().unwrap_or_default().into());
                 self.runtime.store.append_event(
                     &active.run_id,
                     Some(&active.session_id),
@@ -2842,6 +2895,11 @@ impl OmpLedgerBridge {
         }
         let event_type = if ledger_status == "SUCCEEDED" || ledger_status == "COMPENSATED" { "tool_call_completed" } else { "tool_call_failed" };
         let payload = compact_state([
+            ("schema_version", self.schema_version.clone().into()),
+            ("adapter", self.adapter_name.clone().into()),
+            ("source", self.source.clone().into()),
+            ("external_session_id", execution.session_id.clone().into()),
+            ("external_turn_id", execution.turn_id.clone().into()),
             ("tool", execution.tool_name.clone().into()),
             ("tool_call_id", tool_call_id.clone().into()),
             ("idempotency_key", idempotency_key.clone().into()),
@@ -2861,7 +2919,7 @@ impl OmpLedgerBridge {
         );
         if ledger_status != "RESERVED" && ledger_status != "RUNNING" {
             let mut metadata = State::new();
-            metadata.insert("external_runtime".into(), "omp".into());
+            metadata.insert("external_runtime".into(), self.source.clone().into());
             metadata.insert("ledger_status".into(), ledger_status.clone().into());
             self.runtime.store.record_cost(&active.run_id, &active.session_id, &active.step_id, "tool", &execution.tool_name, 1.0, "call", metadata);
         }
@@ -2886,7 +2944,7 @@ impl OmpLedgerBridge {
                 failure.request,
                 failure.usage,
                 failure.total_usd,
-                failure.metadata,
+                self.bridge_metadata(&failure.metadata, &failure.session_id, &failure.turn_id),
             )?;
         }
         if failure.terminal == Some(false) {
@@ -2915,10 +2973,11 @@ impl OmpLedgerBridge {
             let id = self.store_artifact(
                 &session.run_id,
                 active.as_ref().map(|item| item.step_id.as_str()),
-                &format!("omp-{label}-before"),
+                &format!("{}-{label}-before", self.source),
                 value,
                 compact_state([
-                    ("schema_version", OMP_ADAPTER_SCHEMA_VERSION.into()),
+                    ("schema_version", self.schema_version.clone().into()),
+                    ("source", self.source.clone().into()),
                     ("kind", "before_snapshot".into()),
                     ("external_session_id", change.session_id.clone().into()),
                 ]),
@@ -2930,10 +2989,11 @@ impl OmpLedgerBridge {
             let id = self.store_artifact(
                 &session.run_id,
                 active.as_ref().map(|item| item.step_id.as_str()),
-                &format!("omp-{label}-after"),
+                &format!("{}-{label}-after", self.source),
                 value,
                 compact_state([
-                    ("schema_version", OMP_ADAPTER_SCHEMA_VERSION.into()),
+                    ("schema_version", self.schema_version.clone().into()),
+                    ("source", self.source.clone().into()),
                     ("kind", "after_snapshot".into()),
                     ("external_session_id", change.session_id.clone().into()),
                 ]),
@@ -2945,10 +3005,11 @@ impl OmpLedgerBridge {
             let id = self.store_artifact(
                 &session.run_id,
                 active.as_ref().map(|item| item.step_id.as_str()),
-                &format!("omp-{label}-diff"),
+                &format!("{}-{label}-diff", self.source),
                 value,
                 compact_state([
-                    ("schema_version", OMP_ADAPTER_SCHEMA_VERSION.into()),
+                    ("schema_version", self.schema_version.clone().into()),
+                    ("source", self.source.clone().into()),
                     ("kind", "diff".into()),
                     ("external_session_id", change.session_id.clone().into()),
                 ]),
@@ -2967,8 +3028,9 @@ impl OmpLedgerBridge {
             }
         }
         let payload = compact_state([
-            ("schema_version", OMP_ADAPTER_SCHEMA_VERSION.into()),
-            ("adapter", "omp-ledger-bridge".into()),
+            ("schema_version", self.schema_version.clone().into()),
+            ("adapter", self.adapter_name.clone().into()),
+            ("source", self.source.clone().into()),
             ("app_name", self.app_name.clone().into()),
             ("external_session_id", change.session_id.clone().into()),
             ("external_turn_id", change.turn_id.clone().unwrap_or_default().into()),
@@ -2983,13 +3045,107 @@ impl OmpLedgerBridge {
             &session.run_id,
             Some(&session.session_id),
             active_after.as_ref().map(|item| item.step_id.as_str()),
-            "omp_state_change_recorded",
+            &self.event_type("state_change_recorded"),
             payload,
             active_after.as_ref().map(|item| item.agent_role.as_str()),
             Some(version),
             None,
         );
         Ok(version)
+    }
+
+    pub fn record_execution_event(
+        &mut self,
+        session_id: &str,
+        event_name: &str,
+        mut payload: State,
+        turn_id: Option<&str>,
+        agent_role: Option<&str>,
+        causal_token: Option<&str>,
+    ) -> Result<Event> {
+        let session = self.ensure_session(OmpSession { session_id: session_id.to_string(), ..Default::default() })?;
+        let active = turn_id.and_then(|id| self.active_turns.get(&self.turn_key(session_id, id))).cloned();
+        payload.insert("event_name".to_string(), event_name.into());
+        let payload = self.decorate_payload(payload);
+        let state_version = active.as_ref().map(|item| item.state_version).unwrap_or(self.runtime.store.run(&session.run_id)?.state_version);
+        self.runtime.store.append_event(
+            &session.run_id,
+            Some(&session.session_id),
+            active.as_ref().map(|item| item.step_id.as_str()),
+            &self.event_type(event_name),
+            payload,
+            active.as_ref().map(|item| item.agent_role.as_str()).or(agent_role),
+            Some(state_version),
+            causal_token,
+        );
+        Ok(self.runtime.store.events(&session.run_id).last().cloned().unwrap())
+    }
+
+    pub fn record_artifact(&mut self, artifact: ExecutionArtifact) -> Result<String> {
+        if artifact.name.trim().is_empty() {
+            return Err(RuntimeError(format!("{} artifact name must not be empty", self.source)));
+        }
+        if artifact.uri.is_none() && artifact.content_ref.is_none() && artifact.external_id.is_none() && artifact.derived_outputs.is_empty() {
+            return Err(RuntimeError(format!("{} artifact requires a uri, content_ref, external_id, or derived_outputs", self.source)));
+        }
+        let session = self.ensure_session(OmpSession { session_id: artifact.session_id.clone(), ..Default::default() })?;
+        let active = artifact.turn_id.as_ref().and_then(|id| self.active_turns.get(&self.turn_key(&artifact.session_id, id))).cloned();
+        let kind = if artifact.kind.is_empty() { "artifact".to_string() } else { artifact.kind };
+        let mut manifest = State::new();
+        manifest.insert("schema_version".into(), self.schema_version.clone().into());
+        manifest.insert("source".into(), self.source.clone().into());
+        manifest.insert("kind".into(), kind.clone().into());
+        if let Some(value) = artifact.uri.clone() { manifest.insert("uri".into(), value.into()); }
+        if let Some(value) = artifact.content_ref.clone() { manifest.insert("content_ref".into(), value.into()); }
+        if let Some(value) = artifact.external_id.clone() { manifest.insert("external_id".into(), value.into()); }
+        manifest.insert("metadata".into(), Value::Object(artifact.metadata.clone()));
+        manifest.insert("lineage".into(), Value::Object(artifact.lineage.clone()));
+        manifest.insert("derived_outputs".into(), Value::Object(artifact.derived_outputs.clone()));
+        let mut metadata = artifact.metadata.clone();
+        metadata.insert("schema_version".into(), self.schema_version.clone().into());
+        metadata.insert("source".into(), self.source.clone().into());
+        metadata.insert("external_session_id".into(), artifact.session_id.clone().into());
+        metadata.insert("kind".into(), kind.clone().into());
+        if let Some(value) = artifact.uri.clone() { metadata.insert("uri".into(), value.into()); }
+        if let Some(value) = artifact.content_ref.clone() { metadata.insert("content_ref".into(), value.into()); }
+        if let Some(value) = artifact.external_id.clone() { metadata.insert("external_id".into(), value.into()); }
+        if !artifact.lineage.is_empty() { metadata.insert("lineage".into(), Value::Object(artifact.lineage.clone())); }
+        if !artifact.derived_outputs.is_empty() { metadata.insert("derived_outputs".into(), Value::Object(artifact.derived_outputs.clone())); }
+        if is_media_kind(&kind) {
+            let mut media = State::new();
+            media.insert("schema_version".into(), MEDIA_SCHEMA_VERSION.into());
+            media.insert("kind".into(), kind.clone().into());
+            if let Some(value) = artifact.uri.clone() { media.insert("uri".into(), value.into()); }
+            if let Some(value) = artifact.content_ref.clone() { media.insert("content_ref".into(), value.into()); }
+            let mut media_metadata = artifact.metadata.clone();
+            media_metadata.insert("schema_version".into(), MEDIA_SCHEMA_VERSION.into());
+            media_metadata.insert("kind".into(), kind.clone().into());
+            media.insert("metadata".into(), Value::Object(media_metadata));
+            media.insert("lineage".into(), Value::Object(artifact.lineage.clone()));
+            media.insert("derived_outputs".into(), Value::Object(artifact.derived_outputs.clone()));
+            manifest = media.clone();
+            metadata.insert("agentledger_media".into(), Value::Object(media));
+        }
+        let stored = self.runtime.store.create_artifact(&session.run_id, active.as_ref().map(|item| item.step_id.as_str()), &artifact.name, manifest, metadata);
+        let state_version = active.as_ref().map(|item| item.state_version).unwrap_or(self.runtime.store.run(&session.run_id)?.state_version);
+        self.runtime.store.append_event(
+            &session.run_id,
+            Some(&session.session_id),
+            active.as_ref().map(|item| item.step_id.as_str()),
+            "artifact_created",
+            self.decorate_payload(compact_state([
+                ("artifact_id", stored.artifact_id.clone().into()),
+                ("name", artifact.name.into()),
+                ("kind", kind.into()),
+                ("external_session_id", artifact.session_id.into()),
+                ("external_turn_id", artifact.turn_id.unwrap_or_default().into()),
+                ("external_id", artifact.external_id.unwrap_or_default().into()),
+            ])),
+            active.as_ref().map(|item| item.agent_role.as_str()),
+            Some(state_version),
+            None,
+        );
+        Ok(stored.artifact_id)
     }
 
     fn ensure_session(&mut self, session: OmpSession) -> Result<OmpBridgeSession> {
@@ -3019,7 +3175,7 @@ impl OmpLedgerBridge {
         self.active_turns
             .get(&self.turn_key(session_id, turn_id))
             .cloned()
-            .ok_or_else(|| RuntimeError(format!("OMP turn not active: {session_id}/{turn_id}")))
+            .ok_or_else(|| RuntimeError(format!("{} turn not active: {session_id}/{turn_id}", self.source)))
     }
 
     fn context_for(&self, session_id: &str, turn_id: &str) -> Result<AgentContext> {
@@ -3077,6 +3233,638 @@ impl OmpLedgerBridge {
             .find(|step| step.status == "pending" || step.status == "retry_scheduled")
             .map(|step| step.step_id)
     }
+
+    fn event_type(&self, suffix: &str) -> String {
+        format!("{}_{}", self.event_prefix, suffix)
+    }
+
+    fn decorate_payload(&self, mut payload: State) -> State {
+        payload.insert("schema_version".into(), self.schema_version.clone().into());
+        payload.insert("adapter".into(), self.adapter_name.clone().into());
+        payload.insert("source".into(), self.source.clone().into());
+        payload.insert("app_name".into(), self.app_name.clone().into());
+        payload
+    }
+
+    fn bridge_metadata(&self, metadata: &State, session_id: &str, turn_id: &str) -> State {
+        let mut result = metadata.clone();
+        result.insert("schema_version".into(), self.schema_version.clone().into());
+        result.insert("adapter".into(), self.adapter_name.clone().into());
+        result.insert("source".into(), self.source.clone().into());
+        result.insert("external_session_id".into(), session_id.into());
+        result.insert("external_turn_id".into(), turn_id.into());
+        result
+    }
+}
+
+pub struct ExecutionEvidenceBridge {
+    pub bridge: OmpLedgerBridge,
+}
+
+impl ExecutionEvidenceBridge {
+    pub fn new(runtime: Runtime, app_name: &str, source: &str) -> Self {
+        let source = if source.is_empty() { "external" } else { source };
+        let app_name = if app_name.is_empty() { source } else { app_name };
+        Self {
+            bridge: OmpLedgerBridge::configured(
+                runtime,
+                app_name,
+                source,
+                EXECUTION_EVIDENCE_SCHEMA_VERSION,
+                "execution-evidence-bridge",
+                "execution",
+                "execution",
+                "Agent",
+            ),
+        }
+    }
+
+    pub fn record_session_started(&mut self, session: ExecutionSession) -> Result<String> {
+        self.bridge.record_session_started(session)
+    }
+
+    pub fn record_turn_started(&mut self, turn: ExecutionTurn) -> Result<String> {
+        self.bridge.record_turn_started(turn)
+    }
+
+    pub fn record_turn_completed(&mut self, turn: ExecutionTurn) -> Result<u64> {
+        self.bridge.record_turn_completed(turn)
+    }
+
+    pub fn record_model_call(&mut self, record: ExecutionModelCall) -> Result<()> {
+        self.bridge.record_model_call(record)
+    }
+
+    pub fn record_tool_proposal(&mut self, proposal: ExecutionToolProposal) -> Result<()> {
+        self.bridge.record_tool_proposal(proposal)
+    }
+
+    pub fn record_tool_execution(&mut self, execution: ExecutionToolExecution) -> Result<State> {
+        self.bridge.record_tool_execution(execution)
+    }
+
+    pub fn record_failure(&mut self, failure: ExecutionFailure) -> Result<()> {
+        self.bridge.record_failure(failure)
+    }
+
+    pub fn record_state_change(&mut self, change: ExecutionStateChange) -> Result<u64> {
+        self.bridge.record_state_change(change)
+    }
+
+    pub fn record_execution_event(
+        &mut self,
+        session_id: &str,
+        event_name: &str,
+        payload: State,
+        turn_id: Option<&str>,
+        agent_role: Option<&str>,
+        causal_token: Option<&str>,
+    ) -> Result<Event> {
+        self.bridge.record_execution_event(session_id, event_name, payload, turn_id, agent_role, causal_token)
+    }
+
+    pub fn record_artifact(&mut self, artifact: ExecutionArtifact) -> Result<String> {
+        self.bridge.record_artifact(artifact)
+    }
+}
+
+pub const TEMPORAL_OBSERVER_SCHEMA_VERSION: &str = "agentledger.temporal.observer.v1";
+pub const DSH_OBSERVER_SCHEMA_VERSION: &str = "agentledger.dsh.observer.v1";
+pub const A2A_OBSERVER_SCHEMA_VERSION: &str = "agentledger.a2a.observer.v1";
+pub const FRAMEWORK_OBSERVER_SCHEMA_VERSION: &str = "agentledger.framework.observer.v1";
+pub const MCP_OBSERVER_SCHEMA_VERSION: &str = "agentledger.mcp.observer.v1";
+
+struct NormalizedEvidenceObserver {
+    bridge: ExecutionEvidenceBridge,
+    kind: &'static str,
+    schema_version: &'static str,
+    run_id: Option<String>,
+}
+
+pub struct TemporalEvidenceObserver {
+    observer: NormalizedEvidenceObserver,
+}
+
+pub struct DSHEvidenceObserver {
+    observer: NormalizedEvidenceObserver,
+}
+
+pub struct A2AEvidenceObserver {
+    observer: NormalizedEvidenceObserver,
+}
+
+pub struct FrameworkEvidenceObserver {
+    observer: NormalizedEvidenceObserver,
+}
+
+pub struct MCPEvidenceObserver {
+    observer: NormalizedEvidenceObserver,
+}
+
+impl TemporalEvidenceObserver {
+    pub fn new(runtime: Runtime, app_name: &str) -> Self {
+        Self { observer: NormalizedEvidenceObserver::new(runtime, app_name, "temporal", TEMPORAL_OBSERVER_SCHEMA_VERSION, None, None) }
+    }
+
+    pub fn with_run_id(runtime: Runtime, app_name: &str, run_id: &str) -> Self {
+        Self { observer: NormalizedEvidenceObserver::new(runtime, app_name, "temporal", TEMPORAL_OBSERVER_SCHEMA_VERSION, Some(run_id.to_string()), None) }
+    }
+
+    pub fn observe(&mut self, event: State) -> Result<Value> {
+        self.observer.observe(event)
+    }
+}
+
+impl DSHEvidenceObserver {
+    pub fn new(runtime: Runtime, app_name: &str) -> Self {
+        Self { observer: NormalizedEvidenceObserver::new(runtime, app_name, "dsh", DSH_OBSERVER_SCHEMA_VERSION, None, None) }
+    }
+
+    pub fn observe(&mut self, event: State) -> Result<Value> {
+        self.observer.observe(event)
+    }
+}
+
+impl A2AEvidenceObserver {
+    pub fn new(runtime: Runtime, app_name: &str) -> Self {
+        Self { observer: NormalizedEvidenceObserver::new(runtime, app_name, "a2a", A2A_OBSERVER_SCHEMA_VERSION, None, None) }
+    }
+
+    pub fn observe(&mut self, event: State) -> Result<Value> {
+        self.observer.observe(event)
+    }
+}
+
+impl FrameworkEvidenceObserver {
+    pub fn new(runtime: Runtime, app_name: &str) -> Self {
+        Self { observer: NormalizedEvidenceObserver::new(runtime, app_name, "framework", FRAMEWORK_OBSERVER_SCHEMA_VERSION, None, None) }
+    }
+
+    pub fn with_source(runtime: Runtime, app_name: &str, source: &str) -> Self {
+        Self { observer: NormalizedEvidenceObserver::new(runtime, app_name, "framework", FRAMEWORK_OBSERVER_SCHEMA_VERSION, None, Some(source.to_string())) }
+    }
+
+    pub fn observe(&mut self, event: State) -> Result<Value> {
+        self.observer.observe(event)
+    }
+}
+
+impl MCPEvidenceObserver {
+    pub fn new(runtime: Runtime, app_name: &str) -> Self {
+        Self { observer: NormalizedEvidenceObserver::new(runtime, app_name, "mcp", MCP_OBSERVER_SCHEMA_VERSION, None, None) }
+    }
+
+    pub fn observe(&mut self, event: State) -> Result<Value> {
+        self.observer.observe(event)
+    }
+}
+
+impl NormalizedEvidenceObserver {
+    fn new(runtime: Runtime, app_name: &str, kind: &'static str, schema_version: &'static str, run_id: Option<String>, source: Option<String>) -> Self {
+        let source = source.unwrap_or_else(|| kind.to_string());
+        Self {
+            bridge: ExecutionEvidenceBridge::new(runtime, app_name, &source),
+            kind,
+            schema_version,
+            run_id,
+        }
+    }
+
+    fn observe(&mut self, event: State) -> Result<Value> {
+        if let Some(value) = event.get("metadata") {
+            if !matches!(value, Value::Object(_)) {
+                return Err(RuntimeError(format!("{} evidence metadata must be an object", self.kind)));
+            }
+        }
+        let event_type = observer_event_type(&event, self.kind)?;
+        let session_id = self.session_id(&event)?;
+        self.ensure_bound_session(&event, &session_id)?;
+
+        if self.kind == "a2a" {
+            return self.observe_a2a(event, &event_type, &session_id);
+        }
+
+        if self.is_session_started(&event_type) {
+            return Ok(self.bridge.record_session_started(self.session(&event, &session_id)?)?.into());
+        }
+        if self.is_turn_started(&event_type) {
+            let turn_id = self.required_turn_id(&event)?;
+            let role = self.optional(&event, &["agent_role", "node_name", "to_agent"]).unwrap_or_else(|| self.default_role().to_string());
+            return Ok(self.bridge.record_turn_started(self.turn(&event, &session_id, &turn_id, &role)?)?.into());
+        }
+        if matches!(event_type.as_str(), "model_call" | "model_call_completed") {
+            let record = self.model_call(&event, &session_id, &self.required_turn_id(&event)?)?;
+            self.bridge.record_model_call(record)?;
+            return Ok(Value::Null);
+        }
+        if matches!(event_type.as_str(), "tool_proposal" | "tool_call_proposed")
+            || (matches!(self.kind, "framework" | "mcp") && event_type == "tool_call_requested")
+        {
+            let proposal = self.tool_proposal(&event, &session_id, &self.required_turn_id(&event)?)?;
+            self.bridge.record_tool_proposal(proposal)?;
+            return Ok(Value::Null);
+        }
+        if matches!(event_type.as_str(), "tool_execution" | "tool_call_completed" | "tool_call_failed") {
+            let result = self.bridge.record_tool_execution(self.tool_execution(&event, &session_id, &self.required_turn_id(&event)?)?)?;
+            return Ok(Value::Object(result));
+        }
+        if matches!(event_type.as_str(), "state_change" | "state_change_recorded") {
+            return Ok(Value::Number(self.bridge.record_state_change(self.state_change(&event, &session_id, self.optional_turn_id(&event))?)? as f64));
+        }
+        if matches!(event_type.as_str(), "artifact_recorded" | "artifact_created" | "media_artifact_recorded") {
+            return Ok(self.bridge.record_artifact(self.artifact(&event, &session_id, self.optional_turn_id(&event))?)?.into());
+        }
+        if self.is_receipt(&event_type) {
+            return Ok(self.receipt(&event, &session_id, self.receipt_payload(&event, &event_type), self.optional_turn_id(&event))?.event_id.into());
+        }
+        if self.is_turn_completed(&event_type) {
+            let turn_id = self.required_turn_id(&event)?;
+            let mut turn = self.turn(&event, &session_id, &turn_id, &self.default_role().to_string())?;
+            turn.state_patch = self.dict(&event, &["state_patch"])?;
+            return Ok(Value::Number(self.bridge.record_turn_completed(turn)? as f64));
+        }
+        if self.is_turn_failed(&event_type) {
+            let failure = self.failure(&event, &session_id, &self.required_turn_id(&event)?)?;
+            self.bridge.record_failure(failure)?;
+            return Ok(Value::Null);
+        }
+        Err(RuntimeError(format!("unsupported {} evidence event type: {}", self.kind, event_type)))
+    }
+
+    fn observe_a2a(&mut self, event: State, event_type: &str, session_id: &str) -> Result<Value> {
+        match event_type {
+            "task_submitted" => {
+                let run_id = self.bridge.record_session_started(self.session(&event, session_id)?)?;
+                self.receipt(&event, session_id, self.receipt_payload(&event, event_type), None)?;
+                Ok(run_id.into())
+            }
+            "task_started" => {
+                self.bridge.record_session_started(self.session(&event, session_id)?)?;
+                let turn_id = self.required(&event, &["task_id", "turn_id"])?;
+                let role = self.optional(&event, &["agent_role", "to_agent"]).unwrap_or_else(|| "A2AAgent".to_string());
+                Ok(self.bridge.record_turn_started(self.turn(&event, session_id, &turn_id, &role)?)?.into())
+            }
+            "handoff_requested" | "handoff_completed" | "task_updated" => {
+                self.bridge.record_session_started(self.session(&event, session_id)?)?;
+                Ok(self.receipt(&event, session_id, self.receipt_payload(&event, event_type), self.optional_turn_id(&event))?.event_id.into())
+            }
+            "task_completed" => {
+                self.bridge.record_session_started(self.session(&event, session_id)?)?;
+                self.receipt(&event, session_id, self.receipt_payload(&event, event_type), self.optional_turn_id(&event))?;
+                let turn_id = self.required(&event, &["task_id", "turn_id"])?;
+                let mut turn = self.turn(&event, session_id, &turn_id, "A2AAgent")?;
+                turn.state_patch = self.dict(&event, &["state_patch"])?;
+                Ok(Value::Number(self.bridge.record_turn_completed(turn)? as f64))
+            }
+            "task_failed" => {
+                self.bridge.record_session_started(self.session(&event, session_id)?)?;
+                self.receipt(&event, session_id, self.receipt_payload(&event, event_type), self.optional_turn_id(&event))?;
+                self.bridge.record_failure(self.failure(&event, session_id, &self.required(&event, &["task_id", "turn_id"])?)?)?;
+                Ok(Value::Null)
+            }
+            _ => {
+                if matches!(event_type, "model_call" | "model_call_completed") {
+                    self.bridge.record_model_call(self.model_call(&event, session_id, &self.required(&event, &["task_id", "turn_id"])?)?)?;
+                    return Ok(Value::Null);
+                }
+                if matches!(event_type, "tool_proposal" | "tool_call_proposed") {
+                    self.bridge.record_tool_proposal(self.tool_proposal(&event, session_id, &self.required(&event, &["task_id", "turn_id"])?)?)?;
+                    return Ok(Value::Null);
+                }
+                if matches!(event_type, "tool_execution" | "tool_call_completed" | "tool_call_failed") {
+                    return Ok(Value::Object(self.bridge.record_tool_execution(self.tool_execution(&event, session_id, &self.required(&event, &["task_id", "turn_id"])?)?)?));
+                }
+                if matches!(event_type, "state_change" | "state_change_recorded") {
+                    return Ok(Value::Number(self.bridge.record_state_change(self.state_change(&event, session_id, self.optional_turn_id(&event))?)? as f64));
+                }
+                if matches!(event_type, "artifact_recorded" | "artifact_created" | "media_artifact_recorded") {
+                    return Ok(self.bridge.record_artifact(self.artifact(&event, session_id, self.optional_turn_id(&event))?)?.into());
+                }
+                Err(RuntimeError(format!("unsupported A2A evidence event type: {event_type}")))
+            }
+        }
+    }
+
+    fn session_id(&self, event: &State) -> Result<String> {
+        match self.kind {
+            "temporal" => {
+                if let Some(value) = self.optional(event, &["session_id"]) {
+                    return Ok(value);
+                }
+                Ok(format!("{}:{}", self.required(event, &["workflow_id"] )?, self.required(event, &["workflow_run_id"] )?))
+            }
+            "dsh" => self.required(event, &["session_id", "execution_id", "run_id"]),
+            "a2a" => self.required(event, &["context_id", "session_id"]),
+            "framework" => self.required(event, &["session_id", "thread_id", "run_id"]),
+            "mcp" => self.required(event, &["session_id", "connection_id"]),
+            _ => Err(RuntimeError(format!("unsupported evidence observer: {}", self.kind))),
+        }
+    }
+
+    fn required_turn_id(&self, event: &State) -> Result<String> {
+        match self.kind {
+            "temporal" => self.required(event, &["activity_id", "turn_id"]),
+            "dsh" => self.required(event, &["step_id", "turn_id"]),
+            "a2a" => self.required(event, &["task_id", "turn_id"]),
+            "framework" => self.required(event, &["turn_id", "node_id", "step_id"]),
+            "mcp" => self.required(event, &["turn_id", "request_id"]),
+            _ => Err(RuntimeError("unknown observer profile".to_string())),
+        }
+    }
+
+    fn optional_turn_id(&self, event: &State) -> Option<String> {
+        match self.kind {
+            "temporal" => self.optional(event, &["activity_id", "turn_id"]),
+            "dsh" => self.optional(event, &["step_id", "turn_id"]),
+            "a2a" => self.optional(event, &["task_id", "turn_id"]),
+            "framework" => self.optional(event, &["node_id", "step_id", "turn_id"]),
+            "mcp" => self.optional(event, &["turn_id", "request_id"]),
+            _ => None,
+        }
+    }
+
+    fn session(&self, event: &State, session_id: &str) -> Result<ExecutionSession> {
+        Ok(ExecutionSession {
+            session_id: session_id.to_string(),
+            initial_state: self.dict(event, &["initial_state"] )?,
+            metadata: self.metadata(event),
+            run_id: self.runtime_run_id(event),
+        })
+    }
+
+    fn turn(&self, event: &State, session_id: &str, turn_id: &str, role: &str) -> Result<ExecutionTurn> {
+        Ok(ExecutionTurn {
+            session_id: session_id.to_string(),
+            turn_id: turn_id.to_string(),
+            agent_role: role.to_string(),
+            metadata: self.metadata(event),
+            ..Default::default()
+        })
+    }
+
+    fn model_call(&self, event: &State, session_id: &str, turn_id: &str) -> Result<ExecutionModelCall> {
+        Ok(ExecutionModelCall {
+            session_id: session_id.to_string(),
+            turn_id: turn_id.to_string(),
+            provider: self.required(event, &["provider"] )?,
+            model: self.required(event, &["model"] )?,
+            request: self.dict(event, &["request"] )?,
+            response: self.dict(event, &["response"] )?,
+            usage: self.dict(event, &["usage"] )?,
+            total_usd: self.number(event, &["total_usd", "totalUsd"]),
+            metadata: self.metadata(event),
+        })
+    }
+
+    fn tool_proposal(&self, event: &State, session_id: &str, turn_id: &str) -> Result<ExecutionToolProposal> {
+        Ok(ExecutionToolProposal {
+            session_id: session_id.to_string(),
+            turn_id: turn_id.to_string(),
+            tool_name: self.required(event, &["tool_name", "tool"] )?,
+            arguments: self.dict(event, &["arguments", "args"] )?,
+            provider: self.optional(event, &["provider"]),
+            model: self.optional(event, &["model"]),
+            model_call_ref: self.optional(event, &["model_call_ref"]),
+            confidence: self.number_optional(event, "confidence"),
+            reason: self.optional(event, &["reason"]),
+            metadata: self.metadata(event),
+        })
+    }
+
+    fn tool_execution(&self, event: &State, session_id: &str, turn_id: &str) -> Result<ExecutionToolExecution> {
+        Ok(ExecutionToolExecution {
+            session_id: session_id.to_string(),
+            turn_id: turn_id.to_string(),
+            tool_name: self.required(event, &["tool_name", "tool"] )?,
+            arguments: self.dict(event, &["arguments", "args"] )?,
+            result: event.get("result").cloned(),
+            tool_call_id: self.optional(event, &["tool_call_id"]),
+            tool_version: self.optional(event, &["tool_version"]).unwrap_or_else(|| "external".to_string()),
+            idempotency_key: self.optional(event, &["idempotency_key"]),
+            ledger_status: self.optional(event, &["ledger_status", "status"]),
+            error_type: self.optional(event, &["error_type"]),
+            error_message: self.optional(event, &["error_message", "error"]),
+            external_id: self.optional(event, &["external_id"]),
+            causal_token: self.optional(event, &["causal_token"]),
+            metadata: self.metadata(event),
+        })
+    }
+
+    fn failure(&self, event: &State, session_id: &str, turn_id: &str) -> Result<ExecutionFailure> {
+        let retryable = match event.get("retryable") {
+            Some(Value::Bool(value)) => Some(*value),
+            _ => None,
+        };
+        let status = self.optional(event, &["status"]).unwrap_or_else(|| if retryable == Some(true) { "retry_scheduled".to_string() } else { "failed".to_string() });
+        let default_type = match self.kind {
+            "temporal" => "TemporalActivityFailure",
+            "dsh" => "DSHStepFailure",
+            "a2a" => "A2ATaskFailure",
+            _ => "FrameworkStepFailure",
+        };
+        Ok(ExecutionFailure {
+            session_id: session_id.to_string(),
+            turn_id: turn_id.to_string(),
+            error_type: self.optional(event, &["error_type", "failure_type"]).unwrap_or_else(|| default_type.to_string()),
+            message: self.required(event, &["message", "error"] )?,
+            retryable,
+            status,
+            terminal: match event.get("terminal") { Some(Value::Bool(value)) => Some(*value), _ => Some(true) },
+            category: self.optional(event, &["category"]).unwrap_or_else(|| "runtime".to_string()),
+            provider: self.optional(event, &["provider"]),
+            model: self.optional(event, &["model"]),
+            request: self.dict(event, &["request"] )?,
+            usage: self.dict(event, &["usage"] )?,
+            total_usd: self.number(event, &["total_usd", "totalUsd"]),
+            metadata: self.metadata(event),
+            approval_id: self.optional(event, &["approval_id"]),
+        })
+    }
+
+    fn state_change(&self, event: &State, session_id: &str, turn_id: Option<String>) -> Result<ExecutionStateChange> {
+        Ok(ExecutionStateChange {
+            session_id: session_id.to_string(),
+            turn_id,
+            reason: self.required(event, &["reason"] )?,
+            patch: self.dict(event, &["patch"] )?,
+            label: self.optional(event, &["label"]).unwrap_or_else(|| "state".to_string()),
+            commit_status: self.optional(event, &["commit_status"]).unwrap_or_else(|| "committed".to_string()),
+            before_snapshot: event.get("before_snapshot").cloned(),
+            after_snapshot: event.get("after_snapshot").cloned(),
+            diff: event.get("diff").cloned(),
+            metadata: self.metadata(event),
+        })
+    }
+
+    fn artifact(&self, event: &State, session_id: &str, turn_id: Option<String>) -> Result<ExecutionArtifact> {
+        Ok(ExecutionArtifact {
+            session_id: session_id.to_string(),
+            turn_id,
+            name: self.required(event, &["name", "artifact_name"] )?,
+            kind: self.optional(event, &["kind"]).unwrap_or_else(|| "artifact".to_string()),
+            uri: self.optional(event, &["uri"]),
+            content_ref: self.optional(event, &["content_ref"]),
+            external_id: self.optional(event, &["external_id", "artifact_id"]),
+            metadata: self.metadata(event),
+            lineage: self.dict(event, &["lineage"] )?,
+            derived_outputs: self.dict(event, &["derived_outputs"] )?,
+        })
+    }
+
+    fn receipt(&mut self, event: &State, session_id: &str, payload: State, turn_id: Option<String>) -> Result<Event> {
+        let causal = self.optional(event, &["causal_token", "activity_id", "workflow_run_id", "receipt_id", "request_id", "checkpoint_id", "handoff_id", "run_id", "thread_id"]);
+        Ok(self.bridge.record_execution_event(session_id, "task_receipt_recorded", payload, turn_id.as_deref(), None, causal.as_deref())?)
+    }
+
+    fn receipt_payload(&self, event: &State, event_type: &str) -> State {
+        let mut payload = State::new();
+        payload.insert("receipt_type".into(), event_type.into());
+        for key in ["workflow_id", "workflow_run_id", "activity_id", "attempt", "receipt_id", "task_id", "execution_id", "sandbox_id", "request_id", "resource_uri", "prompt_name", "content_ref", "checkpoint_id", "checkpoint_ns", "parent_checkpoint_id", "thread_id", "handoff_id", "message_id", "from_agent", "to_agent", "external_id", "status", "state"] {
+            if let Some(value) = event.get(key) {
+                payload.insert(key.to_string(), value.clone());
+            }
+        }
+        if let Some(value) = event.get("artifact_refs").or_else(|| event.get("artifacts")) {
+            payload.insert("artifact_refs".into(), value.clone());
+        }
+        payload.insert("metadata".into(), Value::Object(self.metadata(event)));
+        payload
+    }
+
+    fn ensure_bound_session(&mut self, event: &State, session_id: &str) -> Result<()> {
+        if self.runtime_run_id(event).is_some() {
+            self.bridge.record_session_started(self.session(event, session_id)?)?;
+        }
+        Ok(())
+    }
+
+    fn runtime_run_id(&self, event: &State) -> Option<String> {
+        self.optional(event, &["runtime_run_id", "agentledger_run_id"]).or_else(|| self.run_id.clone())
+    }
+
+    fn metadata(&self, event: &State) -> State {
+        let mut result = match event.get("metadata") {
+            Some(Value::Object(value)) => value.clone(),
+            _ => State::new(),
+        };
+        let keys = match self.kind {
+            "temporal" => vec!["workflow_id", "workflow_run_id", "activity_id", "attempt", "task_queue", "namespace"],
+            "dsh" => vec!["execution_id", "run_id", "session_id", "step_id", "turn_id", "attempt", "worker_id", "parent_id", "trace_id", "sandbox_id", "task_id", "receipt_id"],
+            "a2a" => vec!["context_id", "task_id", "handoff_id", "message_id", "from_agent", "to_agent"],
+            "framework" => vec!["session_id", "thread_id", "run_id", "turn_id", "node_id", "step_id", "node_name", "graph_id", "agent_id", "trace_id", "span_id", "checkpoint_id", "checkpoint_ns", "handoff_id", "from_agent", "to_agent", "attempt"],
+            "mcp" => vec!["session_id", "connection_id", "turn_id", "request_id", "server_name", "server_uri", "tool_name", "resource_uri", "prompt_name", "mime_type", "attempt"],
+            _ => Vec::new(),
+        };
+        for key in keys {
+            if let Some(value) = event.get(key) {
+                result.insert(if self.kind == "temporal" && key == "attempt" { "external_activity_attempt".to_string() } else { format!("external_{key}") }, value.clone());
+            }
+        }
+        result.insert("observer_schema_version".into(), self.schema_version.into());
+        result
+    }
+
+    fn dict(&self, event: &State, keys: &[&str]) -> Result<State> {
+        for key in keys {
+            if let Some(value) = event.get(*key) {
+                return match value {
+                    Value::Object(item) => Ok(item.clone()),
+                    _ => Err(RuntimeError(format!("{} evidence field {} must be an object", self.kind, key))),
+                };
+            }
+        }
+        Ok(State::new())
+    }
+
+    fn optional(&self, event: &State, keys: &[&str]) -> Option<String> {
+        keys.iter().find_map(|key| {
+            let _value = event.get(*key)?;
+            let text = state_value_string(event, key);
+            if text.is_empty() { None } else { Some(text) }
+        })
+    }
+
+    fn required(&self, event: &State, keys: &[&str]) -> Result<String> {
+        self.optional(event, keys).ok_or_else(|| RuntimeError(format!("{} evidence event requires one of: {}", self.kind, keys.join(", "))))
+    }
+
+    fn number(&self, event: &State, keys: &[&str]) -> f64 {
+        keys.iter().find_map(|key| match event.get(*key) { Some(Value::Number(value)) => Some(*value), _ => None }).unwrap_or(0.0)
+    }
+
+    fn number_optional(&self, event: &State, key: &str) -> Option<f64> {
+        match event.get(key) {
+            Some(Value::Number(value)) => Some(*value),
+            _ => None,
+        }
+    }
+
+    fn default_role(&self) -> &'static str {
+        match self.kind {
+            "temporal" => "TemporalActivityAgent",
+            "dsh" => "DSHAgent",
+            "a2a" => "A2AAgent",
+            "mcp" => "MCPAgent",
+            _ => "FrameworkAgent",
+        }
+    }
+
+    fn is_session_started(&self, event_type: &str) -> bool {
+        match self.kind {
+            "temporal" => matches!(event_type, "workflow_started" | "workflow_execution_started"),
+            "dsh" => matches!(event_type, "run_started" | "session_started" | "execution_started"),
+            "framework" => matches!(event_type, "session_started" | "run_started" | "graph_started" | "agent_started"),
+            "mcp" => matches!(event_type, "session_started" | "connection_started"),
+            _ => false,
+        }
+    }
+
+    fn is_turn_started(&self, event_type: &str) -> bool {
+        match self.kind {
+            "temporal" => matches!(event_type, "activity_started" | "activity_task_started"),
+            "dsh" => matches!(event_type, "step_started" | "turn_started"),
+            "framework" => matches!(event_type, "node_started" | "step_started" | "turn_started"),
+            "mcp" => matches!(event_type, "request_started" | "turn_started"),
+            _ => false,
+        }
+    }
+
+    fn is_turn_completed(&self, event_type: &str) -> bool {
+        match self.kind {
+            "temporal" => matches!(event_type, "activity_completed" | "activity_task_completed"),
+            "dsh" => matches!(event_type, "step_completed" | "turn_completed"),
+            "framework" => matches!(event_type, "node_completed" | "step_completed" | "turn_completed"),
+            "mcp" => matches!(event_type, "request_completed" | "turn_completed"),
+            _ => false,
+        }
+    }
+
+    fn is_turn_failed(&self, event_type: &str) -> bool {
+        match self.kind {
+            "temporal" => matches!(event_type, "activity_failed" | "activity_task_failed"),
+            "dsh" => matches!(event_type, "step_failed" | "turn_failed"),
+            "framework" => matches!(event_type, "node_failed" | "step_failed" | "turn_failed"),
+            _ => false,
+        }
+    }
+
+    fn is_receipt(&self, event_type: &str) -> bool {
+        match self.kind {
+            "temporal" => matches!(event_type, "activity_scheduled" | "activity_task_scheduled" | "workflow_completed" | "workflow_execution_completed" | "workflow_failed" | "workflow_execution_failed"),
+            "dsh" => matches!(event_type, "side_effect_receipt" | "task_receipt" | "execution_receipt"),
+            "framework" => matches!(event_type, "checkpoint_saved" | "checkpoint_recorded" | "handoff_requested" | "handoff_completed" | "run_completed" | "graph_completed" | "agent_completed"),
+            "mcp" => matches!(event_type, "resource_read" | "resource_read_completed" | "resource_read_failed" | "prompt_get" | "prompt_get_completed" | "prompt_get_failed"),
+            _ => false,
+        }
+    }
+}
+
+fn observer_event_type(event: &State, kind: &str) -> Result<String> {
+    let value = event.get("type").or_else(|| event.get("event_type")).map(|_| state_value_string(event, if event.get("type").is_some() { "type" } else { "event_type" })).unwrap_or_default();
+    if value.trim().is_empty() {
+        return Err(RuntimeError(format!("{} evidence event requires type", kind)));
+    }
+    Ok(value.trim().to_ascii_lowercase().replace('.', "_"))
 }
 
 fn compact_state<const N: usize>(items: [(&str, Value); N]) -> State {
@@ -4736,7 +5524,7 @@ fn media_artifacts_from(artifacts: &[Artifact]) -> Vec<State> {
                         "blob_ref".to_string(),
                         Value::String(artifact.blob_ref.clone()),
                     );
-                    for key in ["kind", "uri", "content_ref", "metadata", "lineage"] {
+                    for key in ["kind", "uri", "content_ref", "metadata", "lineage", "derived_outputs"] {
                         if let Some(value) = metadata.get(key) {
                             row.insert(key.to_string(), value.clone());
                         }
@@ -5821,6 +6609,117 @@ mod tests {
         let steps = bridge.runtime.store.steps(&run_id);
         assert_eq!(steps.len(), 1);
         assert_eq!(steps[0].status, "running");
+    }
+
+    #[test]
+    fn execution_evidence_bridge_preserves_source_correlation_and_replay() {
+        let mut bridge = ExecutionEvidenceBridge::new(Runtime::new(), "temporal-demo", "temporal");
+        let run_id = bridge
+            .record_session_started(ExecutionSession {
+                session_id: "workflow-1".to_string(),
+                initial_state: state(&[("topic", "contract".into())]),
+                ..Default::default()
+            })
+            .unwrap();
+        bridge
+            .record_turn_started(ExecutionTurn {
+                session_id: "workflow-1".to_string(),
+                turn_id: "activity-1".to_string(),
+                agent_role: "TemporalActivityAgent".to_string(),
+                ..Default::default()
+            })
+            .unwrap();
+        bridge
+            .record_model_call(ExecutionModelCall {
+                session_id: "workflow-1".to_string(),
+                turn_id: "activity-1".to_string(),
+                provider: "openai".to_string(),
+                model: "gpt-4.1".to_string(),
+                usage: state(&[("input_tokens", 2.0.into()), ("output_tokens", 1.0.into())]),
+                ..Default::default()
+            })
+            .unwrap();
+        let execution = ExecutionToolExecution {
+            session_id: "workflow-1".to_string(),
+            turn_id: "activity-1".to_string(),
+            tool_name: "search".to_string(),
+            arguments: state(&[("q", "payment".into())]),
+            tool_call_id: Some("call-1".to_string()),
+            idempotency_key: Some("temporal:workflow-1:activity-1:search:call-1".to_string()),
+            result: Some(Value::Object(state(&[("ok", true.into())]))),
+            ledger_status: Some("SUCCEEDED".to_string()),
+            ..Default::default()
+        };
+        bridge.record_tool_execution(execution.clone()).unwrap();
+        let replay = bridge.record_tool_execution(execution).unwrap();
+        assert_eq!(replay.get("replayed_from_ledger"), Some(&Value::Bool(true)));
+        bridge
+            .record_artifact(ExecutionArtifact {
+                session_id: "workflow-1".to_string(),
+                turn_id: Some("activity-1".to_string()),
+                name: "frame-1".to_string(),
+                kind: "frame".to_string(),
+                content_ref: Some("s3://media/frame-1.jpg".to_string()),
+                lineage: state(&[("source_blob_refs", Value::Array(vec!["s3://media/input.mp4".into()]))]),
+                derived_outputs: state(&[("transcript", "blob://sha256/transcript.json".into())]),
+                ..Default::default()
+            })
+            .unwrap();
+        let bundle = export_evidence(&bridge.bridge.runtime.store, &run_id).unwrap();
+        assert_eq!(
+            bundle.media_artifacts[0].get("derived_outputs"),
+            Some(&Value::Object(state(&[(
+                "transcript",
+                "blob://sha256/transcript.json".into()
+            )])))
+        );
+        bridge
+            .record_execution_event(
+                "workflow-1",
+                "task_receipt_recorded",
+                state(&[("workflow_id", "wf-1".into())]),
+                Some("activity-1"),
+                None,
+                Some("temporal:workflow-1:activity-1"),
+            )
+            .unwrap();
+        let events = bridge.bridge.runtime.store.events(&run_id);
+        for event_type in [
+            "execution_session_started",
+            "execution_turn_started",
+            "model_call_completed",
+            "execution_task_receipt_recorded",
+        ] {
+            assert!(event_exists(&events, event_type), "missing event {event_type}");
+        }
+        assert_eq!(bridge.bridge.runtime.store.ledger(&run_id).len(), 1);
+        assert_eq!(
+            bridge.bridge.runtime.store.artifacts(&run_id)[0].metadata.get("content_ref"),
+            Some(&Value::String("s3://media/frame-1.jpg".to_string()))
+        );
+    }
+
+    #[test]
+    fn execution_observers_map_normalized_lifecycle_events() {
+        let mut temporal = TemporalEvidenceObserver::new(Runtime::new(), "observer-smoke");
+        temporal.observe(state(&[("type", "workflow_started".into()), ("session_id", "temporal-session".into())])).unwrap();
+        let mut dsh = DSHEvidenceObserver::new(Runtime::new(), "observer-smoke");
+        dsh.observe(state(&[("type", "run_started".into()), ("session_id", "dsh-session".into())])).unwrap();
+        let mut a2a = A2AEvidenceObserver::new(Runtime::new(), "observer-smoke");
+        a2a.observe(state(&[("type", "task_submitted".into()), ("context_id", "a2a-context".into()), ("task_id", "task-1".into())])).unwrap();
+        let mut framework = FrameworkEvidenceObserver::new(Runtime::new(), "observer-smoke");
+        framework.observe(state(&[("type", "graph_started".into()), ("thread_id", "framework-thread".into())])).unwrap();
+        let mut mcp = MCPEvidenceObserver::new(Runtime::new(), "observer-smoke");
+        mcp.observe(state(&[("type", "connection_started".into()), ("connection_id", "mcp-connection".into())])).unwrap();
+
+        let mut framework = FrameworkEvidenceObserver::new(Runtime::new(), "observer-validation");
+        assert!(framework
+            .observe(state(&[
+                ("type", "graph_started".into()),
+                ("thread_id", "framework-thread".into()),
+                ("metadata", Value::String("invalid".into())),
+            ]))
+            .is_err());
     }
 
     #[test]
